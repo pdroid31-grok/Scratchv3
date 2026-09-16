@@ -1263,6 +1263,8 @@ export async function loadLeaderboard(): Promise<Leaderboard> {
   try {
     const { seedAllLegacyPlayers } = await import("./legacy-seed.server");
     await seedAllLegacyPlayers();
+    const { importLegacyHistory } = await import("./legacy-import.server");
+    await importLegacyHistory(sql);
   } catch (err) {
     console.error("[darkness] legacy board seed failed", err);
   }

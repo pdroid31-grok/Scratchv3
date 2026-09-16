@@ -513,6 +513,12 @@ export async function weeklyBoardPackHandler({ context }: { context: { userId: s
 export async function listWeeklyBoardHandler({ data }: { data: { season: number; week: number; peek?: boolean } }): Promise<WeeklyBoard> {
     const sql = await getSql();
     await ensureWeeklyTables(sql);
+    try {
+      const { importLegacyHistory } = await import("./legacy-import.server");
+      await importLegacyHistory(sql);
+    } catch (err) {
+      console.error("[darkness] legacy weekly import failed", err);
+    }
     const { clock } = await resolveClock(sql);
     const season = data.season || clock.season;
     const weekNo = data.week || clock.week;

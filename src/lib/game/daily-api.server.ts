@@ -122,6 +122,16 @@ async function settleYesterdaySafe(sql: Sql, today: string): Promise<void> {
   }
 }
 
+async function importLegacyThenSettle(sql: Sql, today: string): Promise<void> {
+  try {
+    const { importLegacyHistory } = await import("./legacy-import.server");
+    await importLegacyHistory(sql);
+  } catch (err) {
+    console.error("[darkness] legacy daily import failed", err);
+  }
+  await settleYesterdaySafe(sql, today);
+}
+
 async function settleYesterday(sql: Sql, today: string): Promise<void> {
   const yday = dailyYesterday(today);
   if (!isDailyDay(yday)) return;
@@ -396,7 +406,7 @@ export async function getDailyHandler({ context }: { context: { userId: string |
     const sql = await getSql();
     await ensureDailyTables(sql);
     const today = dailyDayStamp();
-    await settleYesterdaySafe(sql, today);
+    await importLegacyThenSettle(sql, today);
     const day = await ensureToday(sql, today);
     await finishStaleDailyRuns(sql, day);
     await finishEmptyWwwRun(sql, day);
@@ -410,7 +420,7 @@ export async function claimDailyHandler({ context }: { context: { userId: string
     const sql = await getSql();
     await ensureDailyTables(sql);
     const today = dailyDayStamp();
-    await settleYesterdaySafe(sql, today);
+    await importLegacyThenSettle(sql, today);
     const day = await ensureToday(sql, today);
     await finishStaleDailyRuns(sql, day);
     await finishEmptyWwwRun(sql, day);
@@ -485,7 +495,7 @@ export async function lockDailyHandler({ context, data }: { context: { userId: s
     const sql = await getSql();
     await ensureDailyTables(sql);
     const today = dailyDayStamp();
-    await settleYesterdaySafe(sql, today);
+    await importLegacyThenSettle(sql, today);
     const day = await ensureToday(sql, today);
     await finishStaleDailyRuns(sql, day);
     await finishEmptyWwwRun(sql, day);
@@ -509,7 +519,7 @@ export async function listDailyBoardHandler({ data }: { data: { day: string } })
     const sql = await getSql();
     await ensureDailyTables(sql);
     const today = dailyDayStamp();
-    await settleYesterdaySafe(sql, today);
+    await importLegacyThenSettle(sql, today);
     if (data.day === today) await ensureToday(sql, today);
     const day = await loadDay(sql, data.day);
     if (day && data.day === today) {

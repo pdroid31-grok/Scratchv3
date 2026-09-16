@@ -26,6 +26,7 @@ export const HIDDEN_BOARD_IDS = new Set([
   "B8FgPeYF2jVeLnfgd20PE8FYCpmpsC9n",
   "v783SxZeXud3WKr9H7q7pcgFypgIuGsY",
   "d9UdHOqeb48BAXYizwiBkNOBGSB1jtXP",
+  "5nWDuHgSRx1TLr0oeKtiStulZzievyRq",
 ]);
 
 export function isHiddenBoardId(id?: string | null): boolean {
