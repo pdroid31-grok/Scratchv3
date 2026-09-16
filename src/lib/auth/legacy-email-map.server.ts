@@ -14,6 +14,8 @@ type AuthUserRow = { id: string; email: string; name: string };
 
 /** darkness-backups snapshots/2026-09-16T1500-ET/store-scrape.json profile PAT. */
 const PAT_BANK = 1;
+const PAT_STARS = 2;
+const PAT_STAR_SOURCE_KEY = `scratch:legacy-seed:${CEO_BOARD_ID}`;
 const PAT_OWNED = [
   "poor",
   "ninja",
@@ -115,6 +117,39 @@ export async function bindLegacyEmailToMappedId(email: string, mappedId: string)
   return { id: mappedId, email: normalized, name };
 }
 
+/**
+ * Rankings stars are darkness_payouts (syncDailyStarsFromPayouts → daily_stars),
+ * not career_book.stars. Seed a $0 scratch payout so the CEO ladder stays at 2
+ * without touching bank / owned / games / wins.
+ */
+async function ensureCeoStarPayouts(
+  sql: { query: <T>(text: string, params?: unknown[]) => Promise<T[]> },
+): Promise<void> {
+  await sql.query(`
+    create table if not exists darkness_payouts (
+      id serial primary key,
+      user_id text not null,
+      amount integer not null,
+      stars integer not null default 0,
+      kind text not null,
+      source_key text not null unique,
+      created_at timestamptz not null default now()
+    )`);
+  await sql.query(
+    `insert into darkness_payouts (user_id, amount, stars, kind, source_key)
+     values ($1, 0, $2, 'scratch', $3)
+     on conflict (source_key) do nothing`,
+    [CEO_BOARD_ID, PAT_STARS, PAT_STAR_SOURCE_KEY],
+  );
+  await sql.query(
+    `update player_profiles
+        set daily_stars = $1, updated_at = now()
+      where user_id = $2
+        and coalesce(daily_stars, 0) is distinct from $1`,
+    [PAT_STARS, CEO_BOARD_ID],
+  );
+}
+
 export async function seedLegacyProfileIfNeeded(userId: string): Promise<void> {
   if (userId !== CEO_BOARD_ID) return;
   const sql = await getSql();
@@ -122,35 +157,38 @@ export async function seedLegacyProfileIfNeeded(userId: string): Promise<void> {
     `select career_book from player_profiles where user_id = $1`,
     [userId],
   );
-  if (existing[0]?.career_book) return;
 
-  const owned = [...PAT_OWNED];
-  const book = {
-    total: { games: 66, wins: 34, losses: 32, ties: 0, highest: 173, lowest: null },
-    auction: { games: 0, wins: 0, losses: 0, ties: 0, highest: null, lowest: null },
-    elimination: { games: 0, wins: 0, losses: 0, ties: 0, highest: null, lowest: null },
-    bank: PAT_BANK,
-    stars: 2,
-    owned,
-  };
+  if (!existing[0]?.career_book) {
+    const owned = [...PAT_OWNED];
+    const book = {
+      total: { games: 66, wins: 34, losses: 32, ties: 0, highest: 173, lowest: null },
+      auction: { games: 0, wins: 0, losses: 0, ties: 0, highest: null, lowest: null },
+      elimination: { games: 0, wins: 0, losses: 0, ties: 0, highest: null, lowest: null },
+      bank: PAT_BANK,
+      stars: PAT_STARS,
+      owned,
+    };
 
-  await sql.query(
-    `insert into player_profiles (
-       user_id, avatar_id, display_name, coins, coin_wins, owned, daily_stars,
-       career_book, seed_lock, updated_at
-     ) values ($1, 'mafia', 'Pat', $2, 0, $3, 2, $4::jsonb, 1, now())
-     on conflict (user_id) do update
-       set avatar_id = excluded.avatar_id,
-           display_name = excluded.display_name,
-           coins = excluded.coins,
-           owned = excluded.owned,
-           daily_stars = excluded.daily_stars,
-           career_book = excluded.career_book,
-           seed_lock = excluded.seed_lock,
-           updated_at = now()
-     where player_profiles.career_book is null`,
-    [userId, PAT_BANK, JSON.stringify(owned), JSON.stringify(book)],
-  );
+    await sql.query(
+      `insert into player_profiles (
+         user_id, avatar_id, display_name, coins, coin_wins, owned, daily_stars,
+         career_book, seed_lock, updated_at
+       ) values ($1, 'mafia', 'Pat', $2, 0, $3, $4, $5::jsonb, 1, now())
+       on conflict (user_id) do update
+         set avatar_id = excluded.avatar_id,
+             display_name = excluded.display_name,
+             coins = excluded.coins,
+             owned = excluded.owned,
+             daily_stars = excluded.daily_stars,
+             career_book = excluded.career_book,
+             seed_lock = excluded.seed_lock,
+             updated_at = now()
+       where player_profiles.career_book is null`,
+      [userId, PAT_BANK, JSON.stringify(owned), PAT_STARS, JSON.stringify(book)],
+    );
+  }
+
+  await ensureCeoStarPayouts(sql);
 }
 
 export async function legacyUserCreateBefore(user: {
