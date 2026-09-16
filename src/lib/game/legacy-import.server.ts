@@ -116,13 +116,24 @@ async function importDailies(sql: Sql): Promise<void> {
   for (const day of days) {
     if (!day.day || day.day < "2026-09-02") continue;
     const puzzle = puzzleFor(day.year, day.week);
-    await sql.query(
-      `insert into darkness_daily_days (day, year, week, awarded)
-       values ($1::date, $2, $3, true)
-       on conflict (day) do update
-         set awarded = true`,
-      [day.day, puzzle.year, puzzle.week],
-    );
+    const liveDay = day.day === "2026-09-16";
+    if (liveDay) {
+      await sql.query(
+        `insert into darkness_daily_days (day, year, week, awarded)
+         values ($1::date, $2, $3, false)
+         on conflict (day) do update
+           set awarded = false
+         where darkness_daily_days.awarded_user_id is null`,
+        [day.day, puzzle.year, puzzle.week],
+      );
+    } else {
+      await sql.query(
+        `insert into darkness_daily_days (day, year, week, awarded)
+         values ($1::date, $2, $3, true)
+         on conflict (day) do nothing`,
+        [day.day, puzzle.year, puzzle.week],
+      );
+    }
     for (const row of day.rows ?? []) {
       const id = allowedId(row.id, row.name);
       if (!id) continue;
