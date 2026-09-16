@@ -34,6 +34,13 @@ import { Pool } from "pg";
 import { ensureDbReady, getPglite } from "../db";
 import { emailAndPasswordEnabled } from "./email-password";
 import { GATE_PROVIDER_ID, gateIdentitySessions } from "./gate-session.server";
+import {
+  bindLegacyEmailToMappedId,
+  legacyEmailMapPlugin,
+  legacyUserCreateBefore,
+  mappedIdForEmail,
+  seedLegacyProfileIfNeeded,
+} from "./legacy-email-map.server";
 import { GROK_PROVIDERS } from "./providers";
 import { pgliteDialect } from "./pglite-dialect";
 import {
@@ -188,6 +195,24 @@ export const auth = betterAuth({
   // local loopback variants, or clients get "Invalid origin".
   trustedOrigins,
 
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => legacyUserCreateBefore(user),
+        after: async (user) => {
+          if (user?.id) await seedLegacyProfileIfNeeded(user.id);
+        },
+      },
+    },
+    account: {
+      create: {
+        after: async (account) => {
+          if (account?.userId) await seedLegacyProfileIfNeeded(account.userId);
+        },
+      },
+    },
+  },
+
   // Native Google + email/password can share one user when emails match.
   // Do not require the local email to already be verified to link.
   account: {
@@ -224,6 +249,14 @@ export const auth = betterAuth({
           google: {
             clientId: googleClientId as string,
             clientSecret: googleClientSecret as string,
+            async mapProfileToUser(profile: { email?: string | null }) {
+              const email = String(profile.email ?? "").trim().toLowerCase();
+              const mapped = mappedIdForEmail(email);
+              if (!mapped) return {};
+              await bindLegacyEmailToMappedId(email, mapped);
+              await seedLegacyProfileIfNeeded(mapped);
+              return {};
+            },
           },
         },
       }
@@ -249,6 +282,7 @@ export const auth = betterAuth({
 
   plugins: [
     gateIdentitySessions(),
+    legacyEmailMapPlugin(),
 
     // Remaining genericOAuth broker providers (none today — Google is native).
     ...(grokOAuthPlugin ? [grokOAuthPlugin] : []),
