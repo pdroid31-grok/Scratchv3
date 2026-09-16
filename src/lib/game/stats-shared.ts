@@ -15,6 +15,28 @@ export function isBankCommish(name: string): boolean {
   return key === "pat" || key === "pastry pat";
 }
 
+/** Auction-era leftover profiles. Hide from public boards; do not delete the user rows. */
+export const HIDDEN_BOARD_IDS = new Set([
+  "L2L2Tf1HXAeB5rhgLvhogF921BKsICsN",
+  "WJ5wZKjoZwydfPBf5FrkiOdwYarlw7b7",
+  "Th7Ewogxh5Ul0nRrTQgs7tmP45rePO3Q",
+  "t4GKnuNe18istHzOAvqGUgwVVnlV5WZ3",
+  "hxIAsCe4u3Ojx0jq5Zvvm2gsIcVeJw1A",
+  "38GXVpMo8GE8bERLYLHaoQF4CPBjvUS0",
+  "B8FgPeYF2jVeLnfgd20PE8FYCpmpsC9n",
+  "v783SxZeXud3WKr9H7q7pcgFypgIuGsY",
+  "d9UdHOqeb48BAXYizwiBkNOBGSB1jtXP",
+]);
+
+export function isHiddenBoardId(id?: string | null): boolean {
+  return Boolean(id && HIDDEN_BOARD_IDS.has(id));
+}
+
+export function hiddenBoardIdSql(column: string): string {
+  const list = [...HIDDEN_BOARD_IDS].map((id) => `'${id.replace(/'/g, "''")}'`).join(",");
+  return list ? `${column} not in (${list})` : "true";
+}
+
 export function opponentKey(name: string): string {
   return clipGm(name).toLowerCase();
 }

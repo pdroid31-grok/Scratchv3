@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
-import { clipDisplayName, isBankCommish } from "./stats-shared";
+import { clipDisplayName, hiddenBoardIdSql, isBankCommish, isHiddenBoardId } from "./stats-shared";
 
 type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
 
@@ -95,6 +95,7 @@ export async function loadBankWatch(sql: Sql): Promise<BankWatch> {
        from player_profiles p
        left join "user" u on u.id = p.user_id
       where lower(trim(coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), u.name, ''))) <> 'nightwatch'
+        and ${hiddenBoardIdSql("p.user_id")}
       order by coalesce(p.coins, 0) desc, coalesce(p.coin_wins, 0) desc, name asc`,
   );
   const changes = await sql.query<{
@@ -111,26 +112,37 @@ export async function loadBankWatch(sql: Sql): Promise<BankWatch> {
        from darkness_bank_log l
        left join player_profiles p on p.user_id = l.user_id
        left join "user" u on u.id = l.user_id
+      where ${hiddenBoardIdSql("l.user_id")}
       order by l.created_at desc, l.id desc
       limit 80`,
   );
   return {
-    banks: banks.map((row) => ({
-      id: row.id,
-      name: clipDisplayName(row.name ?? "") || "GM",
-      coins: Math.max(0, asInt(row.coins)),
-      wins: Math.max(0, asInt(row.wins)),
-      stars: Math.max(0, asInt(row.stars)),
-    })),
-    changes: changes.map((row) => ({
-      id: asInt(row.id),
-      userId: row.user_id,
-      name: clipDisplayName(row.name ?? "") || "GM",
-      before: asInt(row.coins_before),
-      after: asInt(row.coins_after),
-      delta: asInt(row.delta),
-      at: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
-    })),
+    banks: banks.flatMap((row) => {
+      if (isHiddenBoardId(row.id)) return [];
+      return [
+        {
+          id: row.id,
+          name: clipDisplayName(row.name ?? "") || "GM",
+          coins: Math.max(0, asInt(row.coins)),
+          wins: Math.max(0, asInt(row.wins)),
+          stars: Math.max(0, asInt(row.stars)),
+        },
+      ];
+    }),
+    changes: changes.flatMap((row) => {
+      if (isHiddenBoardId(row.user_id)) return [];
+      return [
+        {
+          id: asInt(row.id),
+          userId: row.user_id,
+          name: clipDisplayName(row.name ?? "") || "GM",
+          before: asInt(row.coins_before),
+          after: asInt(row.coins_after),
+          delta: asInt(row.delta),
+          at: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
+        },
+      ];
+    }),
   };
 }
 
