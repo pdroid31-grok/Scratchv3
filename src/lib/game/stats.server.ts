@@ -1260,6 +1260,12 @@ type BoardSql = {
 export async function loadLeaderboard(): Promise<Leaderboard> {
   const { getSql } = await import("@/lib/db");
   const sql = await getSql();
+  try {
+    const { seedAllLegacyPlayers } = await import("./legacy-seed.server");
+    await seedAllLegacyPlayers();
+  } catch (err) {
+    console.error("[darkness] legacy board seed failed", err);
+  }
   await pushGifts(sql);
   await grantBoxAddictSweep(sql);
   await grantBananaSweep(sql);
@@ -1468,16 +1474,16 @@ async function querySeededBoard(
     .map((row) => {
       const slice = careerSlice(row.career_book, kind);
       const games = asInt(slice?.games);
-      if (!slice || games <= 0) return null;
       const name = clipDisplayName(row.name ?? "");
       if (!name || isHiddenBoardId(row.id)) return null;
+      if (kind != null && (!slice || games <= 0)) return null;
       return {
         id: row.id,
         name,
         avatarId: clampAvatar(row.avatar_id ?? "poor"),
         games,
-        wins: asInt(slice.wins),
-        highest: slice.highest == null ? null : asInt(slice.highest),
+        wins: asInt(slice?.wins),
+        highest: slice?.highest == null ? null : asInt(slice.highest),
         stars: Math.max(0, asInt(row.daily_stars)),
       };
     })
