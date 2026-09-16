@@ -1,5 +1,5 @@
 import type { ElimPlayer, ElimPos } from "./elim-data";
-import { WEEKLY_TZ, WEEKLY_SPREAD_EXTRA, WEEKLY_SPREAD_KEEP, spreadPpr, type WeeklyPackedBoard, type WeeklyPackedPlayer } from "./weekly";
+import { WEEKLY_TZ, WEEKLY_SPREAD_EXTRA, WEEKLY_SPREAD_KEEP, spreadPpr, skipWeeklyMigrationGame, weeklyMigrationSkipTeam, weeklyMigrationSundayLockMs, type WeeklyPackedBoard, type WeeklyPackedPlayer } from "./weekly";
 import type { TeamId } from "./types";
 
 const UA = "DarknessWeekly/1.0";
@@ -174,12 +174,16 @@ export async function weekWindow(
   season: number,
   week: number,
 ): Promise<{ lockAt: number; endAt: number; games: NflGame[]; open: boolean; live: boolean; done: boolean }> {
-  const games = (await nflSchedule(season)).filter((game) => Number(game.week) === week);
+  const games = (await nflSchedule(season))
+    .filter((game) => Number(game.week) === week)
+    .filter((game) => !skipWeeklyMigrationGame(season, week, game.home, game.away));
   const dates = games.map((game) => String(game.date || "")).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
   const espn = stampsInWeek(await espnKickoffs(season, week), dates[0], dates[dates.length - 1]);
   const firstDate = dates[0];
   const lastDate = dates[dates.length - 1];
-  const lockAt = espn.length ? Math.min(...espn) : firstDate ? atEt(firstDate, "20:20") : Date.now() + 86400000;
+  const migratedLock = weeklyMigrationSundayLockMs(season, week, dates);
+  const lockAt =
+    migratedLock ?? (espn.length ? Math.min(...espn) : firstDate ? atEt(firstDate, "20:20") : Date.now() + 86400000);
   const lastKick = espn.length ? Math.max(...espn) : lastDate ? atEt(lastDate, "20:15") : lockAt;
   const endAt = lastKick + 4 * 60 * 60 * 1000;
   const now = Date.now();
@@ -273,6 +277,7 @@ export function buildWeeklyBoard(
     if (pts < 0.4) continue;
     const team = teamOf(row.team || row.player?.team);
     if (!team) continue;
+    if (weeklyMigrationSkipTeam(season, week, team)) continue;
     if (skipBye && !opp[team]) continue;
     const sid = String(row.player_id || "");
     if (!sid || seen.has(`${pos}:${sid}`)) continue;
@@ -313,7 +318,7 @@ export async function weeklyProjections(season: number, week: number): Promise<W
     Array.isArray(raw) ? raw : [],
     season,
     week,
-    schedule.filter((game) => Number(game.week) === week),
+    schedule.filter((game) => Number(game.week) === week).filter((game) => !skipWeeklyMigrationGame(season, week, game.home, game.away)),
   );
 }
 

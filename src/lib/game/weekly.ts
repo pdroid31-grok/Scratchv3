@@ -11,6 +11,58 @@ export const WEEKLY_WIN_STARS = 2;
 export const WEEKLY_TZ = "America/New_York";
 export const WEEK1_TNF_TEAMS = new Set(["SEA", "NE"]);
 
+/**
+ * REMOVE AFTER 2026-W2.
+ * This live week only: drop Thursday BUF–DET from the slate and lock Sunday
+ * 1:00 PM America/New_York instead of Thursday kickoff. Week 3+ uses normal
+ * lock/slate — do not copy this into later weeks.
+ */
+export const WEEKLY_MIGRATION_WEEK = { season: 2026, week: 2 } as const;
+const WEEKLY_MIGRATION_SKIP = new Set(["BUF", "DET"]);
+const WEEKLY_MIGRATION_LOCK = "13:00";
+
+export function isWeeklyMigrationWeek(season: number, week: number): boolean {
+  return season === WEEKLY_MIGRATION_WEEK.season && week === WEEKLY_MIGRATION_WEEK.week;
+}
+
+export function skipWeeklyMigrationGame(season: number, week: number, home: string, away: string): boolean {
+  if (!isWeeklyMigrationWeek(season, week)) return false;
+  const a = String(home || "").toUpperCase();
+  const b = String(away || "").toUpperCase();
+  return WEEKLY_MIGRATION_SKIP.has(a) && WEEKLY_MIGRATION_SKIP.has(b);
+}
+
+export function weeklyMigrationSkipTeam(season: number, week: number, team: string): boolean {
+  return isWeeklyMigrationWeek(season, week) && WEEKLY_MIGRATION_SKIP.has(String(team || "").toUpperCase());
+}
+
+function migrationEtStamp(ymd: string, hhmm: string): number {
+  const month = Number(ymd.slice(5, 7));
+  const off = month >= 3 && month <= 10 ? "-04:00" : "-05:00";
+  return Date.parse(`${ymd}T${hhmm}:00${off}`);
+}
+
+/** First Sunday 1:00 PM ET on this week's schedule dates, or null if not the migration week. */
+export function weeklyMigrationSundayLockMs(season: number, week: number, dates: readonly string[]): number | null {
+  if (!isWeeklyMigrationWeek(season, week)) return null;
+  const sunday = [...dates].filter((ymd) => /^\d{4}-\d{2}-\d{2}$/.test(ymd)).sort().find((ymd) => {
+    const label = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: WEEKLY_TZ }).format(
+      new Date(migrationEtStamp(ymd, "12:00")),
+    );
+    return label === "Sun";
+  });
+  return sunday ? migrationEtStamp(sunday, WEEKLY_MIGRATION_LOCK) : null;
+}
+
+export function applyWeeklyMigrationBoard(pack: WeeklyPackedBoard, season: number, week: number): WeeklyPackedBoard {
+  if (!isWeeklyMigrationWeek(season, week)) return pack;
+  const out = {} as WeeklyPackedBoard;
+  for (const pos of ["QB", "RB", "WR", "TE", "K", "D"] as ElimPos[]) {
+    out[pos] = (pack[pos] ?? []).filter((row) => !weeklyMigrationSkipTeam(season, week, row.team));
+  }
+  return out;
+}
+
 export function weeklyTeamBlocked(team: string): boolean {
   return WEEK1_TNF_TEAMS.has(String(team || "").toUpperCase());
 }

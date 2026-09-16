@@ -22,6 +22,11 @@ import {
   withPackedProjections,
   weeklyTeamBlocked,
   blockWeeklyTeams,
+  skipWeeklyMigrationGame,
+  weeklyMigrationSkipTeam,
+  weeklyMigrationSundayLockMs,
+  applyWeeklyMigrationBoard,
+  isWeeklyMigrationWeek,
 } from "./weekly";
 import { stampsInWeek, weekOpponents, fillPackedOpponents, ymdInTz, buildWeeklyBoard, isInjuredForWeekly, weekPhase } from "./weekly-sleeper";
 
@@ -78,6 +83,36 @@ describe("weekly scoring", () => {
     assert.equal(pack.QB[0]?.blocked, true);
     assert.equal(pack.RB[0]?.blocked, false);
     assert.equal(pack.D[0]?.blocked, true);
+  });
+
+  it("scopes the 2026-W2 TNF skip to that week only", () => {
+    assert.equal(isWeeklyMigrationWeek(2026, 2), true);
+    assert.equal(isWeeklyMigrationWeek(2026, 3), false);
+    assert.equal(skipWeeklyMigrationGame(2026, 2, "DET", "BUF"), true);
+    assert.equal(skipWeeklyMigrationGame(2026, 3, "DET", "BUF"), false);
+    assert.equal(weeklyMigrationSkipTeam(2026, 2, "buf"), true);
+    assert.equal(weeklyMigrationSkipTeam(2026, 3, "BUF"), false);
+    const lock = weeklyMigrationSundayLockMs(2026, 2, ["2026-09-17", "2026-09-20", "2026-09-21"]);
+    assert.equal(lock, Date.parse("2026-09-20T13:00:00-04:00"));
+    assert.equal(weeklyMigrationSundayLockMs(2026, 3, ["2026-09-24", "2026-09-27"]), null);
+    const pack = applyWeeklyMigrationBoard(
+      {
+        QB: [
+          { id: "q1", sid: "1", name: "Allen", pos: "QB", team: "BUF", cost: 10, ppr: 22 },
+          { id: "q2", sid: "2", name: "Mahomes", pos: "QB", team: "KC", cost: 9, ppr: 21 },
+        ],
+        RB: [],
+        WR: [],
+        TE: [],
+        K: [],
+        D: [{ id: "d", sid: "3", name: "Lions", pos: "D", team: "DET", cost: 1, ppr: 8 }],
+      },
+      2026,
+      2,
+    );
+    assert.equal(pack.QB.length, 1);
+    assert.equal(pack.QB[0]?.team, "KC");
+    assert.equal(pack.D.length, 0);
   });
 });
 

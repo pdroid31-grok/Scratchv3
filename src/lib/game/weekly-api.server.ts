@@ -16,6 +16,7 @@ import {
   weeklyTotal,
   withPackedProjections,
   WEEK1_TNF_TEAMS,
+  applyWeeklyMigrationBoard,
   blockWeeklyTeams,
   type WeeklyPackedBoard,
   type WeeklyPickSnap,
@@ -464,7 +465,7 @@ export async function lockWeeklyHandler({ context, data }: { context: { userId: 
     }
     let pack = parseBoard(week.board);
     if (!pack) return metaFrom(week, "playing", run, window.live);
-    pack = fillPackedOpponents(pack, window.games);
+    pack = applyWeeklyMigrationBoard(fillPackedOpponents(pack, window.games), week.season, week.week);
     if (late) pack = blockWeeklyTeams(pack, WEEK1_TNF_TEAMS);
     const picks = rebuildPicks(pack, week.week, data.picks);
     if (!picks) return metaFrom(week, "playing", run, window.live);
@@ -502,7 +503,7 @@ export async function weeklyBoardPackHandler({ context }: { context: { userId: s
     if (runStatus(run, open) === "locked") return null;
     const pack = parseBoard(week.board);
     if (!pack) return null;
-    const filled = fillPackedOpponents(pack, window.games);
+    const filled = applyWeeklyMigrationBoard(fillPackedOpponents(pack, window.games), week.season, week.week);
     return {
       season: week.season,
       week: week.week,
