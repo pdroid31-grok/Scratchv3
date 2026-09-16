@@ -1,0 +1,777 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Barlow", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Barlow Condensed", "Barlow", ui-sans-serif, system-ui, sans-serif;
+
+  --color-bg: #0b0d0c;
+  --color-surface: #151918;
+  --color-surface-2: #1c221f;
+  --color-fg: #e8ebe6;
+  --color-muted: #8b948c;
+  --color-subtle: #5c645e;
+  --color-border: #2a322e;
+  --color-accent: #c5d0c6;
+  --color-accent-fg: #0b0d0c;
+  --color-p1: #9bb0b8;
+  --color-p2: #c4b49a;
+  --color-danger: #c45c4a;
+  --color-good: #7d9a7a;
+  --color-turf: #6a7d6c;
+  --color-best: #6ea4c8;
+  --color-foil: #c5d0c6;
+  --color-foil-dim: #5c645e;
+
+  --radius-xs: 0.25rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+
+  --shadow-border: 0 0 0 1px rgb(232 235 230 / 0.08);
+  --shadow-border-hover: 0 0 0 1px rgb(232 235 230 / 0.14);
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-micro: 80ms;
+  --motion-quick: 150ms;
+  --motion-fast: 250ms;
+  --motion-slow: 400ms;
+  --motion-emphasis: 500ms;
+  --motion-stagger: 40ms;
+  --motion-y-micro: 4px;
+  --motion-y-medium: 12px;
+  --motion-scale-modal: 0.96;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html,
+  body,
+  #app {
+    min-height: 100%;
+    background-color: var(--color-bg);
+    color: var(--color-fg);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    line-height: 1.5;
+    background-image:
+      linear-gradient(180deg, rgb(11 13 12 / 0.58) 0%, rgb(11 13 12 / 0.78) 45%, rgb(11 13 12 / 0.9) 100%),
+      url("/darkness-frog.jpg");
+    background-size: cover;
+    background-position: center 30%;
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-y-medium));
+    filter: blur(var(--motion-y-micro));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+@keyframes season-pop {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-y-medium)) scale(var(--motion-scale-modal));
+    filter: blur(var(--motion-y-micro));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes stamp-in {
+  from {
+    opacity: 0;
+    transform: rotate(-12deg) scale(1.2);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(-8deg) scale(1);
+  }
+}
+
+@keyframes pulse-bid {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.03);
+  }
+}
+
+.stagger-in > * {
+  opacity: 0;
+  animation: fade-up var(--motion-slow) var(--ease-smooth-out) forwards;
+}
+
+.stagger-in > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.stagger-in > *:nth-child(2) {
+  animation-delay: 80ms;
+}
+.stagger-in > *:nth-child(3) {
+  animation-delay: 140ms;
+}
+.stagger-in > *:nth-child(4) {
+  animation-delay: 200ms;
+}
+.stagger-in > *:nth-child(5) {
+  animation-delay: 260ms;
+}
+.stagger-in > *:nth-child(6) {
+  animation-delay: 320ms;
+}
+
+.stamp {
+  animation: stamp-in var(--motion-emphasis) var(--ease-smooth-out) both;
+}
+
+.season-card {
+  animation: season-pop var(--motion-fast) var(--ease-smooth-out) both;
+}
+
+.score-in {
+  animation: fade-up var(--motion-fast) var(--ease-smooth-out) both;
+}
+
+@keyframes reroll-wash {
+  0% {
+    opacity: 0;
+  }
+  18% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes poop-fall {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -12vh, 0) rotate(0deg);
+  }
+  8% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--dx, 0px), 108vh, 0) rotate(var(--spin, 160deg));
+  }
+}
+
+@keyframes poop-fade {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+
+@keyframes reroll-card-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.025);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes reroll-card-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  55% {
+    transform: translateX(4px);
+  }
+  80% {
+    transform: translateX(-2px);
+  }
+}
+
+.reroll-wash-up {
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 18%, color-mix(in srgb, var(--color-good) 38%, transparent), transparent 70%),
+    radial-gradient(ellipse 80% 60% at 50% 100%, color-mix(in srgb, var(--color-p2) 22%, transparent), transparent 72%);
+  animation: reroll-wash 2.2s var(--ease-smooth-out) both;
+}
+
+.reroll-wash-down {
+  background:
+    radial-gradient(ellipse 80% 55% at 50% 0%, color-mix(in srgb, var(--color-danger) 32%, transparent), transparent 70%),
+    radial-gradient(ellipse 70% 40% at 50% 100%, color-mix(in srgb, var(--color-danger) 18%, transparent), transparent 75%);
+  animation: reroll-wash 2.8s var(--ease-smooth-out) both;
+}
+
+.poop-drop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  animation-name: poop-fall;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+
+.poop-drop-static {
+  animation-name: poop-fade;
+  animation-timing-function: var(--ease-out);
+}
+
+.reroll-card-up {
+  animation: reroll-card-pop var(--motion-emphasis) var(--ease-smooth-out) both;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-good) 50%, transparent),
+    0 0 36px color-mix(in srgb, var(--color-good) 28%, transparent);
+}
+
+.reroll-card-down {
+  animation: reroll-card-shake 420ms var(--ease-out) both;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--color-danger) 45%, transparent),
+    0 0 32px color-mix(in srgb, var(--color-danger) 22%, transparent);
+}
+
+@keyframes reroll-bust-stamp {
+  0% {
+    opacity: 0;
+    transform: scale(0.4) rotate(-8deg);
+  }
+  18% {
+    opacity: 1;
+    transform: scale(1.08) rotate(3deg);
+  }
+  32% {
+    transform: scale(1) rotate(-2deg);
+  }
+  78% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.92) rotate(0deg);
+  }
+}
+
+.reroll-bust-stamp {
+  animation: reroll-bust-stamp 2.8s var(--ease-smooth-out) both;
+  filter: drop-shadow(0 12px 24px rgb(0 0 0 / 0.45));
+}
+
+@keyframes fw-spark {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.35);
+  }
+  14% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--sx, 0px)), calc(-50% + var(--sy, 0px))) scale(0.2);
+  }
+}
+
+@keyframes fw-spark-fade {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.5);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+}
+
+@keyframes fw-flash {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.2);
+  }
+  16% {
+    opacity: 0.95;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.45);
+  }
+}
+
+.fw-spark,
+.fw-flash {
+  position: absolute;
+  pointer-events: none;
+}
+
+.fw-spark {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  animation: fw-spark 1.15s var(--ease-out) both;
+}
+
+.fw-spark-static {
+  animation-name: fw-spark-fade;
+  animation-duration: 900ms;
+}
+
+.fw-flash {
+  width: 86px;
+  height: 86px;
+  border-radius: 999px;
+  animation: fw-flash 900ms var(--ease-smooth-out) both;
+}
+
+.fw-good {
+  background: var(--color-good);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-good) 80%, transparent);
+}
+
+.fw-gold {
+  background: var(--color-p2);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-p2) 80%, transparent);
+}
+
+.fw-accent {
+  background: var(--color-accent);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--color-accent) 70%, transparent);
+}
+
+.fw-flash.fw-good {
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-good) 75%, white), transparent 70%);
+  box-shadow: none;
+}
+
+.fw-flash.fw-gold {
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-p2) 75%, white), transparent 70%);
+  box-shadow: none;
+}
+
+.fw-flash.fw-accent {
+  background: radial-gradient(circle, color-mix(in srgb, var(--color-accent) 70%, white), transparent 70%);
+  box-shadow: none;
+}
+
+.ht-scene {
+  perspective: 64rem;
+}
+
+.ht-box {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform var(--motion-emphasis) var(--ease-out);
+}
+
+.ht-box.is-open {
+  transform: rotateY(180deg);
+}
+
+.ht-box.is-missed {
+  transition-delay: calc(var(--motion-fast) + (var(--ht-miss, 0) * var(--motion-stagger) * 3));
+}
+
+.ht-box.is-picked {
+  transition-delay: 0ms;
+}
+
+.ht-face {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  position: absolute;
+  inset: 0;
+}
+
+.ht-face-back {
+  transform: rotateY(180deg);
+}
+
+.ht-box:not(.is-open) .ht-face-back {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.ht-scene.is-live {
+  animation: ht-breathe 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes ht-breathe {
+  from {
+    box-shadow: var(--shadow-border);
+  }
+  to {
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-accent) 42%, transparent);
+  }
+}
+
+.mystery-stage {
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
+}
+
+.mystery-scene {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+.mystery-still {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2 / 1;
+  object-fit: cover;
+  object-position: center;
+}
+
+.mystery-scene.is-spinning .mystery-still {
+  animation: mystery-pulse 1.2s var(--ease-smooth-out) both;
+}
+
+.mystery-scene.is-live .mystery-still {
+  opacity: 1;
+}
+
+.mystery-roll {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  pointer-events: none;
+}
+
+@keyframes mystery-pulse {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  35% {
+    transform: scale(1.04);
+    filter: brightness(1.14);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+.mystery-prize {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  top: 38.5%;
+  width: 21.5%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 12%;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.88);
+  box-shadow: 0 10px 20px rgb(0 0 0 / 0.45);
+}
+
+.mystery-prize.is-on {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+  transition:
+    opacity 180ms ease,
+    transform 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mystery-prize img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mystery-result {
+  position: relative;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.85rem;
+  min-height: 240px;
+  padding: 2.6rem 1rem 1.4rem;
+  background: rgb(10 12 11 / 0.92);
+  border-radius: 1rem;
+}
+
+.mystery-result-face {
+  width: min(62%, 200px);
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 1.1rem;
+  box-shadow: 0 18px 36px rgb(0 0 0 / 0.55);
+}
+
+.mystery-result-name {
+  margin: 0;
+  max-width: 100%;
+  padding: 0 0.5rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 4.4vw, 1.55rem);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-align: center;
+  color: #f4f4f4;
+}
+
+.mystery-result-x {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(244 244 244 / 0.14);
+  color: #f4f4f4;
+  font-size: 1.7rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mystery-result-x:hover {
+  background: rgb(244 244 244 / 0.2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger-in > *,
+  .stamp,
+  .season-card,
+  .score-in,
+  .reroll-card-up,
+  .reroll-card-down,
+  .reroll-wash-up,
+  .reroll-wash-down,
+  .reroll-bust-stamp,
+  .fw-spark,
+  .fw-flash {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+
+  .ht-box,
+  .ht-box.is-open,
+  .ht-box.is-missed,
+  .ht-box.is-picked,
+  .ht-face-back {
+    transition: none;
+    transition-delay: 0ms;
+  }
+
+  .ht-scene.is-live {
+    animation: none;
+  }
+
+  .ht-box:not(.is-open) .ht-face-back {
+    display: none;
+    transform: none;
+    position: absolute;
+  }
+
+  .ht-box.is-open {
+    transform: none;
+  }
+
+  .ht-box.is-open .ht-face-back {
+    transform: none;
+    position: absolute;
+  }
+
+  .ht-box.is-open .ht-face-front {
+    display: none;
+  }
+
+  .reroll-wash-up,
+  .reroll-wash-down {
+    opacity: 0.55;
+  }
+
+  .poop-drop {
+    animation-name: poop-fade;
+    animation-duration: 900ms;
+  }
+
+  .fw-spark {
+    animation-name: fw-spark-fade;
+    animation-duration: 900ms;
+    opacity: 1;
+  }
+
+  .fw-flash {
+    animation-name: fw-spark-fade;
+    animation-duration: 900ms;
+    opacity: 0.7;
+  }
+
+  .mystery-prize.is-on,
+  .mystery-scene.is-spinning .mystery-still {
+    animation: none !important;
+    transition: none !important;
+    filter: none;
+  }
+
+  .mystery-prize.is-on {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.elim-board {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--color-bg);
+  padding-top: max(0.75rem, env(safe-area-inset-top, 0px));
+  padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+  padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+}
+
+.elim-weeks {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+}
+
+.elim-weeks::-webkit-scrollbar {
+  display: none;
+}
+
+.elim-week {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  min-width: 100%;
+  max-width: 100%;
+  min-height: 0;
+  flex: 0 0 100%;
+  flex-direction: column;
+  overflow: hidden;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.rank-swipe {
+  display: flex;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+}
+
+.rank-swipe::-webkit-scrollbar {
+  display: none;
+}
+
+.rank-pane {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 100%;
+  max-width: 100%;
+  flex: 0 0 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+[data-watch] button,
+[data-watch] a,
+[data-watch] input,
+[data-watch] textarea,
+[data-watch] select,
+[data-watch] [role="button"] {
+  pointer-events: none !important;
+}

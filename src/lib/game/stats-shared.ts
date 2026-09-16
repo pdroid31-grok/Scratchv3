@@ -1,0 +1,94 @@
+export function clipGm(name: string): string {
+  return clipDisplayName(name) || "GM";
+}
+
+/** Trimmed in-game name, or empty if they never set one. */
+export function clipDisplayName(name: string): string {
+  const trimmed = name.trim().slice(0, 16);
+  if (!trimmed || trimmed.toLowerCase() === "gm") return "";
+  return trimmed;
+}
+
+/** Pat-only bank watch. Not Ty, not anyone else. */
+export function isBankCommish(name: string): boolean {
+  const key = name.trim().toLowerCase();
+  return key === "pat" || key === "pastry pat";
+}
+
+export function opponentKey(name: string): string {
+  return clipGm(name).toLowerCase();
+}
+
+export function nightKey(input: {
+  names: [string, string];
+  nights: number;
+  scores: [number, number];
+  series: [number, number];
+  saleIds: string[];
+  kind?: "auction" | "elimination";
+}): string {
+  return [
+    input.kind === "elimination" ? "elim" : "auc",
+    clipGm(input.names[0]),
+    clipGm(input.names[1]),
+    `n${input.nights}`,
+    input.scores.join("-"),
+    input.series.join("-"),
+    input.saleIds.join("."),
+  ]
+    .join("|")
+    .slice(0, 240);
+}
+
+export type HostedNightLookup = {
+  seat: 0 | 1;
+  names: [string, string];
+  kind: "auction" | "elimination";
+  won: boolean | null;
+  score: number;
+  opponentScore: number;
+  lowScore: number;
+  nights: number;
+};
+
+export type HostedNightClient = {
+  roomCode: string;
+  token: string;
+  seat: 0 | 1;
+  nights: number;
+  kind: "auction" | "elimination";
+  won: boolean | null;
+  score: number;
+  opponentScore: number;
+  lowScore: number;
+  opponentName: string;
+  gmName: string;
+};
+
+export function hostedNightKey(code: string, nights: number, kind: "auction" | "elimination", seat: 0 | 1): string {
+  return `host:${code}:${nights}:${kind}:s${seat}`;
+}
+
+/** Room gone, archive missing — still write for a signed-in hosted match. */
+export function planHostedNightWrite(data: HostedNightClient, hosted: HostedNightLookup | null) {
+  if (!data.roomCode || !data.token) return null;
+  const seat = hosted?.seat ?? data.seat;
+  const kind = hosted?.kind ?? data.kind;
+  const nights = hosted?.nights ?? data.nights;
+  const won = hosted ? hosted.won : data.won;
+  const score = hosted ? hosted.score : data.score;
+  const opponentScore = hosted ? hosted.opponentScore : data.opponentScore;
+  const lowScore = hosted ? hosted.lowScore : data.lowScore;
+  const opponentName = hosted ? clipGm(hosted.names[seat === 0 ? 1 : 0]) : clipGm(data.opponentName);
+  const gmName = (hosted ? clipDisplayName(hosted.names[seat]) : "") || clipDisplayName(data.gmName);
+  return {
+    nightKey: hostedNightKey(data.roomCode, nights, kind, seat),
+    opponentName,
+    gmName,
+    won,
+    score,
+    opponentScore,
+    lowScore,
+    kind,
+  };
+}
