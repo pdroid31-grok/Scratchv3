@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
-import { clipDisplayName, hiddenBoardIdSql, isBankCommish, isHiddenBoardId } from "./stats-shared";
+import { clipDisplayName, hiddenBoardIdSql, hiddenBoardNameSql, isBankCommish, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
 
 type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
 
@@ -94,7 +94,7 @@ export async function loadBankWatch(sql: Sql): Promise<BankWatch> {
             coalesce(p.daily_stars, 0) as stars
        from player_profiles p
        left join "user" u on u.id = p.user_id
-      where lower(trim(coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), u.name, ''))) <> 'nightwatch'
+      where ${hiddenBoardNameSql()}
         and ${hiddenBoardIdSql("p.user_id")}
       order by coalesce(p.coins, 0) desc, coalesce(p.coin_wins, 0) desc, name asc`,
   );
@@ -113,12 +113,13 @@ export async function loadBankWatch(sql: Sql): Promise<BankWatch> {
        left join player_profiles p on p.user_id = l.user_id
        left join "user" u on u.id = l.user_id
       where ${hiddenBoardIdSql("l.user_id")}
+        and ${hiddenBoardNameSql()}
       order by l.created_at desc, l.id desc
       limit 80`,
   );
   return {
     banks: banks.flatMap((row) => {
-      if (isHiddenBoardId(row.id)) return [];
+      if (isHiddenBoardId(row.id) || isHiddenBoardName(row.name)) return [];
       return [
         {
           id: row.id,
@@ -130,7 +131,7 @@ export async function loadBankWatch(sql: Sql): Promise<BankWatch> {
       ];
     }),
     changes: changes.flatMap((row) => {
-      if (isHiddenBoardId(row.user_id)) return [];
+      if (isHiddenBoardId(row.user_id) || isHiddenBoardName(row.name)) return [];
       return [
         {
           id: asInt(row.id),

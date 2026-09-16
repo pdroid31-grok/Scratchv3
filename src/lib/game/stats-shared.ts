@@ -29,13 +29,25 @@ export const HIDDEN_BOARD_IDS = new Set([
   "5nWDuHgSRx1TLr0oeKtiStulZzievyRq",
 ]);
 
+/** Hide from public boards by display/auth name. Do not delete the user. */
+export const HIDDEN_BOARD_NAMES = new Set(["nightwatch", "testpg"]);
+
 export function isHiddenBoardId(id?: string | null): boolean {
   return Boolean(id && HIDDEN_BOARD_IDS.has(id));
+}
+
+export function isHiddenBoardName(name?: string | null): boolean {
+  return Boolean(name && HIDDEN_BOARD_NAMES.has(name.trim().toLowerCase()));
 }
 
 export function hiddenBoardIdSql(column: string): string {
   const list = [...HIDDEN_BOARD_IDS].map((id) => `'${id.replace(/'/g, "''")}'`).join(",");
   return list ? `${column} not in (${list})` : "true";
+}
+
+export function hiddenBoardNameSql(displayCol = "p.display_name", authCol = "u.name"): string {
+  const list = [...HIDDEN_BOARD_NAMES].map((n) => `'${n.replace(/'/g, "''")}'`).join(",");
+  return `lower(trim(coalesce(nullif(nullif(trim(${displayCol}), ''), 'GM'), nullif(trim(${authCol}), ''), ''))) not in (${list})`;
 }
 
 export function opponentKey(name: string): string {

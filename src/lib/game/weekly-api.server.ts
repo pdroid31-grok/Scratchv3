@@ -22,7 +22,7 @@ import {
 } from "./weekly";
 import { fillPackedOpponents, nflClock, playersFromPack, sidMap, weekOpponents, weekWindow, weeklyLiveStats, weeklyProjections } from "./weekly-sleeper";
 import { type ElimPick } from "./elim";
-import { clipDisplayName } from "./stats-shared";
+import { clipDisplayName, isHiddenBoardName } from "./stats-shared";
 import { clampAvatar } from "./avatars";
 
 type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
@@ -573,9 +573,11 @@ export async function listWeeklyBoardHandler({ data }: { data: { season: number;
           : window.live
             ? weeklyTotal(picks)
             : 0;
+        const name = clipDisplayName(row.name ?? "") || "GM";
+        if (isHiddenBoardName(name) || isHiddenBoardName(row.name)) return null;
         return {
           id: row.user_id,
-          name: clipDisplayName(row.name ?? "") || "GM",
+          name,
           avatarId: clampAvatar(row.avatar_id ?? "poor"),
           score,
           paid: Boolean(row.payout_score),
@@ -584,6 +586,7 @@ export async function listWeeklyBoardHandler({ data }: { data: { season: number;
           hasPicks: Boolean(row.has_picks),
         };
       })
+      .filter((row): row is NonNullable<typeof row> => Boolean(row))
       .sort((a, b) =>
         week.awarded || window.live ? b.score - a.score || a.name.localeCompare(b.name) : a.name.localeCompare(b.name),
       );
@@ -691,16 +694,20 @@ export async function listSeasonBoardHandler({ data }: { data: { season: number 
     [season],
   );
   const merged = new Map(
-    rows.map((row) => [
-      row.user_id,
-      {
-        id: row.user_id,
-        name: clipDisplayName(row.name ?? "") || "GM",
-        avatarId: clampAvatar(row.avatar_id ?? "poor"),
-        score: asNum(row.score),
-        weeks: Math.max(0, Math.floor(Number(row.weeks) || 0)),
-      },
-    ]),
+    rows.flatMap((row) => {
+      const name = clipDisplayName(row.name ?? "") || "GM";
+      if (isHiddenBoardName(name) || isHiddenBoardName(row.name)) return [];
+      return [[
+        row.user_id,
+        {
+          id: row.user_id,
+          name,
+          avatarId: clampAvatar(row.avatar_id ?? "poor"),
+          score: asNum(row.score),
+          weeks: Math.max(0, Math.floor(Number(row.weeks) || 0)),
+        },
+      ] as const];
+    }),
   );
   if (window.live && season === clock.season) {
     const week = await loadWeek(sql, clock.season, clock.week);
@@ -725,6 +732,7 @@ export async function listSeasonBoardHandler({ data }: { data: { season: number 
         [clock.season, clock.week],
       );
       for (const row of liveRuns) {
+        if (isHiddenBoardName(row.name)) continue;
         const pts = weeklyTotal(hydrateWeeklyPicks(row.picks, live, "zero"));
         const prev = merged.get(row.user_id);
         if (prev) {

@@ -34,8 +34,47 @@ async function ensureScratchTables(sql: Sql): Promise<void> {
   );
 }
 
+const NO_GIFT_IDS = new Set([
+  "Sth5J7JYgRUEnwGxVWFVh3foFcPf9Erh",
+  "1UmyGNGrnaW6ohbCWrU7hYQzZSZpqa8n",
+]);
+
 function asInt(value: number | string | null | undefined): number {
   return Math.max(0, Math.floor(Number(value) || 0));
+}
+
+async function lookupTestPgUserId(sql: Sql): Promise<string | null> {
+  try {
+    const rows = await sql.query<{ id: string }>(
+      `select id from (
+         select user_id as id from player_profiles where lower(trim(display_name)) = 'testpg'
+         union
+         select id from "user" where lower(trim(name)) = 'testpg'
+       ) x
+       limit 1`,
+    );
+    const id = rows[0]?.id ?? null;
+    if (!id || NO_GIFT_IDS.has(id)) return null;
+    return id;
+  } catch {
+    return null;
+  }
+}
+
+async function isTestPgUser(sql: Sql, userId: string): Promise<boolean> {
+  if (!userId || NO_GIFT_IDS.has(userId)) return false;
+  try {
+    const rows = await sql.query<{ ok: number }>(
+      `select 1 as ok from player_profiles where user_id = $1 and lower(trim(display_name)) = 'testpg'
+       union
+       select 1 as ok from "user" where id = $1 and lower(trim(name)) = 'testpg'
+       limit 1`,
+      [userId],
+    );
+    return Boolean(rows[0]);
+  } catch {
+    return false;
+  }
 }
 
 async function dropHistoricUnused(sql: Sql): Promise<void> {
@@ -56,7 +95,9 @@ async function capPostCutoffUnused(sql: Sql, userId: string, earnedCards: number
         and created_at >= ($2::timestamp AT TIME ZONE 'America/New_York')`,
     [userId, SCRATCH_BANK_START],
   );
-  const allowed = Math.max(0, earnedCards - asInt(scratchedRows[0]?.n));
+  const scratched = asInt(scratchedRows[0]?.n);
+  const gift = earnedCards === 0 && scratched === 0 && (await isTestPgUser(sql, userId)) ? 1 : 0;
+  const allowed = Math.max(0, earnedCards + gift - scratched);
   await sql.query(
     `delete from darkness_scratch_cards
       where id in (
@@ -118,7 +159,12 @@ export async function syncScratchBank(sql: Sql, userId: string): Promise<Scratch
     [userId, SCRATCH_BANK_START],
   );
   const minted = asInt(mintedRows[0]?.n);
-  const missing = Math.max(0, earned.cards - minted);
+  const readyBefore = await sql.query<{ n: number | string }>(
+    `select count(*)::int as n from darkness_scratch_cards where user_id = $1 and scratched_at is null`,
+    [userId],
+  );
+  const gift = earned.cards === 0 && asInt(readyBefore[0]?.n) === 0 && minted === 0 && (await isTestPgUser(sql, userId)) ? 1 : 0;
+  const missing = Math.max(0, earned.cards + gift - minted);
   if (missing) await mintMissing(sql, userId, missing);
   const readyRows = await sql.query<{ n: number | string }>(
     `select count(*)::int as n from darkness_scratch_cards where user_id = $1 and scratched_at is null`,
@@ -130,6 +176,13 @@ export async function syncScratchBank(sql: Sql, userId: string): Promise<Scratch
     percent: scratchPercent(earned.bank),
     ready: asInt(readyRows[0]?.n),
   };
+}
+
+/** One unused playable card for TestPG only. No-op if they already have cards. */
+export async function ensureTestPgScratchGift(sql: Sql): Promise<void> {
+  const userId = await lookupTestPgUserId(sql);
+  if (!userId) return;
+  await syncScratchBank(sql, userId);
 }
 
 export async function peekScratchCard(sql: Sql, userId: string): Promise<ScratchCardView | null> {

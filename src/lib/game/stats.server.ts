@@ -1,6 +1,6 @@
 /** Server-only career / store / board writes. Do not import from client modules. */
 import { clampAvatar, isAvatarId, isFeatAvatar, isStarAvatar, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, starLooksFor, walletBalance, BANANA_ID, BANANA_SCORE_UNDER, BOX_ADDICT_ID, BOX_COST, CLUB_200, CLUB_200_CAP, CLUB_200_ID, CROSSWORD_ID, CROSSWORD_STREAK_NEED, GOLDEN_COST, LOCKED_IN_ID, LOCKED_IN_STREAK_NEED, PEEPING_ID, SILVER_MEDAL_ID, SILVER_SECOND_NEED, SNIPER_ID, THANOS_ID, THANOS_OWN_NEED, WIN_PAY, hitBananaScore, hitBoxAddict, justUnlockedBanana, type AvatarId } from "./avatars";
-import { clipDisplayName, clipGm, hiddenBoardIdSql, hostedNightKey, isHiddenBoardId, opponentKey, planHostedNightWrite } from "./stats-shared";
+import { clipDisplayName, clipGm, hiddenBoardIdSql, hiddenBoardNameSql, hostedNightKey, isHiddenBoardId, isHiddenBoardName, opponentKey, planHostedNightWrite } from "./stats-shared";
 import { hostedMatchView } from "./hosted-match";
 import { DAILY_PAY } from "./daily";
 import { WEEKLY_PAY, WEEKLY_WIN_PAY, WEEKLY_WIN_STARS } from "./weekly";
@@ -298,7 +298,6 @@ const GIFT_LOOKS: Record<string, AvatarId[]> = {
   heisenberg: [PEEPING_ID],
   "marquis scott": ["birthday", PEEPING_ID],
 };
-const HIDDEN_BOARD_NAMES = new Set(["nightwatch"]);
 const CLOSET_RESET_GEN = 2;
 const TY_RETURN_GEN = 3;
 const RETURN_BOX_GEN = 4;
@@ -1268,6 +1267,12 @@ export async function loadLeaderboard(): Promise<Leaderboard> {
   } catch (err) {
     console.error("[darkness] legacy board seed failed", err);
   }
+  try {
+    const { ensureTestPgScratchGift } = await import("./scratch.server");
+    await ensureTestPgScratchGift(sql);
+  } catch (err) {
+    console.error("[darkness] TestPG scratch gift failed", err);
+  }
   await pushGifts(sql);
   await grantBoxAddictSweep(sql);
   await grantBananaSweep(sql);
@@ -1303,8 +1308,7 @@ async function queryBoard(
   kind: "auction" | "elimination" | null,
   limit = 20,
 ): Promise<BoardRow[]> {
-  const hiddenList = [...HIDDEN_BOARD_NAMES].map((n) => n.replace(/'/g, "")).join("','");
-  const hidden = `lower(trim(coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), ''))) not in ('${hiddenList}') and ${hiddenBoardIdSql("n.user_id")}`;
+  const hidden = `${hiddenBoardNameSql()} and ${hiddenBoardIdSql("n.user_id")}`;
   const filter = kind
     ? `where coalesce(n.kind, 'auction') = $1 and ${hidden}`
     : `where ${hidden}`;
@@ -1378,7 +1382,9 @@ async function queryBoard(
       stars: Math.max(prev.stars, row.stars),
     });
   }
-  const merged = [...byId.values()].filter((row) => Boolean(clipDisplayName(row.name)) && !isHiddenBoardId(row.id));
+  const merged = [...byId.values()].filter(
+    (row) => Boolean(clipDisplayName(row.name)) && !isHiddenBoardId(row.id) && !isHiddenBoardName(row.name),
+  );
   merged.sort((a, b) => b.wins - a.wins || b.games - a.games || (b.highest ?? -1) - (a.highest ?? -1));
   return limit > 0 ? merged.slice(0, limit) : merged;
 }
@@ -1387,7 +1393,6 @@ async function queryStarsBoard(
   sql: { query: <T>(text: string, params?: unknown[]) => Promise<T[]> },
   merged: BoardRow[],
 ): Promise<BoardRow[]> {
-  const hiddenList = [...HIDDEN_BOARD_NAMES].map((n) => n.replace(/'/g, "")).join("','");
   let extra: { id: string; name: string | null; avatar_id: string | null; daily_stars: number | string | null }[] = [];
   try {
     extra = await sql.query(
@@ -1399,7 +1404,7 @@ async function queryStarsBoard(
          left join "user" u on u.id = p.user_id
         where coalesce(p.daily_stars, 0) > 0
           and ${hiddenBoardIdSql("p.user_id")}
-          and lower(trim(coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), ''))) not in ('${hiddenList}')`,
+          and ${hiddenBoardNameSql()}`,
     );
   } catch {
     extra = [];
@@ -1408,7 +1413,7 @@ async function queryStarsBoard(
   for (const row of merged) byId.set(row.id, row);
   for (const row of extra) {
     const name = clipDisplayName(row.name ?? "");
-    if (!name || isHiddenBoardId(row.id)) continue;
+    if (!name || isHiddenBoardId(row.id) || isHiddenBoardName(name)) continue;
     const prev = byId.get(row.id);
     const stars = Math.max(0, asInt(row.daily_stars));
     if (!prev) {
@@ -1426,7 +1431,7 @@ async function queryStarsBoard(
     byId.set(row.id, { ...prev, name: prev.name || name, stars: Math.max(prev.stars, stars) });
   }
   return [...byId.values()]
-    .filter((row) => row.stars > 0 && Boolean(clipDisplayName(row.name)))
+    .filter((row) => row.stars > 0 && Boolean(clipDisplayName(row.name)) && !isHiddenBoardName(row.name))
     .sort((a, b) => b.stars - a.stars || b.wins - a.wins || a.name.localeCompare(b.name))
     .slice(0, 20);
 }
@@ -1477,7 +1482,7 @@ async function querySeededBoard(
       const slice = careerSlice(row.career_book, kind);
       const games = asInt(slice?.games);
       const name = clipDisplayName(row.name ?? "");
-      if (!name || isHiddenBoardId(row.id)) return null;
+      if (!name || isHiddenBoardId(row.id) || isHiddenBoardName(name)) return null;
       if (kind != null && (!slice || games <= 0)) return null;
       return {
         id: row.id,
