@@ -3,6 +3,8 @@
  * (JSON object, keys lowercased) must use the mapped Better Auth user.id.
  *
  * Do not put mapped emails in the repo. Set LEGACY_EMAIL_MAP on the host.
+ * Add the next player as a row in LEGACY_SEEDS (keyed by user id), not a
+ * special-case branch.
  */
 import type { BetterAuthPlugin } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
@@ -12,10 +14,24 @@ import { CEO_BOARD_ID } from "../game/league-chat-types";
 
 type AuthUserRow = { id: string; email: string; name: string };
 
+type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
+
+type LegacySeed = {
+  id: string;
+  name: string;
+  avatarId: string;
+  owned: readonly string[];
+  bank: number;
+  stars: number;
+  games: number;
+  wins: number;
+  highest: number | null;
+};
+
+/** Old grok.me remap source. Do not seed or rewrite this id. */
+const SKIP_SEED_IDS = new Set(["L2L2Tf1HXAeB5rhgLvhogF921BKsICsN"]);
+
 /** darkness-backups snapshots/2026-09-16T1500-ET/store-scrape.json profile PAT. */
-const PAT_BANK = 1;
-const PAT_STARS = 2;
-const PAT_STAR_SOURCE_KEY = `scratch:legacy-seed:${CEO_BOARD_ID}`;
 const PAT_OWNED = [
   "poor",
   "ninja",
@@ -39,6 +55,31 @@ const PAT_OWNED = [
   "mafia",
 ] as const;
 
+const LEGACY_SEEDS: readonly LegacySeed[] = [
+  {
+    id: CEO_BOARD_ID,
+    name: "Pat",
+    avatarId: "mafia",
+    owned: PAT_OWNED,
+    bank: 1,
+    stars: 2,
+    games: 66,
+    wins: 34,
+    highest: 173,
+  },
+];
+
+const LEGACY_SEED_BY_ID = new Map(LEGACY_SEEDS.map((row) => [row.id, row]));
+
+export function legacySeedFor(userId: string): LegacySeed | null {
+  if (!userId || SKIP_SEED_IDS.has(userId)) return null;
+  return LEGACY_SEED_BY_ID.get(userId) ?? null;
+}
+
+function legacyStarSourceKey(userId: string): string {
+  return `scratch:legacy-seed:${userId}`;
+}
+
 function envJson(key: string): unknown {
   const raw = process.env[key]?.trim();
   if (!raw) return null;
@@ -57,7 +98,7 @@ export function legacyEmailMap(): Map<string, string> {
   for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
     const email = key.trim().toLowerCase();
     const id = typeof value === "string" ? value.trim() : "";
-    if (email && id) out.set(email, id);
+    if (email && id && !SKIP_SEED_IDS.has(id)) out.set(email, id);
   }
   return out;
 }
@@ -104,7 +145,7 @@ export async function bindLegacyEmailToMappedId(email: string, mappedId: string)
   const existing = await findUserById(mappedId);
   if (!existing) return null;
   const sql = await getSql();
-  const name = mappedId === CEO_BOARD_ID ? "Pat" : existing.name;
+  const name = legacySeedFor(mappedId)?.name ?? existing.name;
   await sql.query(
     `update "user"
         set email = $1,
@@ -118,13 +159,11 @@ export async function bindLegacyEmailToMappedId(email: string, mappedId: string)
 }
 
 /**
- * Rankings stars are darkness_payouts (syncDailyStarsFromPayouts → daily_stars),
- * not career_book.stars. Seed a $0 scratch payout so the CEO ladder stays at 2
- * without touching bank / owned / games / wins.
+ * Rankings stars = daily_stars AFTER syncDailyStarsFromPayouts.
+ * Insert a $0 scratch payout so the ladder keeps snapshot stars.
+ * amount is 0 so settleSeededProfile does not add this row to bank.
  */
-async function ensureCeoStarPayouts(
-  sql: { query: <T>(text: string, params?: unknown[]) => Promise<T[]> },
-): Promise<void> {
+async function insertLegacyStarPayout(sql: Sql, seed: LegacySeed): Promise<void> {
   await sql.query(`
     create table if not exists darkness_payouts (
       id serial primary key,
@@ -139,19 +178,24 @@ async function ensureCeoStarPayouts(
     `insert into darkness_payouts (user_id, amount, stars, kind, source_key)
      values ($1, 0, $2, 'scratch', $3)
      on conflict (source_key) do nothing`,
-    [CEO_BOARD_ID, PAT_STARS, PAT_STAR_SOURCE_KEY],
+    [seed.id, seed.stars, legacyStarSourceKey(seed.id)],
   );
   await sql.query(
     `update player_profiles
         set daily_stars = $1, updated_at = now()
       where user_id = $2
         and coalesce(daily_stars, 0) is distinct from $1`,
-    [PAT_STARS, CEO_BOARD_ID],
+    [seed.stars, seed.id],
   );
 }
 
-export async function seedLegacyProfileIfNeeded(userId: string): Promise<void> {
-  if (userId !== CEO_BOARD_ID) return;
+/**
+ * First-create (and attach) seed for any mapped id that has a LEGACY_SEEDS row.
+ * seed_lock=1 keeps dump bank/owned; live wins/buys still add on top.
+ */
+export async function seedLegacyPlayer(userId: string): Promise<void> {
+  const seed = legacySeedFor(userId);
+  if (!seed) return;
   const sql = await getSql();
   const existing = await sql.query<{ career_book: unknown }>(
     `select career_book from player_profiles where user_id = $1`,
@@ -159,13 +203,21 @@ export async function seedLegacyProfileIfNeeded(userId: string): Promise<void> {
   );
 
   if (!existing[0]?.career_book) {
-    const owned = [...PAT_OWNED];
+    const owned = [...seed.owned];
+    const losses = Math.max(0, seed.games - seed.wins);
     const book = {
-      total: { games: 66, wins: 34, losses: 32, ties: 0, highest: 173, lowest: null },
+      total: {
+        games: seed.games,
+        wins: seed.wins,
+        losses,
+        ties: 0,
+        highest: seed.highest,
+        lowest: null,
+      },
       auction: { games: 0, wins: 0, losses: 0, ties: 0, highest: null, lowest: null },
       elimination: { games: 0, wins: 0, losses: 0, ties: 0, highest: null, lowest: null },
-      bank: PAT_BANK,
-      stars: PAT_STARS,
+      bank: seed.bank,
+      stars: seed.stars,
       owned,
     };
 
@@ -173,7 +225,7 @@ export async function seedLegacyProfileIfNeeded(userId: string): Promise<void> {
       `insert into player_profiles (
          user_id, avatar_id, display_name, coins, coin_wins, owned, daily_stars,
          career_book, seed_lock, updated_at
-       ) values ($1, 'mafia', 'Pat', $2, 0, $3, $4, $5::jsonb, 1, now())
+       ) values ($1, $2, $3, $4, 0, $5, $6, $7::jsonb, 1, now())
        on conflict (user_id) do update
          set avatar_id = excluded.avatar_id,
              display_name = excluded.display_name,
@@ -181,14 +233,22 @@ export async function seedLegacyProfileIfNeeded(userId: string): Promise<void> {
              owned = excluded.owned,
              daily_stars = excluded.daily_stars,
              career_book = excluded.career_book,
-             seed_lock = excluded.seed_lock,
+             seed_lock = 1,
              updated_at = now()
        where player_profiles.career_book is null`,
-      [userId, PAT_BANK, JSON.stringify(owned), PAT_STARS, JSON.stringify(book)],
+      [
+        seed.id,
+        seed.avatarId,
+        seed.name,
+        seed.bank,
+        JSON.stringify(owned),
+        seed.stars,
+        JSON.stringify(book),
+      ],
     );
   }
 
-  await ensureCeoStarPayouts(sql);
+  await insertLegacyStarPayout(sql, seed);
 }
 
 export async function legacyUserCreateBefore(user: {
@@ -204,12 +264,13 @@ export async function legacyUserCreateBefore(user: {
   const bound = await bindLegacyEmailToMappedId(email, mapped);
   if (bound) return false;
 
+  const seed = legacySeedFor(mapped);
   return {
     data: {
       ...user,
       id: mapped,
       email,
-      name: mapped === CEO_BOARD_ID ? "Pat" : user.name,
+      name: seed?.name ?? user.name,
     },
   };
 }
@@ -247,7 +308,7 @@ export function legacyEmailMapPlugin(): BetterAuthPlugin {
                 password: hash,
               });
             }
-            await seedLegacyProfileIfNeeded(mapped);
+            await seedLegacyPlayer(mapped);
             const session = await ctx.context.internalAdapter.createSession(mapped);
             if (!session) throw new APIError("BAD_REQUEST", { message: "Failed to create session" });
             const user = await ctx.context.internalAdapter.findUserById(mapped);

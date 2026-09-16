@@ -39,7 +39,7 @@ import {
   legacyEmailMapPlugin,
   legacyUserCreateBefore,
   mappedIdForEmail,
-  seedLegacyProfileIfNeeded,
+  seedLegacyPlayer,
 } from "./legacy-email-map.server";
 import { GROK_PROVIDERS } from "./providers";
 import { pgliteDialect } from "./pglite-dialect";
@@ -200,14 +200,14 @@ export const auth = betterAuth({
       create: {
         before: async (user) => legacyUserCreateBefore(user),
         after: async (user) => {
-          if (user?.id) await seedLegacyProfileIfNeeded(user.id);
+          if (user?.id) await seedLegacyPlayer(user.id);
         },
       },
     },
     account: {
       create: {
         after: async (account) => {
-          if (account?.userId) await seedLegacyProfileIfNeeded(account.userId);
+          if (account?.userId) await seedLegacyPlayer(account.userId);
         },
       },
     },
@@ -254,7 +254,7 @@ export const auth = betterAuth({
               const mapped = mappedIdForEmail(email);
               if (!mapped) return {};
               await bindLegacyEmailToMappedId(email, mapped);
-              await seedLegacyProfileIfNeeded(mapped);
+              await seedLegacyPlayer(mapped);
               return {};
             },
           },
