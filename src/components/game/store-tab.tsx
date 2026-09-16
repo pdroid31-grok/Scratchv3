@@ -32,12 +32,21 @@ export function StoreTab({ onProfile }: { onProfile?: () => void }) {
   const [resultOpen, setResultOpen] = useState(false);
   const boxRef = useRef<MysteryBoxHandle>(null);
   const opening = useRef(false);
+  const holdTimer = useRef<number | null>(null);
 
   useEffect(() => {
     const img = new Image();
     img.src = "/mystery-roll.webp";
     void fetch("/mystery-roll.webp");
   }, []);
+
+  const clearHold = useCallback(() => {
+    if (holdTimer.current == null) return;
+    window.clearTimeout(holdTimer.current);
+    holdTimer.current = null;
+  }, []);
+
+  useEffect(() => () => clearHold(), [clearHold]);
 
   const finishSpin = useCallback(() => {
     setSpinning(false);
@@ -72,6 +81,18 @@ export function StoreTab({ onProfile }: { onProfile?: () => void }) {
     setReelOwned(snapshot);
     setPrize(result.prize);
     setSpinning(true);
+  }
+
+  function startHold(event: React.PointerEvent<HTMLButtonElement>) {
+    if (event.button !== 0) return;
+    if (opening.current || busy || left === 0 || coins < BOX_COST || !user) return;
+    if (event.pointerType === "mouse") event.preventDefault();
+    clearHold();
+    window.addEventListener("scroll", clearHold, { capture: true, once: true });
+    holdTimer.current = window.setTimeout(() => {
+      holdTimer.current = null;
+      void open();
+    }, 1000);
   }
 
   if (isPending && !user) {
@@ -121,15 +142,14 @@ export function StoreTab({ onProfile }: { onProfile?: () => void }) {
           <Button
             type="button"
             size="lg"
-            className="mt-5 w-full font-display uppercase tracking-wider"
+            className="mt-5 w-full touch-pan-y font-display uppercase tracking-wider"
             disabled={busy || left === 0 || coins < BOX_COST}
-            onPointerDown={(event) => {
-              if (event.button !== 0) return;
-              event.preventDefault();
-              void open();
-            }}
+            onPointerDown={startHold}
+            onPointerUp={clearHold}
+            onPointerCancel={clearHold}
+            onPointerLeave={clearHold}
           >
-            {busy ? "Opening…" : left === 0 ? "Sold out" : `Open · $${BOX_COST}`}
+            {busy ? "Opening…" : left === 0 ? "Sold out" : `Hold to open $${BOX_COST}`}
           </Button>
         )}
       </section>
