@@ -1,7 +1,8 @@
 /** Server-only public news feed. Do not import from client modules. */
 import { clipGm, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
 import { clampAvatar, type AvatarId } from "./avatars";
-import { formatNewsScore, newsFace, type NewsItem, type NewsKind } from "./news";
+import { prizeByKey } from "./scratch";
+import { formatNewsScore, newsFace, newsLookbackDay, type NewsItem, type NewsKind } from "./news";
 
 type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
 
@@ -108,24 +109,230 @@ function parseItem(row: { id: number | string; kind: string; payload: unknown; c
   };
 }
 
+function sourceId(key: string): number {
+  let h = 0;
+  for (let i = 0; i < key.length; i += 1) h = (Math.imul(h, 31) + key.charCodeAt(i)) | 0;
+  return Math.abs(h) || 1;
+}
+
+async function loadActors(
+  sql: Sql,
+  ids: string[],
+): Promise<Map<string, { name: string; avatarId: AvatarId }>> {
+  const uniq = [...new Set(ids.filter(Boolean))];
+  const out = new Map<string, { name: string; avatarId: AvatarId }>();
+  if (!uniq.length) return out;
+  const rows = await sql.query<{ user_id: string; name: string | null; avatar_id: string | null }>(
+    `select p.user_id,
+            coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), 'GM') as name,
+            p.avatar_id
+       from player_profiles p
+       left join "user" u on u.id = p.user_id
+      where p.user_id = any($1::text[])
+     union all
+     select u.id as user_id,
+            coalesce(nullif(trim(u.name), ''), 'GM') as name,
+            null as avatar_id
+       from "user" u
+      where u.id = any($1::text[])
+        and not exists (select 1 from player_profiles p where p.user_id = u.id)`,
+    [uniq],
+  );
+  for (const row of rows) {
+    const name = clipGm(row.name ?? "");
+    if (newsHidden(row.user_id, name) || newsHidden(row.user_id, row.name)) continue;
+    out.set(row.user_id, { name, avatarId: clampAvatar(row.avatar_id ?? "poor") });
+  }
+  return out;
+}
+
+function pushUnique(out: NewsItem[], seen: Set<string>, key: string, item: NewsItem | null): void {
+  if (!item || seen.has(key)) return;
+  if (item.faces.some((face) => newsHidden(undefined, face.name))) return;
+  seen.add(key);
+  out.push(item);
+}
+
+async function backfillWindow(sql: Sql, yday: string, startEt: string): Promise<NewsItem[]> {
+  const out: NewsItem[] = [];
+  const seen = new Set<string>();
+
+  const stored = await sql.query<{
+    id: number | string;
+    kind: string;
+    source_key: string;
+    payload: unknown;
+    created_at: unknown;
+  }>(
+    `select id, kind, source_key, payload, created_at
+       from darkness_news
+      where created_at >= $1::timestamp at time zone 'America/New_York'
+        and kind in ('match', 'box', 'scratch', 'daily_win')
+      order by created_at desc, id desc
+      limit 80`,
+    [startEt],
+  );
+  for (const row of stored) {
+    const item = parseItem(row);
+    pushUnique(out, seen, String(row.source_key || `news:${row.id}`), item);
+  }
+
+  const matches = await sql.query<{
+    code: string;
+    nights: number | string;
+    winner: number | string | null;
+    score0: number | string;
+    score1: number | string;
+    name0: string | null;
+    name1: string | null;
+    avatar0: string | null;
+    avatar1: string | null;
+    host_user_id: string | null;
+    guest_user_id: string | null;
+    created_at: unknown;
+  }>(
+    `select code, nights, winner, score0, score1, name0, name1, avatar0, avatar1,
+            host_user_id, guest_user_id, created_at
+       from darkness_results
+      where guest_token is not null
+        and created_at >= $1::timestamp at time zone 'America/New_York'
+      order by created_at desc
+      limit 80`,
+    [startEt],
+  );
+  for (const row of matches) {
+    const key = `match:${row.code}:${row.nights}`;
+    if (seen.has(key)) continue;
+    const hostId = row.host_user_id;
+    const guestId = row.guest_user_id;
+    if (newsHidden(hostId, row.name0) || newsHidden(guestId, row.name1)) continue;
+    const win = Number(row.winner);
+    const lose: 0 | 1 = win === 0 ? 1 : 0;
+    const names = [clipGm(row.name0 ?? ""), clipGm(row.name1 ?? "")];
+    const avatars = [row.avatar0, row.avatar1];
+    const faces =
+      win === 0 || win === 1
+        ? [newsFace(names[win]!, avatars[win]), newsFace(names[lose]!, avatars[lose])]
+        : [newsFace(names[0]!, avatars[0]), newsFace(names[1]!, avatars[1])];
+    if (faces.some((face) => newsHidden(undefined, face.name))) continue;
+    const a = win === 0 || win === 1 ? row[`score${win}` as "score0"] : row.score0;
+    const b = win === 0 || win === 1 ? row[`score${lose}` as "score0"] : row.score1;
+    pushUnique(out, seen, key, {
+      id: sourceId(key),
+      at: asTime(row.created_at),
+      kind: "match",
+      faces,
+      score: `${formatNewsScore(Number(a))}–${formatNewsScore(Number(b))}`,
+    });
+  }
+
+  const scratches = await sql.query<{
+    id: number | string;
+    user_id: string;
+    prize: string;
+    scratched_at: unknown;
+  }>(
+    `select id, user_id, prize, scratched_at
+       from darkness_scratch_cards
+      where scratched_at is not null
+        and scratched_at >= $1::timestamp at time zone 'America/New_York'
+      order by scratched_at desc, id desc
+      limit 80`,
+    [startEt],
+  );
+  const scratchActors = await loadActors(
+    sql,
+    scratches.map((row) => row.user_id),
+  );
+  for (const row of scratches) {
+    const key = `scratch:${row.id}`;
+    const actor = scratchActors.get(row.user_id);
+    if (!actor) continue;
+    const prize = prizeByKey(row.prize);
+    pushUnique(out, seen, key, {
+      id: sourceId(key),
+      at: asTime(row.scratched_at),
+      kind: "scratch",
+      faces: [newsFace(actor.name, actor.avatarId)],
+      prizeId: prize.avatar ?? undefined,
+      prizeLabel: prize.label,
+    });
+  }
+
+  let winners = await sql.query<{ user_id: string; score: number | string; finished_at: unknown }>(
+    `select r.user_id, r.score, coalesce(r.finished_at, r.started_at) as finished_at
+       from darkness_daily_runs r
+      where r.day = $1::date
+        and r.status = 'done'
+        and r.payout_win = true
+        and r.score is not null
+      order by r.score desc, r.finished_at asc
+      limit 8`,
+    [yday],
+  );
+  if (!winners.length) {
+    winners = await sql.query<{ user_id: string; score: number | string; finished_at: unknown }>(
+      `select p.user_id, coalesce(r.score, 0) as score, coalesce(r.finished_at, p.created_at) as finished_at
+         from darkness_payouts p
+         left join darkness_daily_runs r
+           on r.user_id = p.user_id and r.day = $1::date
+        where p.kind = 'daily_win'
+          and p.source_key like $2
+        order by coalesce(r.score, 0) desc
+        limit 8`,
+      [yday, `daily_win:${yday}:%`],
+    );
+  }
+  const winActors = await loadActors(
+    sql,
+    winners.map((row) => row.user_id),
+  );
+  for (const row of winners) {
+    const key = `daily_win:${yday}:${row.user_id}`;
+    const actor = winActors.get(row.user_id);
+    if (!actor) continue;
+    pushUnique(out, seen, key, {
+      id: sourceId(key),
+      at: asTime(row.finished_at),
+      kind: "daily_win",
+      faces: [newsFace(actor.name, actor.avatarId)],
+      day: yday,
+      score: formatNewsScore(Number(row.score)),
+    });
+  }
+
+  out.sort((a, b) => b.at - a.at || b.id - a.id);
+  return out.slice(0, 50);
+}
+
 export async function listNewsHandler(): Promise<NewsItem[]> {
   const { getSql } = await import("@/lib/db");
   const sql = await getSql();
   await ensureNewsTable(sql);
-  const rows = await sql.query<{ id: number | string; kind: string; payload: unknown; created_at: unknown }>(
-    `select id, kind, payload, created_at
-       from darkness_news
-      order by created_at desc, id desc
-      limit 80`,
-  );
-  const out: NewsItem[] = [];
-  for (const row of rows) {
-    const item = parseItem(row);
-    if (!item) continue;
-    out.push(item);
-    if (out.length >= 50) break;
+  const yday = newsLookbackDay();
+  const startEt = `${yday} 00:00:00`;
+  try {
+    return await backfillWindow(sql, yday, startEt);
+  } catch (err) {
+    console.error("[darkness] news backfill failed", err);
+    const rows = await sql.query<{ id: number | string; kind: string; payload: unknown; created_at: unknown }>(
+      `select id, kind, payload, created_at
+         from darkness_news
+        where created_at >= $1::timestamp at time zone 'America/New_York'
+          and kind in ('match', 'box', 'scratch', 'daily_win')
+        order by created_at desc, id desc
+        limit 50`,
+      [startEt],
+    );
+    const out: NewsItem[] = [];
+    for (const row of rows) {
+      const item = parseItem(row);
+      if (!item) continue;
+      out.push(item);
+      if (out.length >= 50) break;
+    }
+    return out;
   }
-  return out;
 }
 
 export { formatNewsScore, newsFace };
