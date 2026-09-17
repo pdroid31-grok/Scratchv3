@@ -1,4 +1,4 @@
-import { DAILY_TZ } from "./daily";
+import { DAILY_TZ, dailyDayStamp, dailyYesterday } from "./daily";
 import { clampAvatar, type AvatarId } from "./avatars";
 
 export type NewsKind = "match" | "box" | "scratch" | "daily_win" | "weekly_win";
@@ -39,4 +39,9 @@ export function formatNewsScore(n: number): string {
 
 export function newsFace(name: string, avatarId?: string | null): NewsFace {
   return { name: name.trim() || "GM", avatarId: clampAvatar(avatarId ?? "poor") };
+}
+
+/** Yesterday's ET calendar date. Feed backfill starts at that midnight ET. */
+export function newsLookbackDay(now = Date.now()): string {
+  return dailyYesterday(dailyDayStamp(now));
 }
