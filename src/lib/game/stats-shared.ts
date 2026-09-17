@@ -31,7 +31,7 @@ export const HIDDEN_BOARD_IDS = new Set([
 ]);
 
 /** Hide from public boards by display/auth name. Do not delete the user. */
-export const HIDDEN_BOARD_NAMES = new Set(["nightwatch", "testpg", "grokbot1"]);
+export const HIDDEN_BOARD_NAMES = new Set(["nightwatch", "testpg", "grokbot1", "inspector1"]);
 
 export function isHiddenBoardId(id?: string | null): boolean {
   return Boolean(id && HIDDEN_BOARD_IDS.has(id));
@@ -39,6 +39,11 @@ export function isHiddenBoardId(id?: string | null): boolean {
 
 export function isHiddenBoardName(name?: string | null): boolean {
   return Boolean(name && HIDDEN_BOARD_NAMES.has(name.trim().toLowerCase()));
+}
+
+/** QA names never take Daily/Weekly win cash or stars, even with the high score. */
+export function isAwardSkippedName(name?: string | null): boolean {
+  return isHiddenBoardName(name);
 }
 
 export function hiddenBoardIdSql(column: string): string {

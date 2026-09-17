@@ -18,7 +18,7 @@ import {
   tiedDailyWinners,
 } from "./daily";
 import { scoredWeek, type ElimPick } from "./elim";
-import { clipDisplayName, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
+import { clipDisplayName, isAwardSkippedName, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
 import { clampAvatar, type AvatarId } from "./avatars";
 
 type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
@@ -171,14 +171,18 @@ async function settleYesterday(sql: Sql, today: string): Promise<void> {
     }
     return;
   }
-  const top = await sql.query<{ user_id: string; score: number | string }>(
-    `select user_id, score
-       from darkness_daily_runs
-      where day = $1::date and status = 'done' and score is not null
-      order by score desc, finished_at asc`,
+  const top = await sql.query<{ user_id: string; score: number | string; name: string | null }>(
+    `select r.user_id, r.score,
+            coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name
+       from darkness_daily_runs r
+       left join player_profiles p on p.user_id = r.user_id
+       left join "user" u on u.id = r.user_id
+      where r.day = $1::date and r.status = 'done' and r.score is not null
+      order by r.score desc, r.finished_at asc`,
     [yday],
   );
-  let ids = tiedDailyWinners(top.map((row) => ({ userId: row.user_id, score: asNum(row.score) })));
+  const eligible = top.filter((row) => !isAwardSkippedName(row.name));
+  let ids = tiedDailyWinners(eligible.map((row) => ({ userId: row.user_id, score: asNum(row.score) })));
   if (yday === "2026-09-08") ids = ids.slice(0, 1);
   for (const id of ids) {
     await sql.query(
@@ -211,6 +215,17 @@ async function loadRun(sql: Sql, day: string, userId: string): Promise<RunRow | 
     [day, userId],
   );
   return rows[0] ?? null;
+}
+
+async function displayNameFor(sql: Sql, userId: string): Promise<string> {
+  const rows = await sql.query<{ name: string | null }>(
+    `select coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name
+       from "user" u
+       left join player_profiles p on p.user_id = u.id
+      where u.id = $1`,
+    [userId],
+  );
+  return rows[0]?.name ?? "";
 }
 
 function runStatus(run: RunRow | null): DailyStatus {
@@ -297,7 +312,7 @@ async function completeDailyRun(
         [scoreKey],
       )
     : [];
-  const payScore = overLine && !alreadyScore[0];
+  const payScore = overLine && !alreadyScore[0] && !isAwardSkippedName(await displayNameFor(sql, userId));
   const snap = dailyPickSnapshot(day.year as ElimYear, day.week, picks);
   await sql.query(
     `update darkness_daily_runs

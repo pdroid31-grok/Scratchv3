@@ -23,7 +23,7 @@ import {
 } from "./weekly";
 import { fillPackedOpponents, nflClock, playersFromPack, sidMap, weekOpponents, weekWindow, weeklyLiveStats, weeklyProjections, attachFinishedWeekActuals } from "./weekly-sleeper";
 import { type ElimPick } from "./elim";
-import { clipDisplayName, isHiddenBoardName } from "./stats-shared";
+import { clipDisplayName, isAwardSkippedName, isHiddenBoardName } from "./stats-shared";
 import { clampAvatar } from "./avatars";
 
 type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
@@ -193,18 +193,22 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
   const window = await weekWindow(season, week);
   if (!window.done) return;
   const live = await weeklyLiveStats(season, week);
-  const runs = await sql.query<{ user_id: string; picks: unknown }>(
-    `select user_id, picks from darkness_weekly_runs
-      where season = $1 and week = $2 and status = 'done'`,
+  const runs = await sql.query<{ user_id: string; picks: unknown; name: string | null }>(
+    `select r.user_id, r.picks,
+            coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name
+       from darkness_weekly_runs r
+       left join player_profiles p on p.user_id = r.user_id
+       left join "user" u on u.id = r.user_id
+      where r.season = $1 and r.week = $2 and r.status = 'done'`,
     [season, week],
   );
   const scored = runs.map((row) => {
     const picks = hydrateWeeklyPicks(row.picks, live, "zero");
-    return { userId: row.user_id, score: weeklyTotal(picks), picks };
+    return { userId: row.user_id, score: weeklyTotal(picks), picks, skip: isAwardSkippedName(row.name) };
   });
-  const winners = new Set(tiedWeeklyWinners(scored));
+  const winners = new Set(tiedWeeklyWinners(scored.filter((row) => !row.skip)));
   for (const row of scored) {
-    const paid = weeklyScorePays(row.score);
+    const paid = weeklyScorePays(row.score) && !row.skip;
     const win = winners.has(row.userId);
     await sql.query(
       `update darkness_weekly_runs
