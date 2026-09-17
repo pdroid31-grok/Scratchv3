@@ -344,7 +344,7 @@ export function ScratchCard() {
               />
             </div>
         </div>
-        <p className="mt-3 text-sm text-muted">Daily scores fill the ticket. Missed days stay on the bank.</p>
+        <p className="mt-3 text-center text-sm text-muted">Daily scores fill the ticket</p>
       </section>
       {oddsOpen ? <OddsHelp onClose={() => setOddsOpen(false)} /> : null}
       {open && card ? (
