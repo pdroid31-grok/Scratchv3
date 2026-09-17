@@ -81,6 +81,9 @@ export function ElimDraftScreen() {
     return null;
   };
 
+  const hostedDraft = mode === "online" && !elim.solo;
+  const plusTone = hostedDraft ? (mine ? "text-turf" : "text-danger") : "text-accent";
+
   const canPick = (id: string) => {
     if (holding || acting || !mine) return false;
     if (takenBy(id) !== null) return false;
@@ -192,7 +195,8 @@ export function ElimDraftScreen() {
                 disabled={pickDisabled}
                 onClick={() => draft(player.id)}
                 className={cn(
-                  "flex size-11 shrink-0 items-center justify-center rounded-xl bg-surface/90 text-accent shadow-[var(--shadow-border)]",
+                  "flex size-11 shrink-0 items-center justify-center rounded-xl bg-surface/90 shadow-[var(--shadow-border)]",
+                  plusTone,
                   pickDisabled ? "opacity-40" : "hover:bg-surface-2",
                 )}
               >
