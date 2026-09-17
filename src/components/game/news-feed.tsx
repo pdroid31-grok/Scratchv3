@@ -214,6 +214,18 @@ function NewsLine({ item, onPeek }: { item: NewsItem; onPeek: (look: LookPeek) =
       </p>
     );
   }
+  if ((item.kind === "star_unlock" || item.kind === "feat_unlock") && a && item.prizeId) {
+    return (
+      <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-fg">
+        <Face face={a} onPeek={onPeek} />
+        <span className="text-muted">unlocked</span>
+        <PrizeMark id={item.prizeId} label={item.prizeLabel} onPeek={onPeek} />
+        <span className="text-muted">
+          {item.kind === "star_unlock" ? "from Daily Stars" : "from Achievements"}
+        </span>
+      </p>
+    );
+  }
   if (item.kind === "scratch" && a) {
     return (
       <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-fg">
