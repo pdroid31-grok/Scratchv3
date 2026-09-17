@@ -7,7 +7,6 @@ import {
   autoFillDailyPicks,
   canViewDailyLineup,
   clipDailyPickIds,
-  dailyAutoBudgetMs,
   dailyDayStamp,
   dailyPickSnapshot,
   dailyScorePays,
@@ -218,8 +217,7 @@ function runStatus(run: RunRow | null): DailyStatus {
   if (!run) return "open";
   if (run.status === "done" && run.score != null) return "done";
   // Leave / freeze / kick never burns the attempt. Old "forfeit" or empty-done
-  // rows stay in play until the draft clock budget elapses (or WWW's empty
-  // today row is force-submitted) and auto-submit fills leftover slots.
+  // rows stay in play until the day closes; missed-day auto-submit fills leftover slots.
   return "playing";
 }
 
@@ -278,21 +276,8 @@ async function ensureDailyProfile(sql: Sql, userId: string): Promise<void> {
   );
 }
 
-function runAgeMs(started: string | Date | null | undefined): number {
-  if (!started) return 0;
-  const t = started instanceof Date ? started.getTime() : Date.parse(String(started));
-  if (!Number.isFinite(t)) return 0;
-  return Math.max(0, Date.now() - t);
-}
-
 const OPEN_RUN = "status in ('playing', 'forfeit')";
 const UNFINISHED_RUN = `(${OPEN_RUN} or (status = 'done' and score is null))`;
-const WWW_LIVE_ID = "8iURVpnfUfGgeu41IAcAU1bHoGcQtchF";
-const WWW_SEED_ID = "Th7Ewogxh5Ul0nRrTQgs7tmP45rePO3Q";
-
-function isWwwBook(userId: string, name: string): boolean {
-  return userId === WWW_LIVE_ID || userId === WWW_SEED_ID || name === "WWW";
-}
 
 async function completeDailyRun(
   sql: Sql,
@@ -345,8 +330,10 @@ async function completeDailyRun(
   return loadRun(sql, day.day, userId);
 }
 
-async function finishStaleDailyRuns(sql: Sql, day: DayRow, opts?: { force?: boolean }): Promise<void> {
-  const budget = dailyAutoBudgetMs();
+async function finishStaleDailyRuns(sql: Sql, day: DayRow, _opts?: { force?: boolean }): Promise<void> {
+  // Today's open Daily is never auto-filled — playing runs stay live until the
+  // day rolls. Missed-day random finish only after the stamp is closed.
+  if (asDay(day.day) >= dailyDayStamp()) return;
   let rows: { user_id: string; started_at: string | Date | null; picks: unknown; score: number | string | null; status: string }[] = [];
   try {
     rows = await sql.query(
@@ -359,8 +346,7 @@ async function finishStaleDailyRuns(sql: Sql, day: DayRow, opts?: { force?: bool
     return;
   }
   for (const row of rows) {
-    const emptyDone = row.status === "done" && row.score == null;
-    if (!opts?.force && !emptyDone && runAgeMs(row.started_at) < budget) continue;
+    if (row.status === "done" && row.score != null) continue;
     try {
       const existing = clipDailyPickIds(row.picks);
       const picks = autoFillDailyPicks(day.year as ElimYear, day.day, `${day.day}:${row.user_id}`, existing);
@@ -371,45 +357,12 @@ async function finishStaleDailyRuns(sql: Sql, day: DayRow, opts?: { force?: bool
   }
 }
 
-/** WWW already-burned today: empty row → auto-fill and submit now. Leave a scored row alone. */
-async function finishEmptyWwwRun(sql: Sql, day: DayRow): Promise<void> {
-  let rows: { user_id: string; picks: unknown; score: number | string | null; name: string | null }[] = [];
-  try {
-    rows = await sql.query(
-      `select r.user_id,
-              r.picks,
-              r.score,
-              coalesce(nullif(trim(p.display_name), ''), '') as name
-         from darkness_daily_runs r
-         left join player_profiles p on p.user_id = r.user_id
-        where r.day = $1::date
-          and r.score is null
-          and ${UNFINISHED_RUN}`,
-      [day.day],
-    );
-  } catch {
-    return;
-  }
-  for (const row of rows) {
-    if (!isWwwBook(row.user_id, row.name ?? "")) continue;
-    try {
-      const existing = clipDailyPickIds(row.picks);
-      const picks = autoFillDailyPicks(day.year as ElimYear, day.day, `${day.day}:${row.user_id}`, existing);
-      await completeDailyRun(sql, day, row.user_id, picks);
-    } catch (err) {
-      console.error("[darkness] www daily auto-submit failed", err);
-    }
-  }
-}
-
 export async function getDailyHandler({ context }: { context: { userId: string | null } }): Promise<DailyMeta> {
     const sql = await getSql();
     await ensureDailyTables(sql);
     const today = dailyDayStamp();
     await importLegacyThenSettle(sql, today);
     const day = await ensureToday(sql, today);
-    await finishStaleDailyRuns(sql, day);
-    await finishEmptyWwwRun(sql, day);
     const userId = context.userId;
     if (!userId) return metaFrom(day, "signed_out", null);
     const run = await loadRun(sql, today, userId);
@@ -422,8 +375,6 @@ export async function claimDailyHandler({ context }: { context: { userId: string
     const today = dailyDayStamp();
     await importLegacyThenSettle(sql, today);
     const day = await ensureToday(sql, today);
-    await finishStaleDailyRuns(sql, day);
-    await finishEmptyWwwRun(sql, day);
     const run = await loadRun(sql, today, context.userId);
     const status = runStatus(run);
     if (status === "done") return metaFrom(day, status, run);
@@ -457,8 +408,6 @@ export async function forfeitDailyHandler({ context }: { context: { userId: stri
   await ensureDailyTables(sql);
   const today = dailyDayStamp();
   const day = await ensureToday(sql, today);
-  await finishStaleDailyRuns(sql, day);
-  await finishEmptyWwwRun(sql, day);
   const next = await loadRun(sql, today, context.userId);
   return metaFrom(day, runStatus(next), next);
 }
@@ -474,8 +423,6 @@ export async function saveDailyDraftHandler({
   await ensureDailyTables(sql);
   const today = dailyDayStamp();
   const day = await ensureToday(sql, today);
-  await finishStaleDailyRuns(sql, day);
-  await finishEmptyWwwRun(sql, day);
   const run = await loadRun(sql, today, context.userId);
   const status = runStatus(run);
   if (status !== "playing") return metaFrom(day, status, run);
@@ -497,8 +444,6 @@ export async function lockDailyHandler({ context, data }: { context: { userId: s
     const today = dailyDayStamp();
     await importLegacyThenSettle(sql, today);
     const day = await ensureToday(sql, today);
-    await finishStaleDailyRuns(sql, day);
-    await finishEmptyWwwRun(sql, day);
     const run = await loadRun(sql, today, context.userId);
     const status = runStatus(run);
     if (status === "done") {
@@ -522,10 +467,6 @@ export async function listDailyBoardHandler({ data }: { data: { day: string } })
     await importLegacyThenSettle(sql, today);
     if (data.day === today) await ensureToday(sql, today);
     const day = await loadDay(sql, data.day);
-    if (day && data.day === today) {
-      await finishStaleDailyRuns(sql, day);
-      await finishEmptyWwwRun(sql, day);
-    }
     if (!day) {
       return { day: data.day, year: 0, week: null, awarded: false, winnerId: null, rows: [] };
     }
