@@ -93,7 +93,7 @@ function parseItem(row: { id: number | string; kind: string; payload: unknown; c
   if (!raw || !Array.isArray(raw.faces) || !raw.faces.length) return null;
   if (raw.faces.some((face) => newsHidden(face.userId, face.name))) return null;
   const kind = raw.kind;
-  if (kind !== "match" && kind !== "box" && kind !== "scratch" && kind !== "daily_win" && kind !== "weekly_win") {
+  if (kind !== "box" && kind !== "scratch" && kind !== "daily_win" && kind !== "weekly_win") {
     return null;
   }
   return {
@@ -167,7 +167,7 @@ async function backfillWindow(sql: Sql, yday: string, startEt: string): Promise<
     `select id, kind, source_key, payload, created_at
        from darkness_news
       where created_at >= $1::timestamp at time zone 'America/New_York'
-        and kind in ('match', 'box', 'scratch', 'daily_win')
+        and kind in ('box', 'scratch', 'daily_win', 'weekly_win')
       order by created_at desc, id desc
       limit 80`,
     [startEt],
@@ -175,55 +175,6 @@ async function backfillWindow(sql: Sql, yday: string, startEt: string): Promise<
   for (const row of stored) {
     const item = parseItem(row);
     pushUnique(out, seen, String(row.source_key || `news:${row.id}`), item);
-  }
-
-  const matches = await sql.query<{
-    code: string;
-    nights: number | string;
-    winner: number | string | null;
-    score0: number | string;
-    score1: number | string;
-    name0: string | null;
-    name1: string | null;
-    avatar0: string | null;
-    avatar1: string | null;
-    host_user_id: string | null;
-    guest_user_id: string | null;
-    created_at: unknown;
-  }>(
-    `select code, nights, winner, score0, score1, name0, name1, avatar0, avatar1,
-            host_user_id, guest_user_id, created_at
-       from darkness_results
-      where guest_token is not null
-        and created_at >= $1::timestamp at time zone 'America/New_York'
-      order by created_at desc
-      limit 80`,
-    [startEt],
-  );
-  for (const row of matches) {
-    const key = `match:${row.code}:${row.nights}`;
-    if (seen.has(key)) continue;
-    const hostId = row.host_user_id;
-    const guestId = row.guest_user_id;
-    if (newsHidden(hostId, row.name0) || newsHidden(guestId, row.name1)) continue;
-    const win = Number(row.winner);
-    const lose: 0 | 1 = win === 0 ? 1 : 0;
-    const names = [clipGm(row.name0 ?? ""), clipGm(row.name1 ?? "")];
-    const avatars = [row.avatar0, row.avatar1];
-    const faces =
-      win === 0 || win === 1
-        ? [newsFace(names[win]!, avatars[win]), newsFace(names[lose]!, avatars[lose])]
-        : [newsFace(names[0]!, avatars[0]), newsFace(names[1]!, avatars[1])];
-    if (faces.some((face) => newsHidden(undefined, face.name))) continue;
-    const a = win === 0 || win === 1 ? row[`score${win}` as "score0"] : row.score0;
-    const b = win === 0 || win === 1 ? row[`score${lose}` as "score0"] : row.score1;
-    pushUnique(out, seen, key, {
-      id: sourceId(key),
-      at: asTime(row.created_at),
-      kind: "match",
-      faces,
-      score: `${formatNewsScore(Number(a))}–${formatNewsScore(Number(b))}`,
-    });
   }
 
   const scratches = await sql.query<{
@@ -301,14 +252,84 @@ async function backfillWindow(sql: Sql, yday: string, startEt: string): Promise<
     });
   }
 
+  const weekly = await sql.query<{
+    user_id: string;
+    season: number | string;
+    week: number | string;
+    score: number | string;
+    created_at: unknown;
+  }>(
+    `select r.user_id, r.season, r.week, r.score, p.created_at
+       from darkness_weekly_runs r
+       join darkness_payouts p
+         on p.source_key = 'weekly_win:' || r.season::text || '-W' || r.week::text || ':' || r.user_id
+      where r.payout_win = true
+        and r.score is not null
+        and p.created_at >= $1::timestamp at time zone 'America/New_York'
+      order by p.created_at desc
+      limit 16`,
+    [startEt],
+  );
+  const weeklyActors = await loadActors(
+    sql,
+    weekly.map((row) => row.user_id),
+  );
+  for (const row of weekly) {
+    const key = `weekly_win:${row.season}-W${row.week}:${row.user_id}`;
+    const actor = weeklyActors.get(row.user_id);
+    if (!actor) continue;
+    pushUnique(out, seen, key, {
+      id: sourceId(key),
+      at: asTime(row.created_at),
+      kind: "weekly_win",
+      faces: [newsFace(actor.name, actor.avatarId)],
+      week: `Week ${row.week}`,
+      score: formatNewsScore(Number(row.score)),
+    });
+  }
+
   out.sort((a, b) => b.at - a.at || b.id - a.id);
   return out.slice(0, 50);
+}
+
+const BLENDER_SEED_KEY = "news-seed-blender-gladiator-v1";
+
+async function seedBlenderGladiator(sql: Sql): Promise<void> {
+  const existing = await sql.query<{ ok: number }>(
+    `select 1 as ok from darkness_news where source_key = $1 limit 1`,
+    [BLENDER_SEED_KEY],
+  );
+  if (existing[0]) return;
+  const found = await sql.query<{ user_id: string; name: string | null; avatar_id: string | null }>(
+    `select p.user_id,
+            coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), 'Big Blender') as name,
+            p.avatar_id
+       from player_profiles p
+       left join "user" u on u.id = p.user_id
+      where lower(trim(p.display_name)) = 'big blender'
+         or lower(trim(u.name)) = 'big blender'
+      limit 1`,
+  );
+  const row = found[0];
+  const userId = row?.user_id ?? null;
+  const name = clipGm(row?.name ?? "Big Blender");
+  if (newsHidden(userId, name)) return;
+  await recordNewsSafe(sql, {
+    sourceKey: BLENDER_SEED_KEY,
+    payload: {
+      kind: "box",
+      faces: [{ name, avatarId: row?.avatar_id || "poor", userId }],
+      prizeId: "gladiator",
+      prizeLabel: "Gladiator",
+    },
+  });
 }
 
 export async function listNewsHandler(): Promise<NewsItem[]> {
   const { getSql } = await import("@/lib/db");
   const sql = await getSql();
   await ensureNewsTable(sql);
+  await seedBlenderGladiator(sql);
   const yday = newsLookbackDay();
   const startEt = `${yday} 00:00:00`;
   try {
@@ -319,7 +340,7 @@ export async function listNewsHandler(): Promise<NewsItem[]> {
       `select id, kind, payload, created_at
          from darkness_news
         where created_at >= $1::timestamp at time zone 'America/New_York'
-          and kind in ('match', 'box', 'scratch', 'daily_win')
+          and kind in ('box', 'scratch', 'daily_win', 'weekly_win')
         order by created_at desc, id desc
         limit 50`,
       [startEt],
