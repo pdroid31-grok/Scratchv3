@@ -246,19 +246,18 @@ export function SetupScreen({
           onClose={() => setLobbyOpen(false)}
         />
       ) : (
-      <section className={cn("mt-6 rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)]", fromNews.current && "news-slide-back")}>
+      <>
+      <NewsStrip
+        onOpen={() => {
+          fromNews.current = false;
+          setNewsOpen(true);
+        }}
+      />
+      <section className={cn("mt-3 rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)]", fromNews.current && "news-slide-back")}>
         <form
           className="grid gap-3"
           onSubmit={(e) => e.preventDefault()}
         >
-          <div className="grid gap-1">
-            <NewsStrip
-              onOpen={() => {
-                fromNews.current = false;
-                setNewsOpen(true);
-              }}
-            />
-          </div>
           <div className="grid gap-1">
             <Button
               type="button"
@@ -471,6 +470,7 @@ export function SetupScreen({
           </div>
         </div>
       </section>
+      </>
       )}
 
         </>
