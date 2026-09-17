@@ -11,7 +11,7 @@ import {
   SCRATCH_BANK_START,
   SCRATCH_NEED,
 } from "./scratch";
-import { justUnlockedScratchLook } from "./avatars";
+import { BOX_ONLY_IDS, justUnlockedScratchLook } from "./avatars";
 
 describe("scratch bank", () => {
   it("1080 becomes 1 card and 80 leftover", () => {
@@ -86,6 +86,10 @@ describe("scratch roll", () => {
     assert.equal(prizeFromRoll(100).key, "joker");
     assert.equal(prizeFromRoll(100).avatar, "joker");
     assert.equal(prizeFromRoll(0).key, "nothing");
+    for (let n = 1; n <= 100; n += 1) {
+      const look = prizeFromRoll(n).avatar;
+      if (look) assert.equal((BOX_ONLY_IDS as readonly string[]).includes(look), false, look);
+    }
     const counts = new Map<string, number>();
     for (let n = 1; n <= 100; n += 1) {
       const key = prizeFromRoll(n).key;

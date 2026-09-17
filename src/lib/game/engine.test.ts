@@ -1000,7 +1000,7 @@ describe("avatars", () => {
       ),
       false,
     );
-    for (const id of ["referee", "turf", "cone", "gatorade", "mascot", "otcoin", "robot", "tornado", "chilipepper", "mafia"]) {
+    for (const id of ["referee", "turf", "cone", "gatorade", "mascot", "otcoin", "robot", "tornado", "chilipepper", "mafia", "jacked", "inflated", "electrocuted", "spider", "butler"]) {
       assert.equal(PRIZE_AVATARS.some((avatar) => avatar.id === id), true, id);
     }
     assert.equal(boxPoolOwnedCount(["poor", "banana", "crossword", "thanos", "boxaddict", "club200", "peeping", "commish", "jail"]), 0);
