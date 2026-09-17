@@ -1259,29 +1259,6 @@ type BoardSql = {
 export async function loadLeaderboard(): Promise<Leaderboard> {
   const { getSql } = await import("@/lib/db");
   const sql = await getSql();
-  try {
-    const { seedAllLegacyPlayers } = await import("./legacy-seed.server");
-    await seedAllLegacyPlayers();
-    const { importLegacyHistory } = await import("./legacy-import.server");
-    await importLegacyHistory(sql);
-  } catch (err) {
-    console.error("[darkness] legacy board seed failed", err);
-  }
-  try {
-    const { ensureTestPgScratchGift } = await import("./scratch.server");
-    await ensureTestPgScratchGift(sql);
-  } catch (err) {
-    console.error("[darkness] TestPG scratch gift failed", err);
-  }
-  await pushGifts(sql);
-  await grantBoxAddictSweep(sql);
-  await grantBananaSweep(sql);
-  try {
-    await syncDailyStarsFromPayouts(sql);
-    await catchUpStarLooksAll(sql);
-  } catch {
-    /* boards still load */
-  }
   const [merged, auction, elimination] = await Promise.all([
     queryBoard(sql, null, 0),
     queryBoard(sql, "auction"),
@@ -1293,9 +1270,6 @@ export async function loadLeaderboard(): Promise<Leaderboard> {
     .sort((a, b) => (b.highest ?? -1) - (a.highest ?? -1) || b.wins - a.wins || a.name.localeCompare(b.name))
     .slice(0, 20);
   const stars = await queryStarsBoard(sql, merged);
-  void maybeStorePlayerVault(sql).catch((err) => {
-    console.error("[darkness] player vault snapshot failed", err);
-  });
   return { total, auction, elimination, score, stars };
 }
 

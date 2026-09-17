@@ -8,7 +8,7 @@ export const Route = createFileRoute("/api/rankings")({
         const boards = await loadLeaderboard();
         return Response.json(boards, {
           headers: {
-            "cache-control": "no-store",
+            "cache-control": "public, max-age=30",
             "access-control-allow-origin": "*",
           },
         });

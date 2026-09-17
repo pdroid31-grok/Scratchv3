@@ -24,7 +24,7 @@ function hasRows(boards: Boards | null | undefined): boolean {
 }
 
 async function fetchBoards(): Promise<Boards> {
-  const res = await fetch("/api/rankings", { credentials: "omit", cache: "no-store" });
+  const res = await fetch("/api/rankings", { credentials: "omit" });
   if (!res.ok) throw new Error("rankings failed");
   const data = (await res.json()) as Boards;
   if (!data || !Array.isArray(data.total) || !Array.isArray(data.auction) || !Array.isArray(data.elimination)) {
