@@ -12,7 +12,7 @@ import { useGame } from "@/lib/game/store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 
 const RULES: { icon: LucideIcon; text: string }[] = [
-  { icon: Lock, text: "One attempt. Leave early and the week is spent. First kickoff locks the board." },
+  { icon: Lock, text: "Lock your lineup before kickoff. Leave mid-draft and come back — the week is not spent until you lock." },
   { icon: Banknote, text: "Snake the board with $35. Last pick can go down to $1." },
   { icon: MousePointerClick, text: "Select players names to see their current season stats." },
   {
@@ -100,11 +100,15 @@ export function WeeklyStartScreen({
 
         {meta?.status === "done" ? (
           <p className="mt-4 text-sm text-fg">
-            {meta.live || meta.awarded ? "You scored" : "Projected"}{" "}
-            <span className="font-display font-semibold tabular-nums">{meta.score?.toFixed(1)}</span>
-            {meta.live || meta.awarded ? "" : " proj"}
-            {meta.awarded && meta.paid ? " · $1 banked" : ""}
-            {meta.awarded && meta.winner ? ` · 1st +$${WEEKLY_WIN_PAY} · ${WEEKLY_WIN_STARS} stars` : ""}.
+            {meta.live || meta.awarded ? (
+              <>
+                You scored <span className="font-display font-semibold tabular-nums">{meta.score?.toFixed(1)}</span>
+                {meta.awarded && meta.paid ? " · $1 banked" : ""}
+                {meta.awarded && meta.winner ? ` · 1st +$${WEEKLY_WIN_PAY} · ${WEEKLY_WIN_STARS} stars` : ""}.
+              </>
+            ) : (
+              <>Submitted. Waiting on kickoff{meta.score != null ? ` · ${meta.score.toFixed(1)}` : ""}.</>
+            )}
           </p>
         ) : null}
         {meta?.status === "forfeit" ? (
@@ -133,7 +137,7 @@ export function WeeklyStartScreen({
             onClick={() => void startWeekly()}
           >
             <CalendarRange className="size-4" />
-            {busy ? "Starting…" : "Start match"}
+            {busy ? "Starting…" : meta?.status === "playing" ? "Resume match" : "Start match"}
           </Button>
         ) : (
           <Link

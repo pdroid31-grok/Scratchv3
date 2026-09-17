@@ -3,8 +3,8 @@ import { applyAction, initialGame, shouldEnterHalftime, startAuction, type GameA
 import { elimBriefing } from "./elim";
 import { dailyPickPayload, resumeDailyGame, startDailyGame } from "./daily";
 import { claimDaily, getDaily, lockDaily, saveDailyDraft } from "./daily-api";
-import { applyWeeklyLive, startWeeklyGame, unpackWeeklyBoard, weeklyCenterGame, weeklyLockPayload } from "./weekly";
-import { claimWeekly, forfeitWeekly, lockWeekly, resumeWeekly, weeklyBoardPack } from "./weekly-api";
+import { applyWeeklyLive, resumeWeeklyGame, startWeeklyGame, unpackWeeklyBoard, weeklyCenterGame, weeklyLockPayload } from "./weekly";
+import { claimWeekly, lockWeekly, resumeWeekly, saveWeeklyDraft, weeklyBoardPack } from "./weekly-api";
 import { hasHalftimeBoxes, sealedHalftime } from "./halftime";
 import { actNight, hostNight, joinNight, leaveNight, syncNight, watchNight, type RoomView, type WatchView } from "./rooms";
 import { maxBid, isEligible, canAffordReroll, canPickLot, replacementFor, shufflePair } from "./auction";
@@ -474,7 +474,6 @@ export const useGame = create<Store>((set, get) => ({
       const claimed = await claimWeekly({ data: {} });
       if (claimed.status === "done") {
         set({ busy: false });
-        await get().openWeeklyCenter();
         return;
       }
       if (claimed.status === "forfeit" || claimed.status === "locked" || claimed.status === "signed_out") {
@@ -485,6 +484,7 @@ export const useGame = create<Store>((set, get) => ({
         return;
       }
       const live = get();
+      const serverPicks = claimed.picks ?? [];
       if (
         live.mode === "weekly" &&
         live.weekly?.season === claimed.season &&
@@ -493,8 +493,11 @@ export const useGame = create<Store>((set, get) => ({
         !live.weekly.locked &&
         claimed.status === "playing"
       ) {
-        set({ busy: false });
-        return;
+        const localCount = live.elim?.picks[0]?.length ?? 0;
+        if (localCount >= serverPicks.length) {
+          set({ busy: false });
+          return;
+        }
       }
       const pack = await weeklyBoardPack({ data: {} });
       if (!pack) {
@@ -502,7 +505,9 @@ export const useGame = create<Store>((set, get) => ({
         return;
       }
       const pool = unpackWeeklyBoard(pack.board, pack.week);
-      const dealt = startWeeklyGame(seat.name, pack.season, pack.week, pool, seat.avatarId);
+      const dealt = serverPicks.length
+        ? resumeWeeklyGame(seat.name, pack.season, pack.week, pool, seat.avatarId, serverPicks)
+        : startWeeklyGame(seat.name, pack.season, pack.week, pool, seat.avatarId);
       const next: ClientState = {
         ...initialState,
         ...dealt,
@@ -515,6 +520,7 @@ export const useGame = create<Store>((set, get) => ({
       persistNet(next);
       lockJoinPrefill();
       set(next);
+      if (next.phase === "matchup") void maybeLockWeekly(get, set);
     } catch {
       set({ busy: false, netError: "Could not start this week’s board." });
     }
@@ -777,11 +783,6 @@ export const useGame = create<Store>((set, get) => ({
 
   reset: () => {
     const state = get();
-    if (state.mode === "weekly" && !state.weekly?.locked) {
-      void forfeitWeekly({ data: {} }).catch(() => {
-        /* already closed */
-      });
-    }
     const next: ClientState = { ...initialState, hydrated: true };
     persistLocal(next);
     persistNet(next);
@@ -812,6 +813,7 @@ function commitLocal(
   persistLocal(next);
   set(next);
   if (next.mode === "daily") queueSaveDailyDraft(get);
+  if (next.mode === "weekly") queueSaveWeeklyDraft(get);
 }
 
 async function sendAction(
@@ -1037,6 +1039,23 @@ async function maybeSaveDailyDraft(get: () => Store) {
   if (!picks.length) return;
   try {
     await saveDailyDraft({ data: { picks } });
+  } catch {
+    /* next pick retries */
+  }
+}
+
+function queueSaveWeeklyDraft(get: () => Store) {
+  void maybeSaveWeeklyDraft(get);
+}
+
+async function maybeSaveWeeklyDraft(get: () => Store) {
+  const state = get();
+  if (state.mode !== "weekly" || !state.elim?.solo || state.weekly?.locked) return;
+  if (state.phase !== "draft" && state.phase !== "matchup") return;
+  const picks = weeklyLockPayload(state.elim.picks[0] ?? []);
+  if (!picks.length) return;
+  try {
+    await saveWeeklyDraft({ data: { picks } });
   } catch {
     /* next pick retries */
   }

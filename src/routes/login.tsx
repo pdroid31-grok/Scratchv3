@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { GROK_PROVIDERS, authClient, authEnabled, signIn } from "@/lib/auth/client";
+import { GROK_PROVIDERS, authClient, authEnabled, markSignedIn, signIn } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,6 +37,7 @@ function Login() {
         if (err) throw new Error(err.message ?? "Email or password did not match.");
       }
       await authClient.getSession().catch(() => undefined);
+      markSignedIn();
       window.location.href = "/";
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign-in failed.");

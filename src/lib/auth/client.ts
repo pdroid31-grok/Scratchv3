@@ -79,6 +79,30 @@ export function rememberBearerToken(token: string | null | undefined): void {
   if (typeof token === "string" && token) setBearerToken(token);
 }
 
+let forceSignedOut = false;
+const signedOutListeners = new Set<() => void>();
+
+export function markSignedOut(): void {
+  forceSignedOut = true;
+  signedOutListeners.forEach((fn) => fn());
+}
+
+export function markSignedIn(): void {
+  forceSignedOut = false;
+  signedOutListeners.forEach((fn) => fn());
+}
+
+export function subscribeSignedOut(fn: () => void): () => void {
+  signedOutListeners.add(fn);
+  return () => {
+    signedOutListeners.delete(fn);
+  };
+}
+
+export function isForceSignedOut(): boolean {
+  return forceSignedOut;
+}
+
 /**
  * The sandbox live preview runs this app inside an iframe on a `*.grok-sandbox.com`
  * host, where a full-page redirect to the broker can't work — so sign-in uses a
@@ -134,6 +158,7 @@ export async function signIn(
     const token = await waitForPopupToken(popup);
     if (!token) throw new Error("Sign-in was cancelled or failed");
     setBearerToken(token);
+    markSignedIn();
     // Refresh the client session store with the bearer attached (onRequest).
     // Avoid a full iframe reload when we're already on the destination — that
     // reload was the slow "still loading after the popup closed" feeling.
@@ -247,7 +272,10 @@ export async function signOut(redirectTo = "/"): Promise<void> {
       const { error } = await authClient.signOut();
       if (error) throw new Error(error.message ?? "Sign-out failed");
     },
-    clearToken: () => setBearerToken(null),
+    clearToken: () => {
+      setBearerToken(null);
+      markSignedOut();
+    },
     redirect: () => {
       window.location.href = redirectTo;
     },

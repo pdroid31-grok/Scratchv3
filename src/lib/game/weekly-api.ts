@@ -55,6 +55,14 @@ export const forfeitWeekly = createServerFn({ method: "POST" })
     return forfeitWeeklyHandler({ context });
   });
 
+export const saveWeeklyDraft = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((data: { picks: WeeklyPickPayload[] }) => ({ picks: clipPicks(data.picks) }))
+  .handler(async ({ context, data }): Promise<WeeklyMeta> => {
+    const { saveWeeklyDraftHandler } = await import("./weekly-api.server");
+    return saveWeeklyDraftHandler({ context, data });
+  });
+
 export const lockWeekly = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator((data: { picks: WeeklyPickPayload[] }) => ({ picks: clipPicks(data.picks) }))

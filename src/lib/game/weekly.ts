@@ -1,5 +1,5 @@
 import { ELIM_SLOTS, isElimSlot, slotPos, type ElimPlayer, type ElimPos, type ElimSlot } from "./elim-data";
-import { startElimination, type ElimPick } from "./elim";
+import { startElimination, pickElim, flushElimDraft, legalElimPicks, elimLineup, type ElimPick } from "./elim";
 import { clampAvatar, type AvatarId } from "./avatars";
 import { initialGame, type GameState } from "./engine";
 import type { TeamId } from "./types";
@@ -314,6 +314,50 @@ export function weeklyLockPayload(picks: ElimPick[]): { slot: string; id: string
     const hit = picks.find((row) => row.slot === slot);
     return hit ? { slot, id: hit.player.id } : { slot, id: "" };
   }).filter((row) => row.id);
+}
+
+export function clipWeeklyPickIds(raw: unknown): { slot: string; id: string }[] {
+  const rows = Array.isArray(raw) ? raw : [];
+  const out: { slot: string; id: string }[] = [];
+  const seen = new Set<string>();
+  for (const item of rows) {
+    if (!item || typeof item !== "object") continue;
+    const slot = String((item as { slot?: string }).slot ?? "").trim();
+    const id = String((item as { id?: string }).id ?? "").trim();
+    if (!slot || !id || seen.has(slot)) continue;
+    seen.add(slot);
+    out.push({ slot, id });
+  }
+  return out;
+}
+
+/** Replay saved Weekly picks only. Never auto-fills leftover slots. */
+export function resumeWeeklyGame(
+  name: string,
+  season: number,
+  week: number,
+  pool: Record<ElimPos, ElimPlayer[]>,
+  avatarId: AvatarId = "poor",
+  existing: { slot: string; id: string }[] = [],
+): GameState {
+  let state = startWeeklyGame(name, season, week, pool, avatarId);
+  let now = 1_000_000;
+  const bySlot = new Map(existing.map((row) => [row.slot, row.id]));
+  while (state.phase === "draft" && state.elim) {
+    if (state.elim.pickHoldUntil) {
+      now = state.elim.pickHoldUntil + 1;
+      state = flushElimDraft(state, now);
+      continue;
+    }
+    const slot = elimLineup(state.elim)[state.elim.round];
+    const want = slot ? bySlot.get(slot) : undefined;
+    if (!want) break;
+    const legal = legalElimPicks(state.elim, state.cash[0], 0);
+    if (!legal.some((row) => row.id === want)) break;
+    state = pickElim(state, want, 0, now);
+  }
+  if (state.elim?.pickHoldUntil) state = flushElimDraft(state, state.elim.pickHoldUntil + 1);
+  return state;
 }
 
 export function weeklyPickPayload(picks: ElimPick[], sids: Record<string, string> = {}): WeeklyPickSnap[] {

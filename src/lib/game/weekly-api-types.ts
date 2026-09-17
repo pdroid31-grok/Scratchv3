@@ -14,6 +14,7 @@ export type WeeklyMeta = {
   score: number | null;
   paid: boolean;
   winner: boolean;
+  picks: WeeklyPickPayload[];
 };
 
 export type WeeklyBoardRow = {

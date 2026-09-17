@@ -10,6 +10,7 @@ import {
   fillSnapOpponents,
   hydrateWeeklyPicks,
   tiedWeeklyWinners,
+  clipWeeklyPickIds,
   weeklyPickPayload,
   weeklyScorePays,
   weeklyTeamBlocked,
@@ -267,6 +268,7 @@ function metaFrom(week: WeekRow, status: WeeklyStatus, run: RunRow | null, live:
     score: run?.score == null ? null : asNum(run.score),
     paid: Boolean(run?.payout_score),
     winner: Boolean(run?.payout_win),
+    picks: status === "playing" ? clipWeeklyPickIds(run?.picks) : [],
   };
 }
 
@@ -436,6 +438,32 @@ export async function forfeitWeeklyHandler({ context }: { context: { userId: str
     }
     const next = await loadRun(sql, week.season, week.week, context.userId);
     return metaFrom(week, runStatus(next, window.open && !week.awarded), next, window.live);
+}
+
+export async function saveWeeklyDraftHandler({
+  context,
+  data,
+}: {
+  context: { userId: string };
+  data: { picks: WeeklyPickPayload[] };
+}): Promise<WeeklyMeta> {
+  const sql = await getSql();
+  await ensureWeeklyTables(sql);
+  const { week, window } = await currentWeek(sql);
+  const run = await loadRun(sql, week.season, week.week, context.userId);
+  const open = (window.open || mswanLateOk(week.season, week.week, context.userId, run)) && !week.awarded;
+  const status = runStatus(run, open);
+  if (status !== "playing") return metaFrom(week, status, run, window.live);
+  const payload = clipWeeklyPickIds(data.picks);
+  await sql.query(
+    `update darkness_weekly_runs
+        set picks = $4::jsonb,
+            status = 'playing'
+      where season = $1 and week = $2 and user_id = $3 and status = 'playing'`,
+    [week.season, week.week, context.userId, JSON.stringify(payload)],
+  );
+  const next = await loadRun(sql, week.season, week.week, context.userId);
+  return metaFrom(week, runStatus(next, open), next, window.live);
 }
 
 function rebuildPicks(pack: WeeklyPackedBoard, weekNo: number, payload: { slot: string; id: string }[]): ElimPick[] | null {

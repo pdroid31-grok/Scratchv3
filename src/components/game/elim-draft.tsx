@@ -24,6 +24,7 @@ export function ElimDraftScreen() {
   const timeoutElim = useGame((s) => s.timeoutElim);
   const reset = useGame((s) => s.reset);
   const mode = useGame((s) => s.mode);
+  const weeklyLocked = useGame((s) => Boolean(s.weekly?.locked));
   const acting = useGame((s) => s.acting);
   const mine = isOnClock(useGame((s) => s));
   const [scout, setScout] = useState<ElimPlayer | null>(null);
@@ -255,7 +256,14 @@ export function ElimDraftScreen() {
       <Button
         variant="ghost"
         className="mt-2 shrink-0 self-start text-muted"
-        onClick={() => (mode === "daily" || mode === "weekly" ? setLeaveAsk(true) : reset())}
+        onClick={() => {
+          if (mode === "weekly" && weeklyLocked) {
+            reset();
+            return;
+          }
+          if (mode === "daily" || mode === "weekly") setLeaveAsk(true);
+          else reset();
+        }}
       >
         Leave
       </Button>
@@ -269,7 +277,7 @@ export function ElimDraftScreen() {
             </p>
             <p className="mt-2 text-sm text-muted">
               {mode === "weekly"
-                ? "This uses your one attempt for the week. You will not get a score."
+                ? "Your picks are saved. Come back to finish before kickoff — the week is not spent until you lock."
                 : "The clock keeps running. Leftover slots auto-pick and the lineup still submits."}
             </p>
             <div className="mt-4 grid grid-cols-2 gap-2">
