@@ -106,8 +106,8 @@ export function StoreTab({ onProfile }: { onProfile?: () => void }) {
   const guest = !user;
 
   return (
-    <div className="mt-6 grid gap-4">
-      <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
+    <div className="mt-6 grid w-full min-w-0 gap-4">
+      <section className="w-full rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
         <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-turf">Bank</p>
         <div className="mt-2 flex items-center gap-3">
           <div className="flex min-w-0 shrink-0 items-center gap-3">
@@ -144,7 +144,7 @@ export function StoreTab({ onProfile }: { onProfile?: () => void }) {
         {achievementsOpen ? <AchievementsSheet onClose={() => setAchievementsOpen(false)} /> : null}
       </section>
 
-      <section className="rounded-xl bg-surface/90 p-4 text-center shadow-[var(--shadow-border)] sm:p-6">
+      <section className="w-full rounded-xl bg-surface/90 p-4 text-center shadow-[var(--shadow-border)] sm:p-6">
         <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-turf">
           Mystery box
         </p>
@@ -188,7 +188,7 @@ export function StoreTab({ onProfile }: { onProfile?: () => void }) {
 
       <ScratchCard />
 
-      <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
+      <section className="w-full rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
         <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-turf">Showcase</p>
         <h2 className="mt-1 font-display text-2xl font-semibold uppercase tracking-wide text-fg">Golden</h2>
         <img

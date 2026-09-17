@@ -298,7 +298,7 @@ export function ScratchCard() {
 
   return (
     <>
-      <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
+      <section className="w-full rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
         <div className="flex items-center gap-1">
           <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-turf">
             Scratch Off Ticket

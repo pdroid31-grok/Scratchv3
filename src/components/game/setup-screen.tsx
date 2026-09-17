@@ -151,7 +151,7 @@ export function SetupScreen({
   }
 
   return (
-    <main className="relative mx-auto flex min-h-full w-full max-w-lg flex-1 flex-col px-5 py-6 sm:py-8">
+    <main className="relative mx-auto flex min-h-full w-full min-w-0 max-w-lg flex-1 flex-col px-5 py-6 sm:py-8">
       <header className="flex items-start justify-between gap-3">
         <div>
           <h1 className="font-display text-5xl font-semibold uppercase leading-none tracking-tight text-fg sm:text-6xl">
@@ -169,7 +169,7 @@ export function SetupScreen({
         />
       </header>
 
-      <div className="mt-6 grid grid-cols-4 gap-1 rounded-lg bg-surface/90 p-1 shadow-[var(--shadow-border)]">
+      <div className="mt-6 grid w-full min-w-0 grid-cols-4 gap-1 rounded-lg bg-surface/90 p-1 shadow-[var(--shadow-border)]">
         {(
           [
             { id: "play" as const, label: "Play", Icon: Gamepad2 },
