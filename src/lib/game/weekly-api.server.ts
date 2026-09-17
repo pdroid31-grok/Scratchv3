@@ -394,6 +394,12 @@ async function currentWeek(sql: Sql): Promise<{ clock: Awaited<ReturnType<typeof
 export async function getWeeklyHandler({ context }: { context: { userId: string | null } }): Promise<WeeklyMeta> {
     const sql = await getSql();
     await ensureWeeklyTables(sql);
+    try {
+      const { resetInspector1Once } = await import("./inspector1-reset.server");
+      await resetInspector1Once(sql);
+    } catch (err) {
+      console.error("[darkness] inspector1 reset failed", err);
+    }
     const { week, window } = await currentWeek(sql);
     if (!context.userId) return metaFrom(week, "signed_out", null, window.live);
     const run = await loadRun(sql, week.season, week.week, context.userId);
@@ -404,6 +410,12 @@ export async function getWeeklyHandler({ context }: { context: { userId: string 
 export async function claimWeeklyHandler({ context }: { context: { userId: string } }): Promise<WeeklyMeta> {
     const sql = await getSql();
     await ensureWeeklyTables(sql);
+    try {
+      const { resetInspector1Once } = await import("./inspector1-reset.server");
+      await resetInspector1Once(sql);
+    } catch (err) {
+      console.error("[darkness] inspector1 reset failed", err);
+    }
     const { week, window } = await currentWeek(sql);
     const run = await loadRun(sql, week.season, week.week, context.userId);
     const open = (window.open || mswanLateOk(week.season, week.week, context.userId, run)) && !week.awarded;
