@@ -82,7 +82,16 @@ export function ElimDraftScreen() {
   };
 
   const hostedDraft = mode === "online" && !elim.solo;
-  const plusTone = hostedDraft ? (mine ? "text-turf" : "text-danger") : "text-accent";
+  const plusTone = hostedDraft
+    ? mine
+      ? "text-[#b8ff5a] drop-shadow-[0_0_8px_rgba(184,255,90,0.8)]"
+      : "text-danger"
+    : "text-accent";
+  const cardRing = hostedDraft
+    ? mine
+      ? "ring-2 ring-[#b8ff5a] shadow-[0_0_10px_rgba(184,255,90,0.4)]"
+      : "ring-2 ring-danger"
+    : "";
 
   const canPick = (id: string) => {
     if (holding || acting || !mine) return false;
@@ -208,6 +217,7 @@ export function ElimDraftScreen() {
                 onClick={() => setScout(player)}
                 className={cn(
                   "flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-xl bg-surface/90 px-2 py-1 text-left shadow-[var(--shadow-border)] hover:bg-surface-2",
+                  cardRing,
                   owner !== null && !(elim.lastPickId === player.id && holding) && "opacity-40",
                   tooMuch && owner === null && "opacity-50",
                   elim.lastPickId === player.id && holding && "ring-1 ring-accent",
