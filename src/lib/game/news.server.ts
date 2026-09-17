@@ -1,6 +1,6 @@
 /** Server-only public news feed. Do not import from client modules. */
 import { clipGm, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
-import { clampAvatar, type AvatarId } from "./avatars";
+import { avatarById, clampAvatar, type AvatarId } from "./avatars";
 import { prizeByKey } from "./scratch";
 import { formatNewsScore, newsFace, newsLookbackDay, type NewsItem, type NewsKind } from "./news";
 
@@ -72,6 +72,27 @@ export async function recordNews(
   );
 }
 
+export async function recordLookUnlockNews(
+  sql: Sql,
+  userId: string,
+  prizeId: string,
+  from: "stars" | "feats",
+): Promise<void> {
+  const actor = await newsActor(sql, userId);
+  if (!actor) return;
+  const prize = avatarById(prizeId);
+  const kind = from === "stars" ? "star_unlock" : "feat_unlock";
+  await recordNewsSafe(sql, {
+    sourceKey: `${kind}:${userId}:${prize.id}`,
+    payload: {
+      kind,
+      faces: [{ name: actor.name, avatarId: actor.avatarId, userId }],
+      prizeId: prize.id,
+      prizeLabel: prize.name,
+    },
+  });
+}
+
 export async function recordNewsSafe(
   sql: Sql,
   input: { sourceKey: string; payload: NewsPayload },
@@ -94,7 +115,14 @@ function parseItem(row: { id: number | string; kind: string; payload: unknown; c
   if (!raw || !Array.isArray(raw.faces) || !raw.faces.length) return null;
   if (raw.faces.some((face) => newsHidden(face.userId, face.name))) return null;
   const kind = raw.kind;
-  if (kind !== "box" && kind !== "scratch" && kind !== "daily_win" && kind !== "weekly_win") {
+  if (
+    kind !== "box" &&
+    kind !== "scratch" &&
+    kind !== "daily_win" &&
+    kind !== "weekly_win" &&
+    kind !== "star_unlock" &&
+    kind !== "feat_unlock"
+  ) {
     return null;
   }
   return {
@@ -168,7 +196,7 @@ async function backfillWindow(sql: Sql, yday: string, startEt: string): Promise<
     `select id, kind, source_key, payload, created_at
        from darkness_news
       where created_at >= $1::timestamp at time zone 'America/New_York'
-        and kind in ('box', 'scratch', 'daily_win', 'weekly_win')
+        and kind in ('box', 'scratch', 'daily_win', 'weekly_win', 'star_unlock', 'feat_unlock')
       order by created_at desc, id desc
       limit 80`,
     [startEt],
@@ -341,7 +369,7 @@ export async function listNewsHandler(): Promise<NewsItem[]> {
       `select id, kind, payload, created_at
          from darkness_news
         where created_at >= $1::timestamp at time zone 'America/New_York'
-          and kind in ('box', 'scratch', 'daily_win', 'weekly_win')
+          and kind in ('box', 'scratch', 'daily_win', 'weekly_win', 'star_unlock', 'feat_unlock')
         order by created_at desc, id desc
         limit 50`,
       [startEt],
