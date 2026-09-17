@@ -59,7 +59,7 @@ export function NewsFeed({ onPlay }: { onPlay: () => void }) {
       onTouchEnd={onTouchEnd}
     >
       <button type="button" className={`${newsLinkClass} mt-0`} onClick={onPlay}>
-        Play Matches ←
+        ← Play Matches
       </button>
       {rows == null ? (
         <div className="mt-4 h-40 animate-pulse rounded-lg bg-bg" />
@@ -122,6 +122,7 @@ function NewsLine({ item }: { item: NewsItem }) {
         <Face face={a} />
         <span className="text-muted">opened</span>
         <PrizeMark id={item.prizeId} label={item.prizeLabel} />
+        <span className="text-muted">from the mystery box</span>
       </p>
     );
   }
