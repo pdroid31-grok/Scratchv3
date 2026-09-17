@@ -18,7 +18,7 @@ import {
   tiedDailyWinners,
 } from "./daily";
 import { scoredWeek, type ElimPick } from "./elim";
-import { clipDisplayName, isHiddenBoardName } from "./stats-shared";
+import { clipDisplayName, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
 import { clampAvatar, type AvatarId } from "./avatars";
 
 type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
@@ -503,7 +503,7 @@ export async function listDailyBoardHandler({ data }: { data: { day: string } })
       winnerId: day.awarded_user_id,
       rows: rows.flatMap((row) => {
         const name = clipDisplayName(row.name ?? "");
-        if (!name || isHiddenBoardName(name)) return [];
+        if (!name || isHiddenBoardId(row.id) || isHiddenBoardName(name)) return [];
         return [
           {
             id: row.id,

@@ -27,6 +27,7 @@ export const HIDDEN_BOARD_IDS = new Set([
   "v783SxZeXud3WKr9H7q7pcgFypgIuGsY",
   "d9UdHOqeb48BAXYizwiBkNOBGSB1jtXP",
   "5nWDuHgSRx1TLr0oeKtiStulZzievyRq",
+  "Qxo7D6xMnqUdJ2pTikGalBsvfoLdd4MY",
 ]);
 
 /** Hide from public boards by display/auth name. Do not delete the user. */
