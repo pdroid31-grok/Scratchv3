@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { ArrowLeft, ArrowRight, X } from "lucide-react";
 import { avatarById } from "@/lib/game/avatars";
 import { formatNewsTime, type NewsFace, type NewsItem } from "@/lib/game/news";
 import { listNews } from "@/lib/game/news-api";
@@ -11,13 +11,13 @@ type LookPeek = { src: string; name: string };
 const newsLinkClass =
   "mt-4 inline-flex w-full items-center justify-center gap-2 font-display text-xl font-semibold uppercase leading-none tracking-wide text-muted hover:text-fg sm:text-2xl";
 
+const newsArrowClass = "size-7 shrink-0 sm:size-8";
+
 export function NewsStrip({ onOpen }: { onOpen: () => void }) {
   return (
     <button type="button" className={newsLinkClass} onClick={onOpen}>
-      <span>News Feed</span>
-      <span className="inline-flex items-center leading-none" aria-hidden>
-        →
-      </span>
+      <span className="leading-none">News Feed</span>
+      <ArrowRight className={newsArrowClass} strokeWidth={2.5} aria-hidden />
     </button>
   );
 }
@@ -76,10 +76,8 @@ export function NewsFeed({ onPlay }: { onPlay: () => void }) {
       onTouchEnd={onTouchEnd}
     >
       <button type="button" className={newsLinkClass} onClick={onPlay}>
-        <span className="inline-flex items-center leading-none" aria-hidden>
-          ←
-        </span>
-        <span>Play Matches</span>
+        <ArrowLeft className={newsArrowClass} strokeWidth={2.5} aria-hidden />
+        <span className="leading-none">Play Matches</span>
       </button>
       <section className="mt-3 overflow-x-hidden rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)]">
       {rows == null ? (
