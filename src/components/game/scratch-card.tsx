@@ -284,9 +284,10 @@ export function ScratchCard() {
   const bank = book?.scratchBank ?? 0;
   const ready = book?.scratchReady ?? 0;
   const percent = scratchPercent(bank);
+  const playable = ready >= 1 || bank >= SCRATCH_NEED;
 
   async function start() {
-    if (busy || ready < 1) return;
+    if (busy || !playable) return;
     setBusy(true);
     const next = await openScratch({ data: {} });
     setBusy(false);
@@ -313,11 +314,24 @@ export function ScratchCard() {
             </span>
           </button>
         </div>
-        <img
-          src="/scratch-ticket.jpg"
-          alt=""
-          className="mt-3 w-full rounded-lg object-cover shadow-[var(--shadow-border)]"
-        />
+        <div className="relative mt-3">
+          <img
+            src="/scratch-ticket.jpg"
+            alt=""
+            className="w-full rounded-lg object-cover shadow-[var(--shadow-border)]"
+          />
+          {playable ? (
+            <Button
+              type="button"
+              size="lg"
+              className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 font-display uppercase tracking-wider"
+              disabled={busy}
+              onClick={() => void start()}
+            >
+              {busy ? "Loading…" : "Scratch"}
+            </Button>
+          ) : null}
+        </div>
         <div className="mt-3 min-w-0">
             <p className="font-display text-xl font-semibold uppercase tracking-wide text-fg">
               {loaded ? `${bank} / ${SCRATCH_NEED}` : "—"}
@@ -330,19 +344,7 @@ export function ScratchCard() {
               />
             </div>
         </div>
-        {ready > 0 ? (
-          <Button
-            type="button"
-            size="lg"
-            className="mt-4 w-full font-display uppercase tracking-wider"
-            disabled={busy}
-            onClick={() => void start()}
-          >
-            {busy ? "Loading…" : ready > 1 ? `Scratch · ${ready} waiting` : "Scratch"}
-          </Button>
-        ) : (
-          <p className="mt-3 text-sm text-muted">Daily scores fill the ticket. Missed days stay on the bank.</p>
-        )}
+        <p className="mt-3 text-sm text-muted">Daily scores fill the ticket. Missed days stay on the bank.</p>
       </section>
       {oddsOpen ? <OddsHelp onClose={() => setOddsOpen(false)} /> : null}
       {open && card ? (

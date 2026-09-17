@@ -97,7 +97,7 @@ async function capPostCutoffUnused(sql: Sql, userId: string, earnedCards: number
   );
   const scratched = asInt(scratchedRows[0]?.n);
   const extraKeep = (await isTestPgUser(sql, userId)) ? 1 : 0;
-  const allowed = Math.max(0, earnedCards - scratched + extraKeep);
+  const allowed = Math.max(0, earnedCards - scratched) + extraKeep;
   await sql.query(
     `delete from darkness_scratch_cards
       where id in (
@@ -175,10 +175,15 @@ export async function syncScratchBank(sql: Sql, userId: string): Promise<Scratch
 }
 
 /** One unused Store-ticket test card for TestPG. Flagged so it never auto-mints again. */
-const TESTPG_STORE_TICKET_FLAG = "testpg-store-ticket-v2";
+const TESTPG_STORE_TICKET_FLAG = "testpg-store-ticket-v3";
 
 async function mintTestPgStoreTicketOnce(sql: Sql, userId: string): Promise<void> {
   if (!(await isTestPgUser(sql, userId))) return;
+  const unused = await sql.query<{ n: number | string }>(
+    `select count(*)::int as n from darkness_scratch_cards where user_id = $1 and scratched_at is null`,
+    [userId],
+  );
+  if (asInt(unused[0]?.n) >= 1) return;
   await sql.query(`
     create table if not exists darkness_scratch_flags (
       key text primary key,
