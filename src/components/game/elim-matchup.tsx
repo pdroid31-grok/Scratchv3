@@ -54,6 +54,7 @@ export function ElimMatchupScreen() {
   const avatars = useGame((s) => s.avatars);
   const hideWeek = useGame((s) => Boolean(s.daily?.hideWeek));
   const dailyDay = useGame((s) => s.daily?.day ?? null);
+  const dailyScore = useGame((s) => s.daily?.score);
   const weekly = useGame((s) => s.weekly);
   const refreshWeekly = useGame((s) => s.refreshWeekly);
   const [now, setNow] = useState(() => Date.now());
@@ -118,11 +119,13 @@ export function ElimMatchupScreen() {
   const scoreWeek = holding && last ? last.week : week;
   const shown = phase === "reveal" ? revealedCount(elim, now) : holding || phase === "results" ? steps : 0;
   const totals =
-    holding && last
-      ? last.scores
-      : shown > 0
-        ? running(elim, shown, now, display, scoreWeek)
-        : ([0, 0] as [number, number]);
+    mode === "daily" && dailyScore != null && Number.isFinite(dailyScore)
+      ? ([dailyScore, 0] as [number, number])
+      : holding && last
+        ? last.scores
+        : shown > 0
+          ? running(elim, shown, now, display, scoreWeek)
+          : ([0, 0] as [number, number]);
   const final = phase === "reveal" && shown >= steps;
   const live = phase === "reveal" && !final && shown > 0 ? shown - 1 : -1;
   const livePos = solo ? live : live >= 0 ? Math.floor(live / 2) : -1;

@@ -354,7 +354,7 @@ export function playersFromPack(pack: WeeklyPackedBoard, _week: number): Record<
     out[pos] = (pack[pos] ?? []).map((row) => {
       const weeks = Array.from({ length: 18 }, (_, i) => {
         const v = row.weeks?.[i];
-        return v == null || !Number.isFinite(Number(v)) ? 0 : Number(v);
+        return v == null || !Number.isFinite(Number(v)) ? Number.NaN : Number(v);
       });
       return {
         id: row.id,

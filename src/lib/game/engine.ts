@@ -77,7 +77,7 @@ export interface GameState {
   publicJoin?: boolean;
   elimEra?: ElimEra;
   elimReady?: [boolean, boolean];
-  daily?: { day: string; hideWeek: boolean } | null;
+  daily?: { day: string; hideWeek: boolean; score?: number } | null;
   weekly?: { season: number; week: number; live: boolean; locked?: boolean; awarded?: boolean; paid?: boolean; winner?: boolean; score?: number } | null;
 }
 

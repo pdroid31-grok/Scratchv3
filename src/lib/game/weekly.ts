@@ -394,7 +394,7 @@ function snapsToPicks(resume: WeeklyResume): ElimPick[] {
   for (const row of resume.picks) {
     if (!isElimSlot(row.slot)) continue;
     const pos = slotPos(row.slot);
-    const weeks = Array.from({ length: 18 }, () => 0);
+    const weeks = Array.from({ length: 18 }, () => Number.NaN);
     weeks[Math.max(0, resume.week - 1)] = row.score;
     picks.push({
       slot: row.slot,

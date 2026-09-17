@@ -128,6 +128,7 @@ export function WeeklyWeekBoard({
         })
         .catch(() => {
           if (stop) return;
+          if (startAtCurrent && week < 1) return;
           setBoard({
             season: SEASON_YEAR,
             week,
@@ -148,7 +149,8 @@ export function WeeklyWeekBoard({
 
   const open = openWeekOf(board?.currentWeek ?? 1);
   const weeks = useMemo(() => Array.from({ length: open }, (_, i) => i + 1), [open]);
-  const viewWeek = Math.min(week, open);
+  const weekReady = !startAtCurrent || (Boolean(board) && week >= 1);
+  const viewWeek = weekReady ? Math.min(week, open) : 0;
   const locked = Boolean(board && (board.live || board.awarded));
   const teams = board?.rows.filter((row) => row.hasPicks) ?? [];
 
@@ -162,17 +164,21 @@ export function WeeklyWeekBoard({
       <div className={cn("grid gap-3", seasonViews && locked ? "sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end" : "")}>
         <label className="grid gap-1">
           <span className="font-display text-[10px] font-semibold uppercase tracking-wider text-muted">Week</span>
-          <select
-            className="h-11 rounded-md bg-bg px-3 font-display text-sm font-semibold uppercase tracking-wide text-fg shadow-[var(--shadow-border)]"
-            value={viewWeek}
-            onChange={(event) => setWeek(Number(event.target.value) || 1)}
-          >
-            {weeks.map((n) => (
-              <option key={n} value={n}>
-                Week {n}
-              </option>
-            ))}
-          </select>
+          {weekReady ? (
+            <select
+              className="h-11 rounded-md bg-bg px-3 font-display text-sm font-semibold uppercase tracking-wide text-fg shadow-[var(--shadow-border)]"
+              value={viewWeek}
+              onChange={(event) => setWeek(Number(event.target.value) || 1)}
+            >
+              {weeks.map((n) => (
+                <option key={n} value={n}>
+                  Week {n}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <div className="h-11 animate-pulse rounded-md bg-bg shadow-[var(--shadow-border)]" aria-hidden />
+          )}
         </label>
         {seasonViews && locked ? (
           <div className="grid grid-cols-2 gap-1 rounded-lg bg-bg p-1">

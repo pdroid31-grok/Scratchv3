@@ -92,7 +92,7 @@ export function SeasonCard({
             {weekNums.map((week) => {
               const pts = weeks[week - 1];
               const bye = player.bye === week;
-              const blank = !bye && !Number.isFinite(pts);
+              const blank = !bye && !(Number.isFinite(pts) && pts !== 0);
               const hot = highlightWeek === week;
               const tone = bye ? "bye" : blank ? "ok" : weekScoreTone(player.pos, pts, bye);
               return (

@@ -1055,9 +1055,10 @@ async function maybeLockDaily(
     if (live.mode !== "daily" || live.phase !== "matchup" || !live.elim) return;
     if (locked.status !== "done") return;
     const week = locked.week || live.elim.week;
+    const score = Number(locked.score);
     const scored: ClientState = {
       ...live,
-      daily: { day: live.daily?.day ?? locked.day, hideWeek: false },
+      daily: { day: live.daily?.day ?? locked.day, hideWeek: false, score: Number.isFinite(score) ? score : undefined },
       elim: { ...live.elim, week },
     };
     const revealed = applyAction(scored, { type: "startReveal" });
