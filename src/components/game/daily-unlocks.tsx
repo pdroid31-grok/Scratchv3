@@ -7,19 +7,33 @@ import { STAR_UNLOCKS, avatarById } from "@/lib/game/avatars";
 import { useProfile } from "@/lib/game/profile-store";
 import { cn } from "@/lib/utils";
 
-export function DailyUnlocksButton({ className }: { className?: string }) {
+export function DailyUnlocksButton({ className, compact }: { className?: string; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <Button
-        type="button"
-        size="lg"
-        className={cn("w-full bg-fg font-display uppercase tracking-wider text-bg hover:bg-fg/90", className)}
-        onClick={() => setOpen(true)}
-      >
-        <Sun className="size-4" />
-        Daily Unlocks
-      </Button>
+      {compact ? (
+        <button
+          type="button"
+          className={cn(
+            "flex h-11 min-w-11 flex-col items-center justify-center gap-0.5 rounded-lg bg-bg px-2.5 text-fg shadow-[var(--shadow-border)] hover:bg-surface-2",
+            className,
+          )}
+          onClick={() => setOpen(true)}
+        >
+          <Sun className="size-4 text-turf" />
+          <span className="font-display text-[10px] font-semibold uppercase tracking-wider">Unlocks</span>
+        </button>
+      ) : (
+        <Button
+          type="button"
+          size="lg"
+          className={cn("w-full bg-fg font-display uppercase tracking-wider text-bg hover:bg-fg/90", className)}
+          onClick={() => setOpen(true)}
+        >
+          <Sun className="size-4" />
+          Daily Unlocks
+        </Button>
+      )}
       {open ? <DailyUnlocksSheet onClose={() => setOpen(false)} /> : null}
     </>
   );

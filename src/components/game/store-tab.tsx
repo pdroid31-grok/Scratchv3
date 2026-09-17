@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { Star } from "lucide-react";
 import { BOX_COST, GOLDEN_COST, PRIZE_AVATARS, avatarById } from "@/lib/game/avatars";
 import { useProfile } from "@/lib/game/profile-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -19,6 +20,7 @@ export function StoreTab({ onProfile }: { onProfile?: () => void }) {
   const rollBox = useProfile((s) => s.rollBox);
   const buyGolden = useProfile((s) => s.buyGolden);
   const coins = book?.coins ?? 0;
+  const stars = book?.dailyStars ?? 0;
   const owned = book?.owned ?? ["poor"];
   const left = PRIZE_AVATARS.filter((avatar) => !owned.includes(avatar.id)).length;
   const hasGolden = owned.includes("golden");
@@ -105,12 +107,22 @@ export function StoreTab({ onProfile }: { onProfile?: () => void }) {
     <div className="mt-6 grid gap-4">
       <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
         <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-turf">Bank</p>
-        <h2 className="mt-1 font-display text-2xl font-semibold uppercase tracking-wide text-fg">
-          ${guest ? 0 : loaded ? coins : "—"}
-        </h2>
+        <div className="mt-1 flex items-end justify-between gap-3">
+          <div className="flex min-w-0 items-baseline gap-3">
+            <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-fg">
+              ${guest ? 0 : loaded ? coins : "—"}
+            </h2>
+            <p className="flex items-center gap-1 font-display text-lg font-semibold tabular-nums text-fg">
+              <Star className="size-4 text-turf" fill="currentColor" />
+              {guest ? 0 : loaded ? stars : "—"}
+            </p>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <DailyUnlocksButton compact />
+            <AchievementsButton compact />
+          </div>
+        </div>
       </section>
-      <DailyUnlocksButton />
-      <AchievementsButton />
 
       <section className="rounded-xl bg-surface/90 p-4 text-center shadow-[var(--shadow-border)] sm:p-6">
         <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-turf">
