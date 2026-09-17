@@ -62,6 +62,7 @@ export async function recordNews(
   input: { sourceKey: string; payload: NewsPayload },
 ): Promise<void> {
   await ensureNewsTable(sql);
+  if (input.payload.kind === "match") return;
   if (input.payload.faces.some((face) => newsHidden(face.userId, face.name))) return;
   await sql.query(
     `insert into darkness_news (kind, source_key, payload)
