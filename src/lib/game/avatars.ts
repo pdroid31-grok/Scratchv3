@@ -75,8 +75,8 @@ export const AVATARS = [
   { id: "mafia", name: "Mafia", src: "/avatars/mafia.jpg?v=2" },
   { id: "commish", name: "Commish", src: "/avatars/commish.jpg?v=1" },
   { id: "jail", name: "Jail", src: "/avatars/jail.jpg?v=1" },
-  { id: "crypepe", name: "Sad Crying Pepe", src: "/avatars/crypepe.jpg?v=1" },
-  { id: "joker", name: "Mythical Joker Pepe", src: "/avatars/joker.jpg?v=1" },
+  { id: "crypepe", name: "Crying", src: "/avatars/crypepe.jpg?v=2" },
+  { id: "joker", name: "Joker", src: "/avatars/joker.jpg?v=2" },
   { id: "golden", name: "Golden", src: "/avatars/golden.jpg?v=1" },
 ] as const;
 
