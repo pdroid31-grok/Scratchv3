@@ -3,7 +3,7 @@ import { dailyDayStamp } from "./daily";
 
 type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
 
-const FLAG = "inspector1-reset-today-w2-v1";
+const FLAG = "inspector1-reset-today-w2-v2";
 
 async function lookupInspector1Ids(sql: Sql): Promise<string[]> {
   const rows = await sql.query<{ user_id: string }>(
