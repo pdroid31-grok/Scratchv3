@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Star, Ticket, X } from "lucide-react";
+import { Star, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { avatarById } from "@/lib/game/avatars";
 import { claimScratch, openScratch } from "@/lib/game/scratch-api";
@@ -313,11 +313,12 @@ export function ScratchCard() {
             </span>
           </button>
         </div>
-        <div className="mt-3 flex items-center gap-3">
-          <div className="flex size-14 shrink-0 items-center justify-center rounded-md bg-bg text-turf shadow-[var(--shadow-border)]">
-            <Ticket className="size-7" strokeWidth={2} />
-          </div>
-          <div className="min-w-0 flex-1">
+        <img
+          src="/scratch-ticket.jpg"
+          alt=""
+          className="mt-3 w-full rounded-lg object-cover shadow-[var(--shadow-border)]"
+        />
+        <div className="mt-3 min-w-0">
             <p className="font-display text-xl font-semibold uppercase tracking-wide text-fg">
               {loaded ? `${bank} / ${SCRATCH_NEED}` : "—"}
             </p>
@@ -328,7 +329,6 @@ export function ScratchCard() {
                 style={{ width: `${Math.min(100, (bank / SCRATCH_NEED) * 100)}%` }}
               />
             </div>
-          </div>
         </div>
         {ready > 0 ? (
           <Button

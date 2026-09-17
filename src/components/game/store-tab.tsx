@@ -110,31 +110,31 @@ export function StoreTab({ onProfile }: { onProfile?: () => void }) {
       <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
         <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-turf">Bank</p>
         <div className="mt-2 flex items-center gap-3">
-          <div className="flex min-w-0 shrink-0 items-baseline gap-3">
-            <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-fg">
+          <div className="flex min-w-0 shrink-0 items-center gap-3">
+            <h2 className="font-display text-2xl font-semibold uppercase leading-none tracking-wide text-fg">
               ${guest ? 0 : loaded ? coins : "—"}
             </h2>
-            <p className="flex items-center gap-1 font-display text-2xl font-semibold tabular-nums tracking-wide text-fg">
-              <Star className="size-6 text-fg" fill="currentColor" />
+            <p className="flex items-center gap-1 font-display text-2xl font-semibold tabular-nums leading-none tracking-wide text-fg">
+              <Star className="size-[1.15em] shrink-0 text-fg" fill="currentColor" />
               {guest ? 0 : loaded ? stars : "—"}
             </p>
           </div>
           <div className="flex min-w-0 flex-1 justify-center gap-3">
             <button
               type="button"
-              className="flex h-16 w-[7.5rem] flex-col items-center justify-center gap-1 rounded-xl bg-bg px-2 text-fg shadow-[var(--shadow-border)] hover:bg-surface-2"
+              className="flex h-20 w-[8.5rem] flex-col items-center justify-center gap-1 rounded-xl bg-fg px-2 text-bg shadow-[var(--shadow-border)] hover:bg-fg/90"
               onClick={() => setUnlocksOpen(true)}
             >
-              <Sun className="size-5 text-turf" />
-              <span className="font-display text-[10px] font-semibold uppercase tracking-wider">Unlocks</span>
+              <Sun className="size-6 text-bg" />
+              <span className="font-display text-xs font-semibold uppercase tracking-wider">Unlocks</span>
             </button>
             <button
               type="button"
-              className="flex h-16 w-[7.5rem] flex-col items-center justify-center gap-1 rounded-xl bg-bg px-2 text-fg shadow-[var(--shadow-border)] hover:bg-surface-2"
+              className="flex h-20 w-[8.5rem] flex-col items-center justify-center gap-1 rounded-xl bg-fg px-2 text-bg shadow-[var(--shadow-border)] hover:bg-fg/90"
               onClick={() => setAchievementsOpen(true)}
             >
-              <Trophy className="size-5 text-turf" />
-              <span className="text-center font-display text-[10px] font-semibold uppercase tracking-wider">
+              <Trophy className="size-6 text-bg" />
+              <span className="text-center font-display text-xs font-semibold uppercase tracking-wider">
                 Achievements
               </span>
             </button>
