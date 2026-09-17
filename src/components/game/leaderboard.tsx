@@ -83,7 +83,7 @@ export function Leaderboard({
           id === "daily" ? (
             <DailyPane />
           ) : id === "weekly" ? (
-            <WeeklyWeekBoard peekLineups />
+            <WeeklyWeekBoard peekLineups startAtCurrent />
           ) : id === "stars" ? (
             <BoardList
               rows={boards ? boards.stars : null}
