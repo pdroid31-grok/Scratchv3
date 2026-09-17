@@ -16,6 +16,7 @@ import {
   pickDailyPuzzle,
   puzzleIsLegal,
   startDailyGame,
+  resumeDailyGame,
   tiedDailyWinners,
 } from "./daily";
 
@@ -124,5 +125,15 @@ describe("daily draft", () => {
     assert.equal(picks.find((row) => row.slot === "QB")?.player.id, qb.id);
     const ids = new Set(picks.map((row) => row.player.id));
     assert.equal(ids.size, ELIM_SLOTS.length);
+  });
+
+  it("restores saved picks without filling leftover slots", () => {
+    const fresh = startDailyGame("Pat", 2019, "2026-09-02", "poor", [...ELIM_SLOTS]);
+    const legal = legalElimPicks(fresh.elim!, fresh.cash[0], 0);
+    const qb = legal.sort((a, b) => a.cost - b.cost)[0]!;
+    const state = resumeDailyGame("Pat", 2019, "2026-09-02", "poor", [{ slot: "QB", id: qb.id }]);
+    assert.equal(state.phase, "draft");
+    assert.equal(state.elim?.picks[0].length, 1);
+    assert.equal(state.elim?.picks[0][0]?.player.id, qb.id);
   });
 });

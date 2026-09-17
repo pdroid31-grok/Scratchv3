@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { applyAction, initialGame, shouldEnterHalftime, startAuction, type GameAction, type GameKind, type GameState } from "./engine";
 import { elimBriefing } from "./elim";
-import { dailyPickPayload, startDailyGame } from "./daily";
+import { dailyPickPayload, resumeDailyGame, startDailyGame } from "./daily";
 import { claimDaily, getDaily, lockDaily, saveDailyDraft } from "./daily-api";
 import { applyWeeklyLive, startWeeklyGame, unpackWeeklyBoard, weeklyCenterGame, weeklyLockPayload } from "./weekly";
 import { claimWeekly, forfeitWeekly, lockWeekly, resumeWeekly, weeklyBoardPack } from "./weekly-api";
@@ -437,11 +437,18 @@ export const useGame = create<Store>((set, get) => ({
         return;
       }
       const live = get();
+      const serverPicks = claimed.picks ?? [];
       if (live.mode === "daily" && live.daily?.day === claimed.day && live.phase !== "setup") {
-        set({ busy: false });
-        return;
+        const localCount = live.elim?.picks[0]?.length ?? 0;
+        if (localCount >= serverPicks.length) {
+          set({ busy: false });
+          if (live.phase === "matchup") void maybeLockDaily(get, set);
+          return;
+        }
       }
-      const dealt = startDailyGame(seat.name, claimed.year as import("./elim-data").ElimYear, claimed.day, seat.avatarId);
+      const dealt = serverPicks.length
+        ? resumeDailyGame(seat.name, claimed.year as import("./elim-data").ElimYear, claimed.day, seat.avatarId, serverPicks)
+        : startDailyGame(seat.name, claimed.year as import("./elim-data").ElimYear, claimed.day, seat.avatarId);
       const next: ClientState = {
         ...initialState,
         ...dealt,
@@ -454,6 +461,7 @@ export const useGame = create<Store>((set, get) => ({
       persistNet(next);
       lockJoinPrefill();
       set(next);
+      if (next.phase === "matchup") void maybeLockDaily(get, set);
     } catch {
       set({ busy: false, netError: "Could not start today’s daily." });
     }
@@ -1017,18 +1025,8 @@ export function seatCanReroll(state: GameState, seat: Seat): boolean {
   return replacementFor(state.lots, state.lotIndex) !== null;
 }
 
-let saveDailyTimer: number | undefined;
-
 function queueSaveDailyDraft(get: () => Store) {
-  if (typeof window === "undefined") {
-    void maybeSaveDailyDraft(get);
-    return;
-  }
-  if (saveDailyTimer !== undefined) window.clearTimeout(saveDailyTimer);
-  saveDailyTimer = window.setTimeout(() => {
-    saveDailyTimer = undefined;
-    void maybeSaveDailyDraft(get);
-  }, 250);
+  void maybeSaveDailyDraft(get);
 }
 
 async function maybeSaveDailyDraft(get: () => Store) {
@@ -1055,12 +1053,15 @@ async function maybeLockDaily(
     const locked = await lockDaily({ data: { picks } });
     const live = get();
     if (live.mode !== "daily" || live.phase !== "matchup" || !live.elim) return;
-    if (locked.status !== "done" || !locked.week) return;
-    const next: ClientState = {
+    if (locked.status !== "done") return;
+    const week = locked.week || live.elim.week;
+    const scored: ClientState = {
       ...live,
       daily: { day: live.daily?.day ?? locked.day, hideWeek: false },
-      elim: { ...live.elim, week: locked.week },
+      elim: { ...live.elim, week },
     };
+    const revealed = applyAction(scored, { type: "startReveal" });
+    const next: ClientState = { ...scored, ...revealed };
     persistLocal(next);
     set(next);
     void useProfile.getState().load();

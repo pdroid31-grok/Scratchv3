@@ -231,6 +231,7 @@ function metaFrom(day: DayRow, status: DailyStatus, run: RunRow | null): DailyMe
     score: run?.score == null ? null : asNum(run.score),
     paid: Boolean(run?.payout_score),
     launch: "2026-09-02",
+    picks: status === "playing" ? clipDailyPickIds(run?.picks) : [],
   };
 }
 
@@ -308,17 +309,6 @@ async function completeDailyRun(
       where day = $1::date and user_id = $2 and ${UNFINISHED_RUN}`,
     [day.day, userId, score, JSON.stringify(snap), payScore],
   );
-  try {
-    await ensureDailyProfile(sql, userId);
-  } catch (err) {
-    console.error("[darkness] daily profile failed", err);
-  }
-  try {
-    const { syncScratchBank } = await import("./scratch.server");
-    await syncScratchBank(sql, userId);
-  } catch (err) {
-    console.error("[darkness] scratch bank failed", err);
-  }
   if (payScore) {
     await recordPayout(sql, {
       userId,
@@ -327,6 +317,10 @@ async function completeDailyRun(
       sourceKey: scoreKey,
     });
   }
+  void ensureDailyProfile(sql, userId).catch((err) => console.error("[darkness] daily profile failed", err));
+  void import("./scratch.server")
+    .then(({ syncScratchBank }) => syncScratchBank(sql, userId))
+    .catch((err) => console.error("[darkness] scratch bank failed", err));
   return loadRun(sql, day.day, userId);
 }
 
@@ -361,7 +355,6 @@ export async function getDailyHandler({ context }: { context: { userId: string |
     const sql = await getSql();
     await ensureDailyTables(sql);
     const today = dailyDayStamp();
-    await importLegacyThenSettle(sql, today);
     const day = await ensureToday(sql, today);
     const userId = context.userId;
     if (!userId) return metaFrom(day, "signed_out", null);
@@ -373,7 +366,6 @@ export async function claimDailyHandler({ context }: { context: { userId: string
     const sql = await getSql();
     await ensureDailyTables(sql);
     const today = dailyDayStamp();
-    await importLegacyThenSettle(sql, today);
     const day = await ensureToday(sql, today);
     const run = await loadRun(sql, today, context.userId);
     const status = runStatus(run);
@@ -442,7 +434,6 @@ export async function lockDailyHandler({ context, data }: { context: { userId: s
     const sql = await getSql();
     await ensureDailyTables(sql);
     const today = dailyDayStamp();
-    await importLegacyThenSettle(sql, today);
     const day = await ensureToday(sql, today);
     const run = await loadRun(sql, today, context.userId);
     const status = runStatus(run);

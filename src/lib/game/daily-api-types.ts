@@ -2,6 +2,8 @@ import type { AvatarId } from "./avatars";
 
 export type DailyStatus = "signed_out" | "open" | "playing" | "done" | "forfeit";
 
+export type DailyPickPayload = { slot: string; id: string };
+
 export type DailyMeta = {
   day: string;
   year: number;
@@ -10,6 +12,7 @@ export type DailyMeta = {
   score: number | null;
   paid: boolean;
   launch: string;
+  picks: DailyPickPayload[];
 };
 
 export type DailyBoardRow = {
@@ -48,5 +51,3 @@ export type DailyLineup = {
   score: number;
   picks: DailyLineupPick[];
 };
-
-export type DailyPickPayload = { slot: string; id: string };

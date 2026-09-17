@@ -189,6 +189,34 @@ export function startDailyGame(
   };
 }
 
+/** Replay saved Daily picks only. Never auto-fills leftover slots. */
+export function resumeDailyGame(
+  name: string,
+  year: ElimYear,
+  day: string,
+  avatarId: AvatarId = "poor",
+  existing: DailyPickIds[] = [],
+): GameState {
+  let state = startDailyGame(name, year, day, avatarId, [...ELIM_SLOTS]);
+  let now = 1_000_000;
+  const bySlot = new Map(existing.map((row) => [row.slot, row.id]));
+  while (state.phase === "draft" && state.elim) {
+    if (state.elim.pickHoldUntil) {
+      now = state.elim.pickHoldUntil + 1;
+      state = flushElimDraft(state, now);
+      continue;
+    }
+    const slot = elimLineup(state.elim)[state.elim.round];
+    const want = slot ? bySlot.get(slot) : undefined;
+    if (!want) break;
+    const legal = legalElimPicks(state.elim, state.cash[0], 0);
+    if (!legal.some((row) => row.id === want)) break;
+    state = pickElim(state, want, 0, now);
+  }
+  if (state.elim?.pickHoldUntil) state = flushElimDraft(state, state.elim.pickHoldUntil + 1);
+  return state;
+}
+
 export function dailyPickPayload(picks: ElimPick[]): { slot: string; id: string }[] {
   return ELIM_SLOTS.map((slot) => {
     const hit = picks.find((row) => row.slot === slot);
