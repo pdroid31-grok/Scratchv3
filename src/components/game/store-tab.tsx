@@ -2,15 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Star } from "lucide-react";
+import { Star, Sun, Trophy } from "lucide-react";
 import { BOX_COST, GOLDEN_COST, PRIZE_AVATARS, avatarById } from "@/lib/game/avatars";
 import { useProfile } from "@/lib/game/profile-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { Button } from "@/components/ui/button";
 import { MysteryBox, type MysteryBoxHandle } from "@/components/game/mystery-box";
 import { ScratchCard } from "@/components/game/scratch-card";
-import { DailyUnlocksButton } from "@/components/game/daily-unlocks";
-import { AchievementsButton } from "@/components/game/achievements-unlocks";
+import { DailyUnlocksSheet } from "@/components/game/daily-unlocks";
+import { AchievementsSheet } from "@/components/game/achievements-unlocks";
 import type { AvatarId } from "@/lib/game/avatars";
 
 export function StoreTab({ onProfile }: { onProfile?: () => void }) {
@@ -32,6 +32,8 @@ export function StoreTab({ onProfile }: { onProfile?: () => void }) {
   const [note, setNote] = useState<string | null>(null);
   const [shopNote, setShopNote] = useState<string | null>(null);
   const [resultOpen, setResultOpen] = useState(false);
+  const [unlocksOpen, setUnlocksOpen] = useState(false);
+  const [achievementsOpen, setAchievementsOpen] = useState(false);
   const boxRef = useRef<MysteryBoxHandle>(null);
   const opening = useRef(false);
   const holdTimer = useRef<number | null>(null);
@@ -107,21 +109,39 @@ export function StoreTab({ onProfile }: { onProfile?: () => void }) {
     <div className="mt-6 grid gap-4">
       <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
         <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-turf">Bank</p>
-        <div className="mt-1 flex items-end justify-between gap-3">
-          <div className="flex min-w-0 items-baseline gap-3">
+        <div className="mt-2 flex items-center gap-3">
+          <div className="flex min-w-0 shrink-0 items-baseline gap-3">
             <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-fg">
               ${guest ? 0 : loaded ? coins : "—"}
             </h2>
-            <p className="flex items-center gap-1 font-display text-lg font-semibold tabular-nums text-fg">
-              <Star className="size-4 text-turf" fill="currentColor" />
+            <p className="flex items-center gap-1 font-display text-2xl font-semibold tabular-nums tracking-wide text-fg">
+              <Star className="size-6 text-fg" fill="currentColor" />
               {guest ? 0 : loaded ? stars : "—"}
             </p>
           </div>
-          <div className="flex shrink-0 gap-2">
-            <DailyUnlocksButton compact />
-            <AchievementsButton compact />
+          <div className="flex min-w-0 flex-1 justify-center gap-3">
+            <button
+              type="button"
+              className="flex h-16 w-[7.5rem] flex-col items-center justify-center gap-1 rounded-xl bg-bg px-2 text-fg shadow-[var(--shadow-border)] hover:bg-surface-2"
+              onClick={() => setUnlocksOpen(true)}
+            >
+              <Sun className="size-5 text-turf" />
+              <span className="font-display text-[10px] font-semibold uppercase tracking-wider">Unlocks</span>
+            </button>
+            <button
+              type="button"
+              className="flex h-16 w-[7.5rem] flex-col items-center justify-center gap-1 rounded-xl bg-bg px-2 text-fg shadow-[var(--shadow-border)] hover:bg-surface-2"
+              onClick={() => setAchievementsOpen(true)}
+            >
+              <Trophy className="size-5 text-turf" />
+              <span className="text-center font-display text-[10px] font-semibold uppercase tracking-wider">
+                Achievements
+              </span>
+            </button>
           </div>
         </div>
+        {unlocksOpen ? <DailyUnlocksSheet onClose={() => setUnlocksOpen(false)} /> : null}
+        {achievementsOpen ? <AchievementsSheet onClose={() => setAchievementsOpen(false)} /> : null}
       </section>
 
       <section className="rounded-xl bg-surface/90 p-4 text-center shadow-[var(--shadow-border)] sm:p-6">
