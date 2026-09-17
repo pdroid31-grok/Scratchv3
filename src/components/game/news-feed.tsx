@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { X } from "lucide-react";
 import { avatarById } from "@/lib/game/avatars";
 import { formatNewsTime, type NewsFace, type NewsItem } from "@/lib/game/news";
 import { listNews } from "@/lib/game/news-api";
+
+type LookPeek = { src: string; name: string };
 
 const newsLinkClass =
   "mt-4 w-full text-center font-display text-xl font-semibold uppercase tracking-wide text-muted hover:text-fg sm:text-2xl";
@@ -18,8 +21,18 @@ export function NewsStrip({ onOpen }: { onOpen: () => void }) {
 
 export function NewsFeed({ onPlay }: { onPlay: () => void }) {
   const [rows, setRows] = useState<NewsItem[] | null>(null);
+  const [peek, setPeek] = useState<LookPeek | null>(null);
   const startX = useRef<number | null>(null);
   const startY = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!peek) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setPeek(null);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [peek]);
 
   useEffect(() => {
     let live = true;
@@ -53,6 +66,7 @@ export function NewsFeed({ onPlay }: { onPlay: () => void }) {
   }
 
   return (
+    <>
     <section
       className="news-slide-in mt-6 w-full min-w-0 overflow-x-hidden rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)]"
       onTouchStart={onTouchStart}
@@ -72,32 +86,98 @@ export function NewsFeed({ onPlay }: { onPlay: () => void }) {
               <p className="font-display text-[10px] font-semibold uppercase tracking-wider text-muted">
                 {formatNewsTime(row.at)}
               </p>
-              <NewsLine item={row} />
+              <NewsLine item={row} onPeek={setPeek} />
             </li>
           ))}
         </ol>
       )}
     </section>
+    {peek ? <NewsLookPeek look={peek} onClose={() => setPeek(null)} /> : null}
+    </>
   );
 }
 
-function Face({ face }: { face: NewsFace }) {
+function NewsLookPeek({ look, onClose }: { look: LookPeek; onClose: () => void }) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-bg/90 p-5"
+      role="dialog"
+      aria-modal="true"
+      aria-label={look.name}
+      onClick={onClose}
+      onTouchStart={(event) => event.stopPropagation()}
+      onTouchEnd={(event) => event.stopPropagation()}
+    >
+      <button
+        type="button"
+        className="absolute right-3 top-3 flex size-11 items-center justify-center rounded-full bg-surface text-fg shadow-[var(--shadow-border)]"
+        aria-label="Close"
+        onClick={onClose}
+      >
+        <X className="size-5" strokeWidth={2} />
+      </button>
+      <div className="flex w-full max-w-sm flex-col items-center" onClick={(event) => event.stopPropagation()}>
+        <img
+          src={look.src}
+          alt=""
+          className="max-h-[min(80vh,28rem)] w-full rounded-xl object-cover shadow-[var(--shadow-border)]"
+        />
+        <p className="mt-3 text-center font-display text-lg font-semibold uppercase tracking-wide text-fg">
+          {look.name}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function Face({ face, onPeek }: { face: NewsFace; onPeek: (look: LookPeek) => void }) {
   const av = avatarById(face.avatarId);
   return (
     <span className="inline-flex min-w-0 items-center gap-1.5">
-      <img src={av.src} alt="" className="size-7 shrink-0 rounded-md object-cover" />
+      <button
+        type="button"
+        className="shrink-0"
+        aria-label={`View ${face.name}`}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          onPeek({ src: av.src, name: face.name });
+        }}
+      >
+        <img src={av.src} alt="" className="size-7 rounded-md object-cover" />
+      </button>
       <span className="truncate font-medium text-fg">{face.name}</span>
     </span>
   );
 }
 
-function PrizeMark({ id, label }: { id?: string; label?: string }) {
+function PrizeMark({
+  id,
+  label,
+  onPeek,
+}: {
+  id?: string;
+  label?: string;
+  onPeek: (look: LookPeek) => void;
+}) {
   if (id) {
     const av = avatarById(id);
+    const name = label || av.name;
     return (
       <span className="inline-flex min-w-0 items-center gap-1.5">
-        <img src={av.src} alt="" className="size-7 shrink-0 rounded-md object-cover" />
-        <span className="truncate text-fg">{label || av.name}</span>
+        <button
+          type="button"
+          className="shrink-0"
+          aria-label={`View ${name}`}
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onPeek({ src: av.src, name });
+          }}
+        >
+          <img src={av.src} alt="" className="size-7 rounded-md object-cover" />
+        </button>
+        <span className="truncate text-fg">{name}</span>
       </span>
     );
   }
@@ -114,14 +194,14 @@ function formatDay(day: string): string {
   });
 }
 
-function NewsLine({ item }: { item: NewsItem }) {
+function NewsLine({ item, onPeek }: { item: NewsItem; onPeek: (look: LookPeek) => void }) {
   const a = item.faces[0];
   if (item.kind === "box" && a) {
     return (
       <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-fg">
-        <Face face={a} />
+        <Face face={a} onPeek={onPeek} />
         <span className="text-muted">opened</span>
-        <PrizeMark id={item.prizeId} label={item.prizeLabel} />
+        <PrizeMark id={item.prizeId} label={item.prizeLabel} onPeek={onPeek} />
         <span className="text-muted">from the mystery box</span>
       </p>
     );
@@ -129,16 +209,16 @@ function NewsLine({ item }: { item: NewsItem }) {
   if (item.kind === "scratch" && a) {
     return (
       <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-fg">
-        <Face face={a} />
+        <Face face={a} onPeek={onPeek} />
         <span className="text-muted">scratched</span>
-        <PrizeMark id={item.prizeId} label={item.prizeLabel} />
+        <PrizeMark id={item.prizeId} label={item.prizeLabel} onPeek={onPeek} />
       </p>
     );
   }
   if (item.kind === "daily_win" && a && item.day && item.score) {
     return (
       <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-fg">
-        <Face face={a} />
+        <Face face={a} onPeek={onPeek} />
         <span className="text-muted">won the</span>
         <span>{formatDay(item.day)} Daily</span>
         <span className="font-display tabular-nums">({item.score})</span>
@@ -149,7 +229,7 @@ function NewsLine({ item }: { item: NewsItem }) {
     const week = item.week.startsWith("Week") ? item.week : `Week ${item.week}`;
     return (
       <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-fg">
-        <Face face={a} />
+        <Face face={a} onPeek={onPeek} />
         <span className="text-muted">won</span>
         <span>{week}</span>
         <span className="font-display tabular-nums">({item.score})</span>
