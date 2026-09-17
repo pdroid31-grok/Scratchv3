@@ -21,7 +21,7 @@ import {
   type WeeklyPackedBoard,
   type WeeklyPickSnap,
 } from "./weekly";
-import { fillPackedOpponents, nflClock, playersFromPack, sidMap, weekOpponents, weekWindow, weeklyLiveStats, weeklyProjections } from "./weekly-sleeper";
+import { fillPackedOpponents, nflClock, playersFromPack, sidMap, weekOpponents, weekWindow, weeklyLiveStats, weeklyProjections, attachFinishedWeekActuals } from "./weekly-sleeper";
 import { type ElimPick } from "./elim";
 import { clipDisplayName, isHiddenBoardName } from "./stats-shared";
 import { clampAvatar } from "./avatars";
@@ -504,10 +504,15 @@ export async function weeklyBoardPackHandler({ context }: { context: { userId: s
     const pack = parseBoard(week.board);
     if (!pack) return null;
     const filled = applyWeeklyMigrationBoard(fillPackedOpponents(pack, window.games), week.season, week.week);
+    const board = await attachFinishedWeekActuals(
+      late ? blockWeeklyTeams(filled, WEEK1_TNF_TEAMS) : filled,
+      week.season,
+      week.week,
+    );
     return {
       season: week.season,
       week: week.week,
-      board: late ? blockWeeklyTeams(filled, WEEK1_TNF_TEAMS) : filled,
+      board,
     };
 }
 

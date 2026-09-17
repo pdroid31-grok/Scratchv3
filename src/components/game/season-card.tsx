@@ -28,10 +28,13 @@ export function SeasonCard({
   const weekNums = playableWeeks(year);
   const weeks = player.weeks;
   const games = weekNums.filter((week) => {
-    const v = weeks[week - 1] ?? 0;
-    return v !== 0 && week !== player.bye;
+    const v = weeks[week - 1];
+    return Number.isFinite(v) && v !== 0 && week !== player.bye;
   }).length;
-  const tot = weekNums.reduce((n, week) => n + (weeks[week - 1] ?? 0), 0);
+  const tot = weekNums.reduce((n, week) => {
+    const v = weeks[week - 1];
+    return Number.isFinite(v) && week !== player.bye ? n + Number(v) : n;
+  }, 0);
   const avg = games ? Math.round((tot / games) * 10) / 10 : 0;
 
   useEffect(() => {
@@ -87,10 +90,11 @@ export function SeasonCard({
           </p>
           <ol className="grid grid-cols-3 gap-1.5">
             {weekNums.map((week) => {
-              const pts = weeks[week - 1] ?? 0;
+              const pts = weeks[week - 1];
               const bye = player.bye === week;
+              const blank = !bye && !Number.isFinite(pts);
               const hot = highlightWeek === week;
-              const tone = weekScoreTone(player.pos, pts, bye);
+              const tone = bye ? "bye" : blank ? "ok" : weekScoreTone(player.pos, pts, bye);
               return (
                 <li
                   key={week}
@@ -113,7 +117,7 @@ export function SeasonCard({
                       weekToneClass[tone],
                     )}
                   >
-                    {bye ? "BYE" : pts.toFixed(1)}
+                    {bye ? "BYE" : blank ? "" : pts.toFixed(1)}
                   </span>
                 </li>
               );

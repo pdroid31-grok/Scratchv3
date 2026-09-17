@@ -348,12 +348,14 @@ export async function weeklyLiveStats(season: number, week: number): Promise<Rec
   }
 }
 
-export function playersFromPack(pack: WeeklyPackedBoard, week: number): Record<ElimPos, ElimPlayer[]> {
+export function playersFromPack(pack: WeeklyPackedBoard, _week: number): Record<ElimPos, ElimPlayer[]> {
   const out = {} as Record<ElimPos, ElimPlayer[]>;
   for (const pos of ["QB", "RB", "WR", "TE", "D", "K"] as ElimPos[]) {
     out[pos] = (pack[pos] ?? []).map((row) => {
-      const weeks = Array.from({ length: 18 }, () => 0);
-      weeks[Math.max(0, week - 1)] = row.ppr;
+      const weeks = Array.from({ length: 18 }, (_, i) => {
+        const v = row.weeks?.[i];
+        return v == null || !Number.isFinite(Number(v)) ? 0 : Number(v);
+      });
       return {
         id: row.id,
         name: row.name,
@@ -366,6 +368,33 @@ export function playersFromPack(pack: WeeklyPackedBoard, week: number): Record<E
         vs: row.vs,
         blocked: Boolean(row.blocked),
       };
+    });
+  }
+  return out;
+}
+
+/** Finished NFL weeks only — Sleeper actuals for the player sheet, never projections. */
+export async function attachFinishedWeekActuals(
+  pack: WeeklyPackedBoard,
+  season: number,
+  week: number,
+): Promise<WeeklyPackedBoard> {
+  const done = Math.max(0, Math.floor(week) - 1);
+  const byWeek: Record<number, Record<string, number>> = {};
+  await Promise.all(
+    Array.from({ length: done }, (_, i) => i + 1).map(async (w) => {
+      byWeek[w] = await weeklyLiveStats(season, w);
+    }),
+  );
+  const out = {} as WeeklyPackedBoard;
+  for (const pos of ["QB", "RB", "WR", "TE", "K", "D"] as ElimPos[]) {
+    out[pos] = (pack[pos] ?? []).map((row) => {
+      const weeks = Array.from({ length: 18 }, () => null as number | null);
+      for (let w = 1; w <= done; w += 1) {
+        const pts = byWeek[w]?.[row.sid];
+        if (pts != null && Number.isFinite(pts)) weeks[w - 1] = pts;
+      }
+      return { ...row, weeks };
     });
   }
   return out;

@@ -346,6 +346,18 @@ describe("weekly opponents", () => {
     assert.equal(packed.QB[0]?.vs, "BUF");
     const pool = unpackWeeklyBoard(packed, 1);
     assert.equal(pool.QB[0]?.vs, "BUF");
+    assert.equal(pool.QB[0]?.ppr, 22);
+    assert.equal(Number.isFinite(pool.QB[0]!.weeks[0]), false);
+    const sheet = unpackWeeklyBoard(
+      {
+        ...packed,
+        QB: [{ ...packed.QB[0]!, weeks: [18.4, null] }],
+      },
+      2,
+    );
+    assert.equal(sheet.QB[0]?.weeks[0], 18.4);
+    assert.equal(Number.isFinite(sheet.QB[0]!.weeks[1]), false);
+    assert.equal(sheet.QB[0]?.ppr, 22);
     const snaps = fillSnapOpponents(
       hydrateWeeklyPicks(
         [{ slot: "QB", id: "qb", sid: "1", name: "Lamar Jackson", team: "BAL", cost: 10, score: 0 }],

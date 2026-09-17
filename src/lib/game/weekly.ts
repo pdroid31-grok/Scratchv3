@@ -99,6 +99,8 @@ export type WeeklyPackedPlayer = {
   ppr: number;
   vs?: TeamId;
   blocked?: boolean;
+  /** Finished-week Sleeper PPR for the player sheet. null = unplayed / blank. */
+  weeks?: (number | null)[];
 };
 
 export type WeeklyPackedBoard = Record<ElimPos, WeeklyPackedPlayer[]>;
@@ -234,12 +236,14 @@ export function spreadIndex<T>(rows: T[], n = 5): T[] {
   return out;
 }
 
-export function unpackWeeklyBoard(pack: WeeklyPackedBoard, week: number): Record<ElimPos, ElimPlayer[]> {
+export function unpackWeeklyBoard(pack: WeeklyPackedBoard, _week: number): Record<ElimPos, ElimPlayer[]> {
   const out = {} as Record<ElimPos, ElimPlayer[]>;
   for (const pos of ["QB", "RB", "WR", "TE", "D", "K"] as ElimPos[]) {
     out[pos] = (pack[pos] ?? []).map((row) => {
-      const weeks = Array.from({ length: 18 }, () => 0);
-      weeks[week - 1] = row.ppr;
+      const weeks = Array.from({ length: 18 }, (_, i) => {
+        const v = row.weeks?.[i];
+        return v == null || !Number.isFinite(Number(v)) ? Number.NaN : Number(v);
+      });
       return {
         id: row.id,
         name: row.name,
