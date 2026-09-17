@@ -1,7 +1,7 @@
 import { DAILY_TZ, dailyDayStamp, dailyYesterday } from "./daily";
 import { clampAvatar, type AvatarId } from "./avatars";
 
-export type NewsKind = "match" | "box" | "scratch" | "daily_win" | "weekly_win";
+export type NewsKind = "match" | "box" | "scratch" | "daily_win" | "weekly_win" | "star_unlock" | "feat_unlock";
 
 export type NewsFace = {
   name: string;
