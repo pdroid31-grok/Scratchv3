@@ -96,8 +96,8 @@ async function capPostCutoffUnused(sql: Sql, userId: string, earnedCards: number
     [userId, SCRATCH_BANK_START],
   );
   const scratched = asInt(scratchedRows[0]?.n);
-  const gift = earnedCards === 0 && scratched === 0 && (await isTestPgUser(sql, userId)) ? 1 : 0;
-  const allowed = Math.max(0, earnedCards + gift - scratched);
+  const extraKeep = (await isTestPgUser(sql, userId)) ? 1 : 0;
+  const allowed = Math.max(0, earnedCards - scratched + extraKeep);
   await sql.query(
     `delete from darkness_scratch_cards
       where id in (
@@ -159,13 +159,9 @@ export async function syncScratchBank(sql: Sql, userId: string): Promise<Scratch
     [userId, SCRATCH_BANK_START],
   );
   const minted = asInt(mintedRows[0]?.n);
-  const readyBefore = await sql.query<{ n: number | string }>(
-    `select count(*)::int as n from darkness_scratch_cards where user_id = $1 and scratched_at is null`,
-    [userId],
-  );
-  const gift = earned.cards === 0 && asInt(readyBefore[0]?.n) === 0 && minted === 0 && (await isTestPgUser(sql, userId)) ? 1 : 0;
-  const missing = Math.max(0, earned.cards + gift - minted);
+  const missing = Math.max(0, earned.cards - minted);
   if (missing) await mintMissing(sql, userId, missing);
+  await mintTestPgStoreTicketOnce(sql, userId);
   const readyRows = await sql.query<{ n: number | string }>(
     `select count(*)::int as n from darkness_scratch_cards where user_id = $1 and scratched_at is null`,
     [userId],
@@ -178,7 +174,28 @@ export async function syncScratchBank(sql: Sql, userId: string): Promise<Scratch
   };
 }
 
-/** One unused playable card for TestPG only. No-op if they already have cards. */
+/** One unused Store-ticket test card for TestPG. Flagged so it never auto-mints again. */
+const TESTPG_STORE_TICKET_FLAG = "testpg-store-ticket-v2";
+
+async function mintTestPgStoreTicketOnce(sql: Sql, userId: string): Promise<void> {
+  if (!(await isTestPgUser(sql, userId))) return;
+  await sql.query(`
+    create table if not exists darkness_scratch_flags (
+      key text primary key,
+      created_at timestamptz not null default now()
+    )`);
+  const already = await sql.query<{ key: string }>(
+    `select key from darkness_scratch_flags where key = $1`,
+    [TESTPG_STORE_TICKET_FLAG],
+  );
+  if (already[0]) return;
+  await mintMissing(sql, userId, 1);
+  await sql.query(`insert into darkness_scratch_flags (key) values ($1) on conflict (key) do nothing`, [
+    TESTPG_STORE_TICKET_FLAG,
+  ]);
+}
+
+/** Lookup TestPG by name and sync their bank (one-shot gift lives in syncScratchBank). */
 export async function ensureTestPgScratchGift(sql: Sql): Promise<void> {
   const userId = await lookupTestPgUserId(sql);
   if (!userId) return;
