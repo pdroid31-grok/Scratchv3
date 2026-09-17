@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { avatarById } from "@/lib/game/avatars";
+import { avatarById, AVATARS } from "@/lib/game/avatars";
 import {
   clearCommishClaim,
   COMMISH_PASSWORD_NAME,
@@ -30,6 +30,7 @@ export function CommishSettingsPage() {
   const [pwStatus, setPwStatus] = useState<CommishPasswordStatus | null>(null);
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
+  const [tab, setTab] = useState<"tools" | "avatars">("tools");
 
   async function reload() {
     const next = await listCommishBooks({ data: {} });
@@ -82,7 +83,49 @@ export function CommishSettingsPage() {
         <Link to="/" search={{ tab: "profile" }} className="mt-2 inline-flex text-sm text-muted hover:text-fg">
           Back to Profile
         </Link>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            size="lg"
+            variant={tab === "tools" ? "default" : "secondary"}
+            className="font-display uppercase tracking-wider"
+            onClick={() => setTab("tools")}
+          >
+            Settings
+          </Button>
+          <Button
+            type="button"
+            size="lg"
+            variant={tab === "avatars" ? "default" : "secondary"}
+            className="font-display uppercase tracking-wider"
+            onClick={() => setTab("avatars")}
+          >
+            Avatars
+          </Button>
+        </div>
       </section>
+
+      {tab === "avatars" ? (
+        <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
+          <h2 className="font-display text-xl font-semibold uppercase tracking-wide text-fg">Avatars</h2>
+          <p className="mt-1 text-sm text-muted">Preview only. {AVATARS.length} looks.</p>
+          <ul className="mt-3 grid max-h-[min(72vh,44rem)] grid-cols-3 gap-3 overflow-y-auto pr-1 sm:grid-cols-4">
+            {AVATARS.map((avatar) => (
+              <li key={avatar.id} className="min-w-0">
+                <img
+                  src={avatar.src}
+                  alt=""
+                  className="aspect-square w-full rounded-lg object-cover shadow-[var(--shadow-border)]"
+                />
+                <p className="mt-1 truncate text-center font-display text-xs font-semibold uppercase tracking-wide text-fg">
+                  {avatar.name}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : (
+        <>
 
       <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
         <h2 className="font-display text-xl font-semibold uppercase tracking-wide text-fg">Books</h2>
@@ -260,6 +303,8 @@ export function CommishSettingsPage() {
           </form>
         )}
       </section>
+        </>
+      )}
       {note ? <p className="text-sm text-muted">{note}</p> : null}
     </div>
   );
