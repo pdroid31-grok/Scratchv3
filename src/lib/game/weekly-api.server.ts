@@ -239,6 +239,25 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
     `update darkness_weekly_weeks set awarded = true where season = $1 and week = $2 and awarded = false`,
     [season, week],
   );
+  try {
+    const { recordNewsSafe, newsActor, formatNewsScore } = await import("./news.server");
+    for (const row of scored) {
+      if (!winners.has(row.userId)) continue;
+      const actor = await newsActor(sql, row.userId);
+      if (!actor) continue;
+      await recordNewsSafe(sql, {
+        sourceKey: `weekly_win:${season}-W${week}:${row.userId}`,
+        payload: {
+          kind: "weekly_win",
+          faces: [{ name: actor.name, avatarId: actor.avatarId, userId: row.userId }],
+          week: `Week ${week}`,
+          score: formatNewsScore(row.score),
+        },
+      });
+    }
+  } catch (err) {
+    console.error("[darkness] weekly news failed", err);
+  }
 }
 
 async function settleSafe(sql: Sql, season: number, week: number): Promise<void> {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Calendar, CalendarRange, Gamepad2, Gift, Medal, MinusCircle, PlusCircle, Sun, Trophy, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +16,7 @@ import { MatchLobby } from "@/components/game/match-lobby";
 import { LiveMatchCard } from "@/components/game/live-match-card";
 import { PlayDailyStrip } from "@/components/game/play-daily-strip";
 import { PlayWeeklyStrip } from "@/components/game/play-weekly-strip";
+import { NewsFeed, NewsStrip } from "@/components/game/news-feed";
 import { DailyStartScreen } from "@/components/game/daily-start-screen";
 import { WeeklyStartScreen } from "@/components/game/weekly-start-screen";
 import {
@@ -72,6 +73,8 @@ export function SetupScreen({
   const [lobbyOpen, setLobbyOpen] = useState(forceLobby);
   const [dailyOpen, setDailyOpen] = useState(false);
   const [weeklyOpen, setWeeklyOpen] = useState(false);
+  const [newsOpen, setNewsOpen] = useState(false);
+  const fromNews = useRef(false);
   const [hostCard, setHostCard] = useState(false);
   const [phoneCard, setPhoneCard] = useState(false);
   const [joiningLive, setJoiningLive] = useState<string | null>(null);
@@ -151,7 +154,7 @@ export function SetupScreen({
   }
 
   return (
-    <main className="relative mx-auto flex min-h-full w-full min-w-0 max-w-lg flex-1 flex-col px-5 py-6 sm:py-8">
+    <main className="relative mx-auto flex min-h-full w-full min-w-0 max-w-lg flex-1 flex-col overflow-x-hidden px-5 py-6 sm:py-8">
       <header className="flex items-start justify-between gap-3">
         <div>
           <h1 className="font-display text-5xl font-semibold uppercase leading-none tracking-tight text-fg sm:text-6xl">
@@ -164,6 +167,7 @@ export function SetupScreen({
             clearDailyRankings();
             clearWeeklyRankings();
             clearPlayHome();
+            setNewsOpen(false);
             setTab("profile");
           }}
         />
@@ -182,6 +186,7 @@ export function SetupScreen({
             key={row.id}
             type="button"
             onClick={() => {
+              setNewsOpen(false);
               if (row.id === "rankings") {
                 setBoard(landingDaily ? "daily" : landingWeekly ? "weekly" : "daily");
                 setTab("rankings");
@@ -212,6 +217,7 @@ export function SetupScreen({
             clearDailyRankings();
             clearWeeklyRankings();
             clearPlayHome();
+            setNewsOpen(false);
             setTab("profile");
           }}
         />
@@ -219,11 +225,18 @@ export function SetupScreen({
 
       {tab === "play" ? (
         <>
-      {netError && !lobbyOpen ? (
+      {netError && !lobbyOpen && !newsOpen ? (
         <p className="mt-4 rounded-md bg-danger/20 px-3 py-2 text-sm text-fg">{netError}</p>
       ) : null}
 
-      {lobbyOpen ? (
+      {newsOpen ? (
+        <NewsFeed
+          onPlay={() => {
+            fromNews.current = true;
+            setNewsOpen(false);
+          }}
+        />
+      ) : lobbyOpen ? (
         <MatchLobby
           name={hostName}
           onName={(value) => {
@@ -233,11 +246,19 @@ export function SetupScreen({
           onClose={() => setLobbyOpen(false)}
         />
       ) : (
-      <section className="mt-6 rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)]">
+      <section className={cn("mt-6 rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)]", fromNews.current && "news-slide-back")}>
         <form
           className="grid gap-3"
           onSubmit={(e) => e.preventDefault()}
         >
+          <div className="grid gap-1">
+            <NewsStrip
+              onOpen={() => {
+                fromNews.current = false;
+                setNewsOpen(true);
+              }}
+            />
+          </div>
           <div className="grid gap-1">
             <Button
               type="button"

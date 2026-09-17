@@ -292,6 +292,23 @@ export async function claimScratchCard(sql: Sql, userId: string, cardId: number)
   }>(`select coins, daily_stars, owned, avatar_id from player_profiles where user_id = $1`, [userId]);
   const state = await syncScratchBank(sql, userId);
   const owned = parseOwned(book[0]?.owned);
+  try {
+    const { recordNewsSafe, newsActor } = await import("./news.server");
+    const actor = await newsActor(sql, userId);
+    if (actor) {
+      await recordNewsSafe(sql, {
+        sourceKey: `scratch:${id}`,
+        payload: {
+          kind: "scratch",
+          faces: [{ name: actor.name, avatarId: actor.avatarId, userId }],
+          prizeId: prize.avatar ?? undefined,
+          prizeLabel: prize.label,
+        },
+      });
+    }
+  } catch (err) {
+    console.error("[darkness] scratch news failed", err);
+  }
   return {
     ok: true,
     prize,

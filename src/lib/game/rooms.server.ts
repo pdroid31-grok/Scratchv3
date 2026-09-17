@@ -355,6 +355,43 @@ async function rememberResult(row: RoomRow, state: GameState): Promise<void> {
     );
     await pruneLobbyHistory(sql);
   }
+  await recordMatchNews(sql, row, view, hostUser, guestUser);
+}
+
+async function recordMatchNews(
+  sql: { query: <T>(text: string, params?: unknown[]) => Promise<T[]> },
+  row: RoomRow,
+  view: NonNullable<ReturnType<typeof hostedMatchView>>,
+  hostUser: string | null,
+  guestUser: string | null,
+): Promise<void> {
+  try {
+    const { recordNewsSafe, formatNewsScore } = await import("./news.server");
+    const win = view.winner;
+    const lose: 0 | 1 = win === 0 ? 1 : 0;
+    const faces =
+      win === 0 || win === 1
+        ? [
+            { name: clipDisplayName(view.names[win]) || view.names[win] || "GM", avatarId: view.avatars[win], userId: win === 0 ? hostUser : guestUser },
+            { name: clipDisplayName(view.names[lose]) || view.names[lose] || "GM", avatarId: view.avatars[lose], userId: lose === 0 ? hostUser : guestUser },
+          ]
+        : [
+            { name: clipDisplayName(view.names[0]) || view.names[0] || "GM", avatarId: view.avatars[0], userId: hostUser },
+            { name: clipDisplayName(view.names[1]) || view.names[1] || "GM", avatarId: view.avatars[1], userId: guestUser },
+          ];
+    const a = win === 0 || win === 1 ? view.scores[win] : view.scores[0];
+    const b = win === 0 || win === 1 ? view.scores[lose] : view.scores[1];
+    await recordNewsSafe(sql, {
+      sourceKey: `match:${row.code}:${view.nights}`,
+      payload: {
+        kind: "match",
+        faces,
+        score: `${formatNewsScore(a)}–${formatNewsScore(b)}`,
+      },
+    });
+  } catch (err) {
+    console.error("[darkness] match news failed", err);
+  }
 }
 
 /** Save the finished night into lobby history while the room is still on results. */

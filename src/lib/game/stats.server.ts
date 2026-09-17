@@ -1,5 +1,5 @@
 /** Server-only career / store / board writes. Do not import from client modules. */
-import { clampAvatar, isAvatarId, isFeatAvatar, isStarAvatar, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, starLooksFor, walletBalance, BANANA_ID, BANANA_SCORE_UNDER, BOX_ADDICT_ID, BOX_COST, CLUB_200, CLUB_200_CAP, CLUB_200_ID, CROSSWORD_ID, CROSSWORD_STREAK_NEED, GOLDEN_COST, LOCKED_IN_ID, LOCKED_IN_STREAK_NEED, PEEPING_ID, SILVER_MEDAL_ID, SILVER_SECOND_NEED, SNIPER_ID, THANOS_ID, THANOS_OWN_NEED, WIN_PAY, hitBananaScore, hitBoxAddict, justUnlockedBanana, type AvatarId } from "./avatars";
+import { avatarById, clampAvatar, isAvatarId, isFeatAvatar, isStarAvatar, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, starLooksFor, walletBalance, BANANA_ID, BANANA_SCORE_UNDER, BOX_ADDICT_ID, BOX_COST, CLUB_200, CLUB_200_CAP, CLUB_200_ID, CROSSWORD_ID, CROSSWORD_STREAK_NEED, GOLDEN_COST, LOCKED_IN_ID, LOCKED_IN_STREAK_NEED, PEEPING_ID, SILVER_MEDAL_ID, SILVER_SECOND_NEED, SNIPER_ID, THANOS_ID, THANOS_OWN_NEED, WIN_PAY, hitBananaScore, hitBoxAddict, justUnlockedBanana, type AvatarId } from "./avatars";
 import { clipDisplayName, clipGm, hiddenBoardIdSql, hiddenBoardNameSql, hostedNightKey, isHiddenBoardId, isHiddenBoardName, opponentKey, planHostedNightWrite } from "./stats-shared";
 import { hostedMatchView } from "./hosted-match";
 import { DAILY_PAY } from "./daily";
@@ -1170,6 +1170,23 @@ export async function openMysteryBoxHandler({ context }: { context: { userId: st
       [JSON.stringify(owned), context.userId],
     );
     const next = await settleProfile(sql, context.userId);
+    try {
+      const { recordNewsSafe, newsActor } = await import("./news.server");
+      const actor = await newsActor(sql, context.userId);
+      if (actor) {
+        await recordNewsSafe(sql, {
+          sourceKey: `box:${context.userId}:${next.owned.length}:${prize}`,
+          payload: {
+            kind: "box",
+            faces: [{ name: actor.name, avatarId: actor.avatarId, userId: context.userId }],
+            prizeId: prize,
+            prizeLabel: avatarById(prize).name,
+          },
+        });
+      }
+    } catch (err) {
+      console.error("[darkness] box news failed", err);
+    }
     return { ok: true, prize, coins: next.coins, owned: next.owned, avatarId: settled.avatarId };
 }
 

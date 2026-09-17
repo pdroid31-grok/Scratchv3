@@ -171,6 +171,32 @@
   animation: fade-up var(--motion-fast) var(--ease-smooth-out) both;
 }
 
+@keyframes panel-from-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes panel-from-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.news-slide-in {
+  animation: panel-from-right var(--motion-slow) var(--ease-smooth-out) both;
+}
+
+.news-slide-back {
+  animation: panel-from-left var(--motion-slow) var(--ease-smooth-out) both;
+}
+
 @keyframes reroll-wash {
   0% {
     opacity: 0;

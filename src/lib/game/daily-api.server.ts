@@ -205,6 +205,25 @@ async function settleYesterday(sql: Sql, today: string): Promise<void> {
       where day = $1::date and awarded = false`,
     [yday, ids[0] ?? null],
   );
+  try {
+    const { recordNewsSafe, newsActor, formatNewsScore } = await import("./news.server");
+    for (const id of ids) {
+      const actor = await newsActor(sql, id);
+      const hit = eligible.find((row) => row.user_id === id);
+      if (!actor || !hit) continue;
+      await recordNewsSafe(sql, {
+        sourceKey: `daily_win:${yday}:${id}`,
+        payload: {
+          kind: "daily_win",
+          faces: [{ name: actor.name, avatarId: actor.avatarId, userId: id }],
+          day: yday,
+          score: formatNewsScore(asNum(hit.score)),
+        },
+      });
+    }
+  } catch (err) {
+    console.error("[darkness] daily news failed", err);
+  }
 }
 
 async function loadRun(sql: Sql, day: string, userId: string): Promise<RunRow | null> {
