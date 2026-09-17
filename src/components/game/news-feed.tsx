@@ -1,23 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Gamepad2, Newspaper } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { avatarById } from "@/lib/game/avatars";
 import { formatNewsTime, type NewsFace, type NewsItem } from "@/lib/game/news";
 import { listNews } from "@/lib/game/news-api";
 
+const newsLinkClass =
+  "mt-4 self-start font-display text-sm font-semibold uppercase tracking-wider text-muted hover:text-fg";
+
 export function NewsStrip({ onOpen }: { onOpen: () => void }) {
   return (
-    <Button
-      type="button"
-      size="lg"
-      className="w-full font-display uppercase tracking-wider"
-      onClick={onOpen}
-    >
-      <Newspaper className="size-4" />
-      News
-    </Button>
+    <button type="button" className={newsLinkClass} onClick={onOpen}>
+      News →
+    </button>
   );
 }
 
@@ -63,10 +58,9 @@ export function NewsFeed({ onPlay }: { onPlay: () => void }) {
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      <Button type="button" size="lg" className="w-full font-display uppercase tracking-wider" onClick={onPlay}>
-        <Gamepad2 className="size-4" />
-        Play
-      </Button>
+      <button type="button" className={`${newsLinkClass} mt-0`} onClick={onPlay}>
+        Play ←
+      </button>
       {rows == null ? (
         <div className="mt-4 h-40 animate-pulse rounded-lg bg-bg" />
       ) : rows.length === 0 ? (
