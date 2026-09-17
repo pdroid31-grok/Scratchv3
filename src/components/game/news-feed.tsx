@@ -6,12 +6,12 @@ import { formatNewsTime, type NewsFace, type NewsItem } from "@/lib/game/news";
 import { listNews } from "@/lib/game/news-api";
 
 const newsLinkClass =
-  "mt-4 self-start font-display text-sm font-semibold uppercase tracking-wider text-muted hover:text-fg";
+  "mt-4 w-full text-center font-display text-xl font-semibold uppercase tracking-wide text-muted hover:text-fg sm:text-2xl";
 
 export function NewsStrip({ onOpen }: { onOpen: () => void }) {
   return (
     <button type="button" className={newsLinkClass} onClick={onOpen}>
-      News →
+      News Feed →
     </button>
   );
 }
@@ -59,7 +59,7 @@ export function NewsFeed({ onPlay }: { onPlay: () => void }) {
       onTouchEnd={onTouchEnd}
     >
       <button type="button" className={`${newsLinkClass} mt-0`} onClick={onPlay}>
-        Play ←
+        Play Matches ←
       </button>
       {rows == null ? (
         <div className="mt-4 h-40 animate-pulse rounded-lg bg-bg" />
@@ -116,18 +116,6 @@ function formatDay(day: string): string {
 
 function NewsLine({ item }: { item: NewsItem }) {
   const a = item.faces[0];
-  const b = item.faces[1];
-  if (item.kind === "match" && a && b) {
-    const tied = item.score?.includes("–") && item.score.split("–")[0] === item.score.split("–")[1];
-    return (
-      <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-fg">
-        <Face face={a} />
-        <span className="text-muted">{tied ? "tied" : "beat"}</span>
-        <Face face={b} />
-        {item.score ? <span className="font-display tabular-nums text-fg">{item.score}</span> : null}
-      </p>
-    );
-  }
   if (item.kind === "box" && a) {
     return (
       <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-fg">
@@ -146,23 +134,24 @@ function NewsLine({ item }: { item: NewsItem }) {
       </p>
     );
   }
-  if (item.kind === "daily_win" && a) {
+  if (item.kind === "daily_win" && a && item.day && item.score) {
     return (
       <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-fg">
         <Face face={a} />
-        <span className="text-muted">won</span>
-        <span>{item.day ? formatDay(item.day) : "Daily"}</span>
-        {item.score ? <span className="font-display tabular-nums">{item.score}</span> : null}
+        <span className="text-muted">won the</span>
+        <span>{formatDay(item.day)} Daily</span>
+        <span className="font-display tabular-nums">({item.score})</span>
       </p>
     );
   }
-  if (item.kind === "weekly_win" && a) {
+  if (item.kind === "weekly_win" && a && item.week && item.score) {
+    const week = item.week.startsWith("Week") ? item.week : `Week ${item.week}`;
     return (
       <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-fg">
         <Face face={a} />
         <span className="text-muted">won</span>
-        <span>{item.week ?? "Weekly"}</span>
-        {item.score ? <span className="font-display tabular-nums">{item.score}</span> : null}
+        <span>{week}</span>
+        <span className="font-display tabular-nums">({item.score})</span>
       </p>
     );
   }
