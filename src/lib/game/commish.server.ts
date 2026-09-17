@@ -1,7 +1,7 @@
 /** Commish settings. Do not import from client modules. */
 import { clampAvatar, type AvatarId } from "./avatars";
 import { clipDisplayName } from "./stats-shared";
-import { COMMISH_SETTINGS_ID, COMMISH_PASSWORD_NAME, type CommishList, type CommishOk, type CommishPasswordStatus } from "./commish-types";
+import { COMMISH_SETTINGS_ID, COMMISH_PASSWORD_NAME, GROKBOT_PASSWORD_NAME, type CommishList, type CommishOk, type CommishPasswordStatus } from "./commish-types";
 
 type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
 
@@ -231,10 +231,10 @@ export async function clearCommishClaimHandler({
   return { ok: true };
 }
 
-async function resolveHeisenberg(sql: Sql): Promise<{ kind: "ok"; userId: string } | { kind: "missing" } | { kind: "ambiguous" }> {
+async function resolveNamedProfile(sql: Sql, name: string): Promise<{ kind: "ok"; userId: string } | { kind: "missing" } | { kind: "ambiguous" }> {
   const rows = await sql.query<{ user_id: string }>(
     `select user_id from player_profiles where trim(display_name) = $1`,
-    [COMMISH_PASSWORD_NAME],
+    [name],
   );
   if (rows.length === 0) return { kind: "missing" };
   if (rows.length !== 1) return { kind: "ambiguous" };
@@ -253,35 +253,24 @@ async function credentialAccount(sql: Sql, userId: string): Promise<"credential"
   return "none";
 }
 
-export async function heisenbergPasswordStatusHandler({
-  context,
-}: {
-  context: { userId: string };
-}): Promise<CommishPasswordStatus> {
-  await assertCommish(context.userId);
-  const sql = await getSql();
-  await ensure(sql);
-  const found = await resolveHeisenberg(sql);
+async function namedPasswordStatus(sql: Sql, name: string): Promise<CommishPasswordStatus> {
+  const found = await resolveNamedProfile(sql, name);
   if (found.kind !== "ok") return found;
   const kind = await credentialAccount(sql, found.userId);
   if (kind === "credential") return { kind: "credential", userId: found.userId };
-  if (kind === "google") return { kind: "google", userId: found.userId };
   return { kind: "google", userId: found.userId };
 }
 
-export async function setHeisenbergPasswordHandler({
-  context,
-  data,
-}: {
-  context: { userId: string };
-  data: { password: string; confirm: string; userId: string };
-}): Promise<CommishOk> {
-  await assertCommish(context.userId);
-  const sql = await getSql();
-  await ensure(sql);
-  const found = await resolveHeisenberg(sql);
+async function setNamedPassword(
+  sql: Sql,
+  actor: string,
+  name: string,
+  data: { password: string; confirm: string; userId: string },
+  wrongUser: string,
+): Promise<CommishOk> {
+  const found = await resolveNamedProfile(sql, name);
   if (found.kind !== "ok") return { ok: false, reason: found.kind };
-  if (data.userId && data.userId !== found.userId) return { ok: false, reason: "not-heisenberg" };
+  if (data.userId && data.userId !== found.userId) return { ok: false, reason: wrongUser };
   const kind = await credentialAccount(sql, found.userId);
   if (kind !== "credential") return { ok: false, reason: "google" };
   if (data.password !== data.confirm) return { ok: false, reason: "mismatch" };
@@ -294,7 +283,55 @@ export async function setHeisenbergPasswordHandler({
       where "userId" = $2 and "providerId" = 'credential'`,
     [hashed, found.userId],
   );
-  await audit(sql, context.userId, "set_password", { name: COMMISH_PASSWORD_NAME, userId: found.userId });
+  await audit(sql, actor, "set_password", { name, userId: found.userId });
   return { ok: true };
+}
+
+export async function heisenbergPasswordStatusHandler({
+  context,
+}: {
+  context: { userId: string };
+}): Promise<CommishPasswordStatus> {
+  await assertCommish(context.userId);
+  const sql = await getSql();
+  await ensure(sql);
+  return namedPasswordStatus(sql, COMMISH_PASSWORD_NAME);
+}
+
+export async function setHeisenbergPasswordHandler({
+  context,
+  data,
+}: {
+  context: { userId: string };
+  data: { password: string; confirm: string; userId: string };
+}): Promise<CommishOk> {
+  await assertCommish(context.userId);
+  const sql = await getSql();
+  await ensure(sql);
+  return setNamedPassword(sql, context.userId, COMMISH_PASSWORD_NAME, data, "not-heisenberg");
+}
+
+export async function grokbotPasswordStatusHandler({
+  context,
+}: {
+  context: { userId: string };
+}): Promise<CommishPasswordStatus> {
+  await assertCommish(context.userId);
+  const sql = await getSql();
+  await ensure(sql);
+  return namedPasswordStatus(sql, GROKBOT_PASSWORD_NAME);
+}
+
+export async function setGrokbotPasswordHandler({
+  context,
+  data,
+}: {
+  context: { userId: string };
+  data: { password: string; confirm: string; userId: string };
+}): Promise<CommishOk> {
+  await assertCommish(context.userId);
+  const sql = await getSql();
+  await ensure(sql);
+  return setNamedPassword(sql, context.userId, GROKBOT_PASSWORD_NAME, data, "not-grokbot1");
 }
 

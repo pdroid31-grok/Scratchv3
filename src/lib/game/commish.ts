@@ -3,7 +3,7 @@ import { authMiddleware } from "@/lib/auth/middleware";
 import type { CommishList, CommishOk, CommishPasswordStatus } from "./commish-types";
 
 export type { CommishBook, CommishList, CommishOk, CommishPasswordStatus } from "./commish-types";
-export { COMMISH_SETTINGS_ID, COMMISH_PASSWORD_NAME, isCommishSettingsUser } from "./commish-types";
+export { COMMISH_SETTINGS_ID, COMMISH_PASSWORD_NAME, GROKBOT_PASSWORD_NAME, isCommishSettingsUser } from "./commish-types";
 
 function clipId(value: unknown): string {
   return String(value ?? "").trim().slice(0, 80);
@@ -57,4 +57,24 @@ export const setHeisenbergPassword = createServerFn({ method: "POST" })
   .handler(async ({ context, data }): Promise<CommishOk> => {
     const { setHeisenbergPasswordHandler } = await import("./commish.server");
     return setHeisenbergPasswordHandler({ context, data });
+  });
+
+export const grokbotPasswordStatus = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(() => ({}))
+  .handler(async ({ context }): Promise<CommishPasswordStatus> => {
+    const { grokbotPasswordStatusHandler } = await import("./commish.server");
+    return grokbotPasswordStatusHandler({ context });
+  });
+
+export const setGrokbotPassword = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((data: { password?: string; confirm?: string; userId?: string }) => ({
+    password: String(data.password ?? ""),
+    confirm: String(data.confirm ?? ""),
+    userId: clipId(data.userId),
+  }))
+  .handler(async ({ context, data }): Promise<CommishOk> => {
+    const { setGrokbotPasswordHandler } = await import("./commish.server");
+    return setGrokbotPasswordHandler({ context, data });
   });

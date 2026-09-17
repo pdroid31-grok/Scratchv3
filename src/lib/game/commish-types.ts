@@ -2,6 +2,7 @@ import type { AvatarId } from "./avatars";
 
 export const COMMISH_SETTINGS_ID = "Sth5J7JYgRUEnwGxVWFVh3foFcPf9Erh";
 export const COMMISH_PASSWORD_NAME = "Heisenberg";
+export const GROKBOT_PASSWORD_NAME = "GrokBot1";
 
 export type CommishBook = {
   id: string;

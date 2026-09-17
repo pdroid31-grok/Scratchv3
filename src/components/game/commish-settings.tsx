@@ -6,12 +6,16 @@ import { avatarById, AVATARS } from "@/lib/game/avatars";
 import {
   clearCommishClaim,
   COMMISH_PASSWORD_NAME,
+  GROKBOT_PASSWORD_NAME,
+  grokbotPasswordStatus,
   heisenbergPasswordStatus,
   isCommishSettingsUser,
   listCommishBooks,
   remapCommishBook,
+  setGrokbotPassword,
   setHeisenbergPassword,
   type CommishBook,
+  type CommishOk,
   type CommishPasswordStatus,
 } from "@/lib/game/commish";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -28,8 +32,7 @@ export function CommishSettingsPage() {
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pwStatus, setPwStatus] = useState<CommishPasswordStatus | null>(null);
-  const [pw, setPw] = useState("");
-  const [pw2, setPw2] = useState("");
+  const [botStatus, setBotStatus] = useState<CommishPasswordStatus | null>(null);
   const [tab, setTab] = useState<"tools" | "avatars">("tools");
 
   async function reload() {
@@ -53,6 +56,13 @@ export function CommishSettingsPage() {
       })
       .catch(() => {
         if (live) setPwStatus(null);
+      });
+    void grokbotPasswordStatus({ data: {} })
+      .then((next) => {
+        if (live) setBotStatus(next);
+      })
+      .catch(() => {
+        if (live) setBotStatus(null);
       });
     return () => {
       live = false;
@@ -245,67 +255,106 @@ export function CommishSettingsPage() {
         </form>
       </section>
 
-      <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
-        <h2 className="font-display text-xl font-semibold uppercase tracking-wide text-fg">{COMMISH_PASSWORD_NAME} password</h2>
-        {pwStatus === null ? (
-          <p className="mt-3 text-sm text-muted">Checking account…</p>
-        ) : pwStatus.kind === "missing" ? (
-          <p className="mt-3 text-sm text-muted">No {COMMISH_PASSWORD_NAME} row. Aborted.</p>
-        ) : pwStatus.kind === "ambiguous" ? (
-          <p className="mt-3 text-sm text-muted">More than one {COMMISH_PASSWORD_NAME} row. Aborted.</p>
-        ) : pwStatus.kind === "google" ? (
-          <p className="mt-3 text-sm text-muted">Google account — cannot set app password</p>
-        ) : (
-          <form
-            className="mt-3 grid gap-3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (!pw || pw !== pw2) {
-                setNote(pw !== pw2 ? "mismatch" : "length");
-                return;
-              }
-              setBusy(true);
-              setNote(null);
-              void setHeisenbergPassword({ data: { password: pw, confirm: pw2, userId: pwStatus.userId } })
-                .then((result) => {
-                  setNote(result.ok ? "Password set." : result.reason);
-                  if (result.ok) {
-                    setPw("");
-                    setPw2("");
-                  }
-                })
-                .finally(() => setBusy(false));
-            }}
-          >
-            <Input
-              type="password"
-              autoComplete="new-password"
-              value={pw}
-              onChange={(e) => setPw(e.target.value)}
-              minLength={8}
-              maxLength={128}
-              placeholder="New password"
-              aria-label={`${COMMISH_PASSWORD_NAME} new password`}
-            />
-            <Input
-              type="password"
-              autoComplete="new-password"
-              value={pw2}
-              onChange={(e) => setPw2(e.target.value)}
-              minLength={8}
-              maxLength={128}
-              placeholder="Confirm password"
-              aria-label={`${COMMISH_PASSWORD_NAME} confirm password`}
-            />
-            <Button type="submit" size="lg" className="font-display uppercase tracking-wider" disabled={busy || !pw || !pw2}>
-              Set password
-            </Button>
-          </form>
-        )}
-      </section>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <NamedPasswordPanel
+          name={COMMISH_PASSWORD_NAME}
+          status={pwStatus}
+          busy={busy}
+          setBusy={setBusy}
+          setNote={setNote}
+          onSet={(data) => setHeisenbergPassword({ data })}
+        />
+        <NamedPasswordPanel
+          name={GROKBOT_PASSWORD_NAME}
+          status={botStatus}
+          busy={busy}
+          setBusy={setBusy}
+          setNote={setNote}
+          onSet={(data) => setGrokbotPassword({ data })}
+        />
+      </div>
         </>
       )}
       {note ? <p className="text-sm text-muted">{note}</p> : null}
     </div>
+  );
+}
+
+function NamedPasswordPanel({
+  name,
+  status,
+  busy,
+  setBusy,
+  setNote,
+  onSet,
+}: {
+  name: string;
+  status: CommishPasswordStatus | null;
+  busy: boolean;
+  setBusy: (v: boolean) => void;
+  setNote: (v: string | null) => void;
+  onSet: (data: { password: string; confirm: string; userId: string }) => Promise<CommishOk>;
+}) {
+  const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
+  return (
+    <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
+      <h2 className="font-display text-xl font-semibold uppercase tracking-wide text-fg">{name} password</h2>
+      {status === null ? (
+        <p className="mt-3 text-sm text-muted">Checking account…</p>
+      ) : status.kind === "missing" ? (
+        <p className="mt-3 text-sm text-muted">No {name} row. Aborted.</p>
+      ) : status.kind === "ambiguous" ? (
+        <p className="mt-3 text-sm text-muted">More than one {name} row. Aborted.</p>
+      ) : status.kind === "google" ? (
+        <p className="mt-3 text-sm text-muted">Google account — cannot set app password</p>
+      ) : (
+        <form
+          className="mt-3 grid gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!pw || pw !== pw2) {
+              setNote(pw !== pw2 ? "mismatch" : "length");
+              return;
+            }
+            setBusy(true);
+            setNote(null);
+            void onSet({ password: pw, confirm: pw2, userId: status.userId })
+              .then((result) => {
+                setNote(result.ok ? "Password set." : result.reason);
+                if (result.ok) {
+                  setPw("");
+                  setPw2("");
+                }
+              })
+              .finally(() => setBusy(false));
+          }}
+        >
+          <Input
+            type="password"
+            autoComplete="new-password"
+            value={pw}
+            onChange={(e) => setPw(e.target.value)}
+            minLength={8}
+            maxLength={128}
+            placeholder="New password"
+            aria-label={`${name} new password`}
+          />
+          <Input
+            type="password"
+            autoComplete="new-password"
+            value={pw2}
+            onChange={(e) => setPw2(e.target.value)}
+            minLength={8}
+            maxLength={128}
+            placeholder="Confirm password"
+            aria-label={`${name} confirm password`}
+          />
+          <Button type="submit" size="lg" className="font-display uppercase tracking-wider" disabled={busy || !pw || !pw2}>
+            Set password
+          </Button>
+        </form>
+      )}
+    </section>
   );
 }
