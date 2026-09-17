@@ -9,12 +9,15 @@ import { listNews } from "@/lib/game/news-api";
 type LookPeek = { src: string; name: string };
 
 const newsLinkClass =
-  "mt-4 w-full text-center font-display text-xl font-semibold uppercase tracking-wide text-muted hover:text-fg sm:text-2xl";
+  "mt-4 inline-flex w-full items-center justify-center gap-2 font-display text-xl font-semibold uppercase leading-none tracking-wide text-muted hover:text-fg sm:text-2xl";
 
 export function NewsStrip({ onOpen }: { onOpen: () => void }) {
   return (
     <button type="button" className={newsLinkClass} onClick={onOpen}>
-      News Feed →
+      <span>News Feed</span>
+      <span className="inline-flex items-center leading-none" aria-hidden>
+        →
+      </span>
     </button>
   );
 }
@@ -67,14 +70,18 @@ export function NewsFeed({ onPlay }: { onPlay: () => void }) {
 
   return (
     <>
-    <section
-      className="news-slide-in mt-6 w-full min-w-0 overflow-x-hidden rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)]"
+    <div
+      className="news-slide-in w-full min-w-0"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      <button type="button" className={`${newsLinkClass} mt-0`} onClick={onPlay}>
-        ← Play Matches
+      <button type="button" className={newsLinkClass} onClick={onPlay}>
+        <span className="inline-flex items-center leading-none" aria-hidden>
+          ←
+        </span>
+        <span>Play Matches</span>
       </button>
+      <section className="mt-3 overflow-x-hidden rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)]">
       {rows == null ? (
         <div className="mt-4 h-40 animate-pulse rounded-lg bg-bg" />
       ) : rows.length === 0 ? (
@@ -91,7 +98,8 @@ export function NewsFeed({ onPlay }: { onPlay: () => void }) {
           ))}
         </ol>
       )}
-    </section>
+      </section>
+    </div>
     {peek ? <NewsLookPeek look={peek} onClose={() => setPeek(null)} /> : null}
     </>
   );
