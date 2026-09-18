@@ -119,8 +119,14 @@ export function ElimMatchupScreen() {
   const scoreWeek = holding && last ? last.week : week;
   const shown = phase === "reveal" ? revealedCount(elim, now) : holding || phase === "results" ? steps : 0;
   const totals =
-    mode === "daily" && dailyScore != null && Number.isFinite(dailyScore)
-      ? ([dailyScore, 0] as [number, number])
+    mode === "daily"
+      ? phase === "results" || (phase === "reveal" && shown >= steps)
+        ? dailyScore != null && Number.isFinite(dailyScore)
+          ? ([dailyScore, 0] as [number, number])
+          : running(elim, shown, now, display, scoreWeek)
+        : shown > 0
+          ? running(elim, shown, now, display, scoreWeek)
+          : ([0, 0] as [number, number])
       : holding && last
         ? last.scores
         : shown > 0
@@ -150,7 +156,7 @@ export function ElimMatchupScreen() {
           : mode === "online"
             ? "Play Next Week"
             : ready[0] !== ready[1]
-              ? `${names[ready[0] ? 0 : 1]} ready · ${names[nextSeat]} start`
+              ? `${names[ready[0] ? 0 : 1]} ready \u00b7 ${names[nextSeat]} start`
               : "Play Next Week";
   const hideScores = phase === "matchup" && !holding;
   const seriesWinner = phase === "results" ? elimSeriesWinner(elim) : null;
@@ -164,8 +170,8 @@ export function ElimMatchupScreen() {
         <header className="flex shrink-0 items-center justify-between gap-2">
           <div className="min-w-0">
             <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-turf">
-              {solo ? `${elim.year} · ${mode === "weekly" ? "Weekly" : "Daily"}` : `${elim.year} · Best of ${ELIM_MAX_SETS}`}
-              {phase === "results" ? " · Final" : solo ? "" : ` · Set ${setNo}`}
+              {solo ? `${elim.year} \u00b7 ${mode === "weekly" ? "Weekly" : "Daily"}` : `${elim.year} \u00b7 Best of ${ELIM_MAX_SETS}`}
+              {phase === "results" ? " \u00b7 Final" : solo ? "" : ` \u00b7 Set ${setNo}`}
             </p>
             <h1 className="mt-1 truncate font-display text-xl font-semibold uppercase leading-none tracking-tight text-fg sm:text-2xl">
               {phase === "results" ? (
@@ -221,7 +227,7 @@ export function ElimMatchupScreen() {
               phase={phase}
               hideScores={hideScores}
               solo={solo}
-              scoreHint={mode === "weekly" ? "this week’s score" : "today’s score"}
+              scoreHint={mode === "weekly" ? "this week\u2019s score" : "today\u2019s score"}
               winner={
                 holding && last
                   ? last.winner
@@ -238,7 +244,7 @@ export function ElimMatchupScreen() {
               {mode === "weekly" && phase === "matchup" ? (
                 weekly?.awarded
                   ? weekly.winner
-                    ? `Final. ${weekly.paid ? "$1 banked" : "Under 100"} · 1st +$2 · 2 stars.`
+                    ? `Final. ${weekly.paid ? "$1 banked" : "Under 100"} \u00b7 1st +$2 \u00b7 2 stars.`
                     : weekly.paid
                       ? "Final. $1 banked."
                       : "Final. Under 100."
@@ -247,13 +253,13 @@ export function ElimMatchupScreen() {
                     : "Come back later to view live scores."
               ) : holding && last ? (
                 <>
-                  Week {last.week}: {last.scores[0].toFixed(1)} – {last.scores[1].toFixed(1)}
-                  {last.winner === null ? " · draw" : ` · ${names[last.winner]}`}. First to {ELIM_WINS_NEEDED}.
+                  Week {last.week}: {last.scores[0].toFixed(1)} \u2013 {last.scores[1].toFixed(1)}
+                  {last.winner === null ? " \u00b7 draw" : ` \u00b7 ${names[last.winner]}`}. First to {ELIM_WINS_NEEDED}.
                 </>
               ) : phase === "reveal" && liveSeat !== null && livePos >= 0 ? (
                 <>
                   <span className="font-medium text-fg">{names[liveSeat]}</span>
-                  {" · "}
+                  {" \u00b7 "}
                   {slotLabel(display[livePos]!)}
                 </>
               ) : phase === "matchup" ? (
@@ -263,7 +269,7 @@ export function ElimMatchupScreen() {
                   <>Same lineups. Both GMs start the week. First to {ELIM_WINS_NEEDED}.</>
                 )
               ) : final ? (
-                "Tallying the week…"
+                "Tallying the week\u2026"
               ) : (
                 ""
               )}
@@ -362,7 +368,7 @@ export function ElimMatchupScreen() {
               onClick={rematchNight}
             >
               <RotateCcw className="size-4" />
-              {acting || busy ? "Sending…" : theyReady ? "Join rematch" : "Rematch"}
+              {acting || busy ? "Sending\u2026" : theyReady ? "Join rematch" : "Rematch"}
             </Button>
             <Button
               variant="secondary"
@@ -401,7 +407,7 @@ function SeriesBoard({ wins }: { wins: [number, number] }) {
         <GmName seat={lead} size="md" nameClassName={nameClass} />
       </div>
       <span className="shrink-0 px-2 text-center font-display text-2xl font-semibold tabular-nums tracking-wide text-fg">
-        {wins[lead]}–{wins[trail]}
+        {wins[lead]}\u2013{wins[trail]}
       </span>
       <div className="min-w-0 justify-self-end">
         <GmName seat={trail} size="md" nameClassName={nameClass} />
@@ -420,7 +426,7 @@ function ScoreCards({
   compact = false,
   hideScores = false,
   solo = false,
-  scoreHint = "today’s score",
+  scoreHint = "today\u2019s score",
 }: {
   names: [string, string];
   totals: [number, number];
@@ -456,7 +462,7 @@ function ScoreCards({
               hideScores ? "text-muted" : winner === seat ? "text-good" : winner === 0 || winner === 1 ? "text-danger" : "text-fg",
             )}
           >
-            {hideScores ? "—" : totals[seat].toFixed(1)}
+            {hideScores ? "\u2014" : totals[seat].toFixed(1)}
           </p>
           {solo ? <p className="mt-0.5 text-xs text-muted">{scoreHint}</p> : null}
         </div>
@@ -525,13 +531,13 @@ function BoardRows({
                   open && phase === "reveal" && "score-in",
                 )}
               >
-                {open ? (bye ? "BYE" : pts.toFixed(1)) : "—"}
+                {open ? (bye ? "BYE" : pts.toFixed(1)) : "\u2014"}
               </p>
             );
             const name = (
               <p className="flex min-w-0 items-center gap-1 truncate text-xs text-fg">
                 {pick ? <TeamMarks player={pick.player} /> : null}
-                <span className="truncate">{pick?.player.name ?? "—"}</span>
+                <span className="truncate">{pick?.player.name ?? "\u2014"}</span>
                 {showOpp && pick?.player.vs ? (
                   <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-muted">
                     {weeklyVsLabel(pick.player.vs)}
@@ -667,8 +673,8 @@ function WeekSlider({
               compact
             />
             <p className="mt-1 shrink-0 truncate text-xs text-muted">
-              Week {set.week}: {set.scores[0].toFixed(1)} – {set.scores[1].toFixed(1)}
-              {set.winner === null ? " · draw" : ` · ${names[set.winner]}`}
+              Week {set.week}: {set.scores[0].toFixed(1)} \u2013 {set.scores[1].toFixed(1)}
+              {set.winner === null ? " \u00b7 draw" : ` \u00b7 ${names[set.winner]}`}
             </p>
             <BoardRows
               elim={elim}
