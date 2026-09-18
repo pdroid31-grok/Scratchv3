@@ -2,7 +2,7 @@
 import { clipGm, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
 import { avatarById, clampAvatar, type AvatarId } from "./avatars";
 import { prizeByKey } from "./scratch";
-import { formatNewsScore, newsFace, newsLookbackDay, type NewsItem, type NewsKind } from "./news";
+import { formatNewsScore, newsFace, newsLookbackDay, dailyWinEventAt, weeklyWinEventAt, type NewsItem, type NewsKind } from "./news";
 
 type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
 
@@ -110,7 +110,48 @@ function asTime(value: unknown): number {
   return Number.isFinite(n) ? n : Date.now();
 }
 
-function parseItem(row: { id: number | string; kind: string; payload: unknown; created_at: unknown }): NewsItem | null {
+function asStamp(value: unknown): number {
+  if (value == null || value === "") return 0;
+  if (value instanceof Date) {
+    const n = value.getTime();
+    return Number.isFinite(n) ? n : 0;
+  }
+  const n = Date.parse(String(value));
+  return Number.isFinite(n) ? n : 0;
+}
+
+type WeekStamp = { endAt: number; lockAt: number };
+
+function weeklyKey(season: unknown, week: unknown): string {
+  return `${Number(season)}-W${Number(week)}`;
+}
+
+function weeklyFromSource(key: string): { season: number; week: number } | null {
+  const hit = /^weekly_win:(\d+)-W(\d+):/.exec(key);
+  if (!hit) return null;
+  return { season: Number(hit[1]), week: Number(hit[2]) };
+}
+
+function eventAtFor(
+  kind: NewsKind,
+  raw: NewsPayload,
+  sourceKey: string,
+  createdAt: number,
+  weeks: Map<string, WeekStamp>,
+): number {
+  if (kind === "daily_win" && raw.day) return dailyWinEventAt(raw.day);
+  if (kind === "weekly_win") {
+    const parsed = weeklyFromSource(sourceKey);
+    const stamp = parsed ? weeks.get(weeklyKey(parsed.season, parsed.week)) : undefined;
+    return weeklyWinEventAt(stamp?.endAt, stamp?.lockAt, createdAt);
+  }
+  return createdAt;
+}
+
+function parseItem(
+  row: { id: number | string; kind: string; source_key?: string; payload: unknown; created_at: unknown },
+  weeks: Map<string, WeekStamp>,
+): (NewsItem & { created_at: number }) | null {
   const raw = row.payload && typeof row.payload === "object" ? (row.payload as NewsPayload) : null;
   if (!raw || !Array.isArray(raw.faces) || !raw.faces.length) return null;
   if (raw.faces.some((face) => newsHidden(face.userId, face.name))) return null;
@@ -125,9 +166,13 @@ function parseItem(row: { id: number | string; kind: string; payload: unknown; c
   ) {
     return null;
   }
+  const created = asTime(row.created_at);
+  const eventAt = eventAtFor(kind, raw, String(row.source_key ?? ""), created, weeks);
   return {
     id: Number(row.id) || 0,
-    at: asTime(row.created_at),
+    at: eventAt,
+    event_at: eventAt,
+    created_at: created,
     kind,
     faces: raw.faces.map((face) => newsFace(face.name, face.avatarId)),
     score: raw.score,
@@ -175,16 +220,37 @@ async function loadActors(
   return out;
 }
 
-function pushUnique(out: NewsItem[], seen: Set<string>, key: string, item: NewsItem | null): void {
+function pushUnique(out: (NewsItem & { created_at: number })[], seen: Set<string>, key: string, item: (NewsItem & { created_at: number }) | null): void {
   if (!item || seen.has(key)) return;
   if (item.faces.some((face) => newsHidden(undefined, face.name))) return;
   seen.add(key);
   out.push(item);
 }
 
+async function loadWeekStamps(sql: Sql): Promise<Map<string, WeekStamp>> {
+  const out = new Map<string, WeekStamp>();
+  try {
+    const rows = await sql.query<{ season: number | string; week: number | string; end_at: unknown; lock_at: unknown }>(
+      `select season, week, end_at, lock_at from darkness_weekly_weeks`,
+    );
+    for (const row of rows) {
+      out.set(weeklyKey(row.season, row.week), { endAt: asStamp(row.end_at), lockAt: asStamp(row.lock_at) });
+    }
+  } catch {
+    /* weeks table may be empty */
+  }
+  return out;
+}
+
+function rankNews(rows: (NewsItem & { created_at: number })[]): NewsItem[] {
+  rows.sort((a, b) => b.event_at - a.event_at || b.created_at - a.created_at || b.id - a.id);
+  return rows.slice(0, 50).map(({ created_at: _c, ...item }) => item);
+}
+
 async function backfillWindow(sql: Sql, startDay: string, startEt: string): Promise<NewsItem[]> {
-  const out: NewsItem[] = [];
+  const out: (NewsItem & { created_at: number })[] = [];
   const seen = new Set<string>();
+  const weeks = await loadWeekStamps(sql);
 
   const stored = await sql.query<{
     id: number | string;
@@ -202,7 +268,7 @@ async function backfillWindow(sql: Sql, startDay: string, startEt: string): Prom
     [startEt],
   );
   for (const row of stored) {
-    const item = parseItem(row);
+    const item = parseItem(row, weeks);
     pushUnique(out, seen, String(row.source_key || `news:${row.id}`), item);
   }
 
@@ -229,9 +295,12 @@ async function backfillWindow(sql: Sql, startDay: string, startEt: string): Prom
     const actor = scratchActors.get(row.user_id);
     if (!actor) continue;
     const prize = prizeByKey(row.prize);
+    const at = asTime(row.scratched_at);
     pushUnique(out, seen, key, {
       id: sourceId(key),
-      at: asTime(row.scratched_at),
+      at,
+      event_at: at,
+      created_at: at,
       kind: "scratch",
       faces: [newsFace(actor.name, actor.avatarId)],
       prizeId: prize.avatar ?? undefined,
@@ -257,7 +326,7 @@ async function backfillWindow(sql: Sql, startDay: string, startEt: string): Prom
         and r.payout_win = true
         and d.awarded = true
         and r.score is not null
-      order by coalesce(r.finished_at, p.created_at) desc
+      order by r.day desc
       limit 32`,
     [startDay],
   );
@@ -280,9 +349,12 @@ async function backfillWindow(sql: Sql, startDay: string, startEt: string): Prom
         score,
       },
     });
+    const eventAt = dailyWinEventAt(day);
     pushUnique(out, seen, key, {
       id: sourceId(key),
-      at: asTime(row.finished_at),
+      at: eventAt,
+      event_at: eventAt,
+      created_at: asTime(row.finished_at),
       kind: "daily_win",
       faces: [newsFace(actor.name, actor.avatarId)],
       day,
@@ -296,11 +368,15 @@ async function backfillWindow(sql: Sql, startDay: string, startEt: string): Prom
     week: number | string;
     score: number | string;
     created_at: unknown;
+    end_at: unknown;
+    lock_at: unknown;
   }>(
-    `select r.user_id, r.season, r.week, r.score, p.created_at
+    `select r.user_id, r.season, r.week, r.score, p.created_at, w.end_at, w.lock_at
        from darkness_weekly_runs r
        join darkness_payouts p
          on p.source_key = 'weekly_win:' || r.season::text || '-W' || r.week::text || ':' || r.user_id
+       left join darkness_weekly_weeks w
+         on w.season = r.season and w.week = r.week
       where r.payout_win = true
         and r.score is not null
         and p.created_at >= $1::timestamp at time zone 'America/New_York'
@@ -316,9 +392,13 @@ async function backfillWindow(sql: Sql, startDay: string, startEt: string): Prom
     const key = `weekly_win:${row.season}-W${row.week}:${row.user_id}`;
     const actor = weeklyActors.get(row.user_id);
     if (!actor) continue;
+    const created = asTime(row.created_at);
+    const eventAt = weeklyWinEventAt(asStamp(row.end_at), asStamp(row.lock_at), created);
     pushUnique(out, seen, key, {
       id: sourceId(key),
-      at: asTime(row.created_at),
+      at: eventAt,
+      event_at: eventAt,
+      created_at: created,
       kind: "weekly_win",
       faces: [newsFace(actor.name, actor.avatarId)],
       week: `Week ${row.week}`,
@@ -326,8 +406,7 @@ async function backfillWindow(sql: Sql, startDay: string, startEt: string): Prom
     });
   }
 
-  out.sort((a, b) => b.at - a.at || b.id - a.id);
-  return out.slice(0, 50);
+  return rankNews(out);
 }
 
 const BLENDER_SEED_KEY = "news-seed-blender-gladiator-v1";
@@ -374,8 +453,15 @@ export async function listNewsHandler(): Promise<NewsItem[]> {
     return await backfillWindow(sql, startDay, startEt);
   } catch (err) {
     console.error("[darkness] news backfill failed", err);
-    const rows = await sql.query<{ id: number | string; kind: string; payload: unknown; created_at: unknown }>(
-      `select id, kind, payload, created_at
+    const weeks = await loadWeekStamps(sql);
+    const rows = await sql.query<{
+      id: number | string;
+      kind: string;
+      source_key: string;
+      payload: unknown;
+      created_at: unknown;
+    }>(
+      `select id, kind, source_key, payload, created_at
          from darkness_news
         where created_at >= $1::timestamp at time zone 'America/New_York'
           and kind in ('box', 'scratch', 'daily_win', 'weekly_win', 'star_unlock', 'feat_unlock')
@@ -383,14 +469,13 @@ export async function listNewsHandler(): Promise<NewsItem[]> {
         limit 50`,
       [startEt],
     );
-    const out: NewsItem[] = [];
+    const out: (NewsItem & { created_at: number })[] = [];
     for (const row of rows) {
-      const item = parseItem(row);
+      const item = parseItem(row, weeks);
       if (!item) continue;
       out.push(item);
-      if (out.length >= 50) break;
     }
-    return out;
+    return rankNews(out);
   }
 }
 

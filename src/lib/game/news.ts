@@ -11,6 +11,7 @@ export type NewsFace = {
 export type NewsItem = {
   id: number;
   at: number;
+  event_at: number;
   kind: NewsKind;
   faces: NewsFace[];
   score?: string;
@@ -19,6 +20,50 @@ export type NewsItem = {
   day?: string;
   week?: string;
 };
+
+function etParts(ms: number): { day: string; hour: number; minute: number } {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: DAILY_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(ms));
+  const g = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
+  return {
+    day: `${g("year")}-${g("month")}-${g("day")}`,
+    hour: Number(g("hour")),
+    minute: Number(g("minute")),
+  };
+}
+
+/** Instant when the ET clock is `hour`:`minute` on `day` (YYYY-MM-DD). */
+export function etOnDay(day: string, hour: number, minute = 0): number {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return Date.now();
+  let ms = Date.parse(`${day}T16:00:00.000Z`);
+  for (let i = 0; i < 8; i += 1) {
+    const seen = etParts(ms);
+    const dayDelta = day === seen.day ? 0 : day > seen.day ? 1 : -1;
+    const deltaMin = dayDelta * 24 * 60 + (hour - seen.hour) * 60 + (minute - seen.minute);
+    if (deltaMin === 0 && seen.day === day) return ms;
+    ms += deltaMin * 60_000;
+  }
+  return ms;
+}
+
+/** daily_win event_at: noon ET on that calendar day. Same stamp for every daily_win. */
+export function dailyWinEventAt(day: string): number {
+  return etOnDay(day, 12, 0);
+}
+
+export function weeklyWinEventAt(endAt?: number, lockAt?: number, createdAt?: number): number {
+  if (endAt && Number.isFinite(endAt)) return endAt;
+  if (lockAt && Number.isFinite(lockAt)) return lockAt;
+  if (createdAt && Number.isFinite(createdAt)) return createdAt;
+  return Date.now();
+}
 
 export function formatNewsTime(at: number): string {
   const stamp = new Intl.DateTimeFormat("en-US", {
