@@ -13,6 +13,7 @@ export function SeasonCard({
   player,
   year,
   highlightWeek,
+  showZeroWeeks = false,
   onClose,
   action,
   children,
@@ -20,6 +21,7 @@ export function SeasonCard({
   player: ElimPlayer;
   year: number;
   highlightWeek?: number;
+  showZeroWeeks?: boolean;
   onClose: () => void;
   action?: ReactNode;
   children?: ReactNode;
@@ -59,8 +61,8 @@ export function SeasonCard({
       >
         <div className="border-b border-border px-4 py-4 sm:px-5">
           <p className="font-display text-xs font-semibold uppercase tracking-[0.28em] text-turf">
-            {year} · {player.pos} · {player.team}
-            {player.bye ? ` · Bye ${player.bye}` : ""}
+            {year} \u00b7 {player.pos} \u00b7 {player.team}
+            {player.bye ? ` \u00b7 Bye ${player.bye}` : ""}
           </p>
           <div className="mt-2 flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -85,14 +87,14 @@ export function SeasonCard({
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 sm:px-5">
           <p className="mb-2 font-display text-xs font-semibold uppercase tracking-[0.2em] text-subtle">
-            Week by week · {year} PPR
-            {highlightWeek ? ` · Week ${highlightWeek}` : ""}
+            Week by week \u00b7 {year} PPR
+            {highlightWeek ? ` \u00b7 Week ${highlightWeek}` : ""}
           </p>
           <ol className="grid grid-cols-3 gap-1.5">
             {weekNums.map((week) => {
               const pts = weeks[week - 1];
               const bye = player.bye === week;
-              const blank = !bye && !(Number.isFinite(pts) && pts !== 0);
+              const blank = !showZeroWeeks && !bye && !(Number.isFinite(pts) && pts !== 0);
               const hot = highlightWeek === week;
               const tone = bye ? "bye" : blank ? "ok" : weekScoreTone(player.pos, pts, bye);
               return (
