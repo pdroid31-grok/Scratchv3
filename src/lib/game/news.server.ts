@@ -2,7 +2,7 @@
 import { clipGm, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
 import { avatarById, clampAvatar, type AvatarId } from "./avatars";
 import { prizeByKey } from "./scratch";
-import { formatNewsScore, newsFace, newsLookbackDay, newsYesterday, type NewsItem, type NewsKind } from "./news";
+import { formatNewsScore, newsFace, newsLookbackDay, type NewsItem, type NewsKind } from "./news";
 
 type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
 
@@ -182,7 +182,7 @@ function pushUnique(out: NewsItem[], seen: Set<string>, key: string, item: NewsI
   out.push(item);
 }
 
-async function backfillWindow(sql: Sql, yday: string, startEt: string): Promise<NewsItem[]> {
+async function backfillWindow(sql: Sql, startDay: string, startEt: string): Promise<NewsItem[]> {
   const out: NewsItem[] = [];
   const seen = new Set<string>();
 
@@ -239,45 +239,54 @@ async function backfillWindow(sql: Sql, yday: string, startEt: string): Promise<
     });
   }
 
-  let winners = await sql.query<{ user_id: string; score: number | string; finished_at: unknown }>(
-    `select r.user_id, r.score, coalesce(r.finished_at, r.started_at) as finished_at
+  const winners = await sql.query<{
+    user_id: string;
+    day: string;
+    score: number | string;
+    finished_at: unknown;
+  }>(
+    `select r.user_id, r.day::text as day, r.score,
+            coalesce(r.finished_at, p.created_at, r.started_at) as finished_at
        from darkness_daily_runs r
-      where r.day = $1::date
+       join darkness_daily_days d on d.day = r.day
+       join darkness_payouts p
+         on p.kind = 'daily_win'
+        and p.source_key = 'daily_win:' || r.day::text || ':' || r.user_id
+      where r.day >= $1::date
         and r.status = 'done'
         and r.payout_win = true
+        and d.awarded = true
         and r.score is not null
-      order by r.score desc, r.finished_at asc
-      limit 8`,
-    [yday],
+      order by coalesce(r.finished_at, p.created_at) desc
+      limit 32`,
+    [startDay],
   );
-  if (!winners.length) {
-    winners = await sql.query<{ user_id: string; score: number | string; finished_at: unknown }>(
-      `select p.user_id, coalesce(r.score, 0) as score, coalesce(r.finished_at, p.created_at) as finished_at
-         from darkness_payouts p
-         left join darkness_daily_runs r
-           on r.user_id = p.user_id and r.day = $1::date
-        where p.kind = 'daily_win'
-          and p.source_key like $2
-        order by coalesce(r.score, 0) desc
-        limit 8`,
-      [yday, `daily_win:${yday}:%`],
-    );
-  }
   const winActors = await loadActors(
     sql,
     winners.map((row) => row.user_id),
   );
   for (const row of winners) {
-    const key = `daily_win:${yday}:${row.user_id}`;
+    const day = String(row.day);
+    const key = `daily_win:${day}:${row.user_id}`;
     const actor = winActors.get(row.user_id);
     if (!actor) continue;
+    const score = formatNewsScore(Number(row.score));
+    await recordNewsSafe(sql, {
+      sourceKey: key,
+      payload: {
+        kind: "daily_win",
+        faces: [{ name: actor.name, avatarId: actor.avatarId, userId: row.user_id }],
+        day,
+        score,
+      },
+    });
     pushUnique(out, seen, key, {
       id: sourceId(key),
       at: asTime(row.finished_at),
       kind: "daily_win",
       faces: [newsFace(actor.name, actor.avatarId)],
-      day: yday,
-      score: formatNewsScore(Number(row.score)),
+      day,
+      score,
     });
   }
 
@@ -359,10 +368,10 @@ export async function listNewsHandler(): Promise<NewsItem[]> {
   const sql = await getSql();
   await ensureNewsTable(sql);
   await seedBlenderGladiator(sql);
-  const yday = newsYesterday();
-  const startEt = `${newsLookbackDay()} 00:00:00`;
+  const startDay = newsLookbackDay();
+  const startEt = `${startDay} 00:00:00`;
   try {
-    return await backfillWindow(sql, yday, startEt);
+    return await backfillWindow(sql, startDay, startEt);
   } catch (err) {
     console.error("[darkness] news backfill failed", err);
     const rows = await sql.query<{ id: number | string; kind: string; payload: unknown; created_at: unknown }>(
