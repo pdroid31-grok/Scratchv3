@@ -253,7 +253,7 @@ export function ElimMatchupScreen() {
                     : "Come back later to view live scores."
               ) : holding && last ? (
                 <>
-                  Week {last.week}: {last.scores[0].toFixed(1)} \u2013 {last.scores[1].toFixed(1)}
+                  {`Week ${last.week}: ${last.scores[0].toFixed(1)}\u2013${last.scores[1].toFixed(1)}`}
                   {last.winner === null ? " \u00b7 draw" : ` \u00b7 ${names[last.winner]}`}. First to {ELIM_WINS_NEEDED}.
                 </>
               ) : phase === "reveal" && liveSeat !== null && livePos >= 0 ? (
@@ -390,7 +390,7 @@ export function ElimMatchupScreen() {
           player={scout.player}
           year={elim.year}
           highlightWeek={hideWeekNumber ? undefined : scout.week}
-          showZeroWeeks={mode === "daily"}
+          showZeroWeeks={mode !== "weekly"}
           onClose={() => setScout(null)}
         />
       ) : null}
@@ -408,7 +408,7 @@ function SeriesBoard({ wins }: { wins: [number, number] }) {
         <GmName seat={lead} size="md" nameClassName={nameClass} />
       </div>
       <span className="shrink-0 px-2 text-center font-display text-2xl font-semibold tabular-nums tracking-wide text-fg">
-        {wins[lead]}\u2013{wins[trail]}
+        {`${wins[lead]}\u2013${wins[trail]}`}
       </span>
       <div className="min-w-0 justify-self-end">
         <GmName seat={trail} size="md" nameClassName={nameClass} />
@@ -674,7 +674,7 @@ function WeekSlider({
               compact
             />
             <p className="mt-1 shrink-0 truncate text-xs text-muted">
-              Week {set.week}: {set.scores[0].toFixed(1)} \u2013 {set.scores[1].toFixed(1)}
+              {`Week ${set.week}: ${set.scores[0].toFixed(1)}\u2013${set.scores[1].toFixed(1)}`}
               {set.winner === null ? " \u00b7 draw" : ` \u00b7 ${names[set.winner]}`}
             </p>
             <BoardRows

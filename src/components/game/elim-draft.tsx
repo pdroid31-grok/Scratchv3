@@ -118,7 +118,7 @@ export function ElimDraftScreen() {
             {elim.year}
           </p>
           <h1 className="mt-2 font-display text-xl font-semibold uppercase leading-none tracking-tight text-fg">
-            Round {elim.round + 1} \u00b7 {slotLabel(pos)}
+            {`Round ${elim.round + 1} \u00b7 ${slotLabel(pos)}`}
           </h1>
         </div>
         <AuthBar className="shrink-0" />
@@ -296,7 +296,7 @@ export function ElimDraftScreen() {
         <SeasonCard
           player={scout}
           year={elim.year}
-          showZeroWeeks={mode === "daily"}
+          showZeroWeeks={mode !== "weekly"}
           onClose={() => setScout(null)}
           action={
             <Button
@@ -388,7 +388,7 @@ function DraftRosterCard({
       >
         <div className="border-b border-border px-4 py-4 sm:px-5">
           <p className="font-display text-xs font-semibold uppercase tracking-[0.28em] text-turf">
-            Roster \u00b7 ${spent} spent \u00b7 ${cash} left
+            {`Roster \u00b7 $${spent} spent \u00b7 $${cash} left`}
           </p>
           <h2 id="roster-card-title" className="mt-2 font-display text-3xl font-semibold uppercase tracking-tight text-fg">
             <GmName seat={seat} size="md" link={false} />
