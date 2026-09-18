@@ -122,7 +122,7 @@ export function StoreTab({ onProfile }: { onProfile?: () => void }) {
           <div className="flex min-w-0 flex-1 justify-center gap-3">
             <button
               type="button"
-              className="flex h-20 w-[8.5rem] flex-col items-center justify-center gap-1 rounded-xl bg-fg px-2 text-bg shadow-[var(--shadow-border)] hover:bg-fg/90"
+              className="flex h-20 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl bg-fg px-2 text-bg shadow-[var(--shadow-border)] hover:bg-fg/90"
               onClick={() => setUnlocksOpen(true)}
             >
               <Sun className="size-6 text-bg" />
@@ -130,7 +130,7 @@ export function StoreTab({ onProfile }: { onProfile?: () => void }) {
             </button>
             <button
               type="button"
-              className="flex h-20 w-[8.5rem] flex-col items-center justify-center gap-1 rounded-xl bg-fg px-2 text-bg shadow-[var(--shadow-border)] hover:bg-fg/90"
+              className="flex h-20 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl bg-fg px-2 text-bg shadow-[var(--shadow-border)] hover:bg-fg/90"
               onClick={() => setAchievementsOpen(true)}
             >
               <Trophy className="size-6 text-bg" />
