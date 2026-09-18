@@ -1,7 +1,9 @@
 import { applyAction } from "../engine";
 import { dailyPickPayload, resumeDailyGame, startDailyGame } from "../daily";
 import { claimDaily, lockDaily, saveDailyDraft } from "../daily-api";
+import type { ElimYear } from "../elim-data";
 import { useProfile } from "../profile-store";
+import type { AvatarId } from "../avatars";
 import {
   type ClientState,
   type StoreGet,
@@ -13,28 +15,84 @@ import {
   profileSeat,
 } from "./persist";
 
+function openDailyResults(
+  get: StoreGet,
+  set: StoreSet,
+  claimed: { day: string; year: number; week: number | null; score: number | null; picks?: { slot: string; id: string }[] },
+  seat: { name: string; avatarId: AvatarId },
+) {
+  const live = get();
+  const week = Number(claimed.week) || live.elim?.week || 0;
+  const rawScore = Number(claimed.score);
+  const daily = {
+    day: claimed.day,
+    hideWeek: false,
+    score: Number.isFinite(rawScore) ? rawScore : undefined,
+  };
+  const keepLive = live.mode === "daily" && Boolean(live.elim) && live.phase !== "setup";
+  let next: ClientState;
+  if (keepLive && live.elim) {
+    next = {
+      ...live,
+      busy: false,
+      netError: null,
+      daily: { ...daily, day: live.daily?.day ?? claimed.day },
+      elim: { ...live.elim, week: week || live.elim.week },
+    };
+  } else {
+    const year = claimed.year as ElimYear;
+    const picks = claimed.picks ?? [];
+    const dealt = picks.length
+      ? resumeDailyGame(seat.name, year, claimed.day, seat.avatarId, picks)
+      : startDailyGame(seat.name, year, claimed.day, seat.avatarId);
+    next = {
+      ...initialState,
+      ...dealt,
+      hydrated: true,
+      mode: "daily",
+      mySeat: 0,
+      busy: false,
+      netError: null,
+      daily,
+      elim: dealt.elim ? { ...dealt.elim, week: week || dealt.elim.week } : dealt.elim,
+    };
+  }
+  if (next.phase === "matchup") {
+    const revealed = applyAction(next, { type: "startReveal" });
+    next = { ...next, ...revealed, daily: next.daily };
+  }
+  if (next.phase !== "results" && next.phase !== "reveal") {
+    next = { ...next, phase: "results" };
+  }
+  persistLocal(next);
+  persistNet(next);
+  lockJoinPrefill();
+  set(next);
+}
+
 export async function startDaily(get: StoreGet, set: StoreSet) {
   set({ busy: true, netError: null });
   try {
     const seat = await profileSeat("");
     const claimed = await claimDaily({ data: {} });
-    if (claimed.status === "done" || claimed.status === "signed_out") {
+    if (claimed.status === "signed_out") {
       if (get().mode === "daily") {
         const cleared: ClientState = {
           ...initialState,
           hydrated: true,
           busy: false,
-          netError: claimed.status === "signed_out" ? "Sign in to play Daily Elimination." : null,
+          netError: "Sign in to play Daily Elimination.",
         };
         persistLocal(cleared);
         persistNet(cleared);
         set(cleared);
         return;
       }
-      set({
-        busy: false,
-        netError: claimed.status === "signed_out" ? "Sign in to play Daily Elimination." : null,
-      });
+      set({ busy: false, netError: "Sign in to play Daily Elimination." });
+      return;
+    }
+    if (claimed.status === "done") {
+      openDailyResults(get, set, claimed, seat);
       return;
     }
     const live = get();
@@ -48,8 +106,8 @@ export async function startDaily(get: StoreGet, set: StoreSet) {
       }
     }
     const dealt = serverPicks.length
-      ? resumeDailyGame(seat.name, claimed.year as import("../elim-data").ElimYear, claimed.day, seat.avatarId, serverPicks)
-      : startDailyGame(seat.name, claimed.year as import("../elim-data").ElimYear, claimed.day, seat.avatarId);
+      ? resumeDailyGame(seat.name, claimed.year as ElimYear, claimed.day, seat.avatarId, serverPicks)
+      : startDailyGame(seat.name, claimed.year as ElimYear, claimed.day, seat.avatarId);
     const next: ClientState = {
       ...initialState,
       ...dealt,
@@ -93,7 +151,10 @@ export async function maybeLockDaily(get: StoreGet, set: StoreSet) {
     const locked = await lockDaily({ data: { picks } });
     const live = get();
     if (live.mode !== "daily" || live.phase !== "matchup" || !live.elim) return;
-    if (locked.status !== "done") return;
+    if (locked.status !== "done") {
+      set({ netError: "Could not lock today’s daily." });
+      return;
+    }
     const week = locked.week || live.elim.week;
     const score = Number(locked.score);
     const scored: ClientState = {
@@ -107,6 +168,6 @@ export async function maybeLockDaily(get: StoreGet, set: StoreSet) {
     set(next);
     void useProfile.getState().load();
   } catch {
-    /* board write retries on the next flush */
+    set({ netError: "Could not lock today’s daily." });
   }
 }
