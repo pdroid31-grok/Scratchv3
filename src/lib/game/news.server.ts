@@ -2,7 +2,7 @@
 import { clipGm, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
 import { avatarById, clampAvatar, type AvatarId } from "./avatars";
 import { prizeByKey } from "./scratch";
-import { formatNewsScore, newsFace, newsLookbackDay, type NewsItem, type NewsKind } from "./news";
+import { formatNewsScore, newsFace, newsLookbackDay, newsYesterday, type NewsItem, type NewsKind } from "./news";
 
 type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
 
@@ -359,8 +359,8 @@ export async function listNewsHandler(): Promise<NewsItem[]> {
   const sql = await getSql();
   await ensureNewsTable(sql);
   await seedBlenderGladiator(sql);
-  const yday = newsLookbackDay();
-  const startEt = `${yday} 00:00:00`;
+  const yday = newsYesterday();
+  const startEt = `${newsLookbackDay()} 00:00:00`;
   try {
     return await backfillWindow(sql, yday, startEt);
   } catch (err) {
