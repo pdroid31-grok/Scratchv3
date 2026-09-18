@@ -314,10 +314,31 @@ export function hydrateStore(get: StoreGet, set: StoreSet) {
             void getDaily({ data: {} })
               .then((meta) => {
                 if (meta.status !== "done") return;
-                const cleared: ClientState = { ...initialState, hydrated: true };
-                persistLocal(cleared);
-                persistNet(cleared);
-                set(cleared);
+                const live = get();
+                if (live.mode !== "daily" || !live.elim) return;
+                const week = Number(meta.week) || live.elim.week;
+                const rawScore = Number(meta.score);
+                let next: ClientState = {
+                  ...live,
+                  busy: false,
+                  netError: null,
+                  daily: {
+                    day: live.daily?.day ?? meta.day,
+                    hideWeek: false,
+                    score: Number.isFinite(rawScore) ? rawScore : undefined,
+                  },
+                  elim: { ...live.elim, week },
+                };
+                if (next.phase === "matchup") {
+                  const revealed = applyAction(next, { type: "startReveal" });
+                  next = { ...next, ...revealed, daily: next.daily };
+                }
+                if (next.phase !== "results" && next.phase !== "reveal") {
+                  next = { ...next, phase: "results" };
+                }
+                persistLocal(next);
+                persistNet(next);
+                set(next);
               })
               .catch(() => {
                 /* keep local draft; claimDaily retries */
