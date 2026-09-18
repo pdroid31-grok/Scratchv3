@@ -41,7 +41,15 @@ export function newsFace(name: string, avatarId?: string | null): NewsFace {
   return { name: name.trim() || "GM", avatarId: clampAvatar(avatarId ?? "poor") };
 }
 
-/** Yesterday's ET calendar date. Feed backfill starts at that midnight ET. */
+/** Start of the feed window: midnight ET, 7 ET calendar days including today. */
+export const NEWS_LOOKBACK_DAYS = 7;
+
 export function newsLookbackDay(now = Date.now()): string {
+  let day = dailyDayStamp(now);
+  for (let i = 1; i < NEWS_LOOKBACK_DAYS; i += 1) day = dailyYesterday(day);
+  return day;
+}
+
+export function newsYesterday(now = Date.now()): string {
   return dailyYesterday(dailyDayStamp(now));
 }
