@@ -78,3 +78,19 @@ export const setGrokbotPassword = createServerFn({ method: "POST" })
     const { setGrokbotPasswordHandler } = await import("./commish.server");
     return setGrokbotPasswordHandler({ context, data });
   });
+
+export const resetInspector1Daily = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(() => ({}))
+  .handler(async ({ context }): Promise<CommishOk> => {
+    const { resetInspector1DailyHandler } = await import("./commish.server");
+    return resetInspector1DailyHandler({ context });
+  });
+
+export const resetInspector1Weekly = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(() => ({}))
+  .handler(async ({ context }): Promise<CommishOk> => {
+    const { resetInspector1WeeklyHandler } = await import("./commish.server");
+    return resetInspector1WeeklyHandler({ context });
+  });

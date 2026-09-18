@@ -14,6 +14,8 @@ import {
   remapCommishBook,
   setGrokbotPassword,
   setHeisenbergPassword,
+  resetInspector1Daily,
+  resetInspector1Weekly,
   type CommishBook,
   type CommishOk,
   type CommishPasswordStatus,
@@ -136,6 +138,46 @@ export function CommishSettingsPage() {
         </section>
       ) : (
         <>
+
+      <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
+        <h2 className="font-display text-xl font-semibold uppercase tracking-wide text-fg">Inspector QA</h2>
+        <p className="mt-1 text-sm text-muted">Inspector1 only. Hidden list and awards stay put.</p>
+        <div className="mt-3 grid gap-2">
+          <Button
+            type="button"
+            size="lg"
+            className="font-display uppercase tracking-wider"
+            disabled={busy}
+            onClick={() => {
+              if (!window.confirm("Deletes Inspector1’s run only. Hidden players and awards unchanged.")) return;
+              setBusy(true);
+              setNote(null);
+              void resetInspector1Daily({ data: {} })
+                .then((result) => setNote(result.ok ? "Inspector1 Daily reset." : result.reason))
+                .finally(() => setBusy(false));
+            }}
+          >
+            Reset Inspector1 Daily (today ET)
+          </Button>
+          <Button
+            type="button"
+            size="lg"
+            variant="secondary"
+            className="font-display uppercase tracking-wider"
+            disabled={busy}
+            onClick={() => {
+              if (!window.confirm("Deletes Inspector1’s run only. Hidden players and awards unchanged.")) return;
+              setBusy(true);
+              setNote(null);
+              void resetInspector1Weekly({ data: {} })
+                .then((result) => setNote(result.ok ? "Inspector1 Weekly reset." : result.reason))
+                .finally(() => setBusy(false));
+            }}
+          >
+            Reset Inspector1 Weekly (current week)
+          </Button>
+        </div>
+      </section>
 
       <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
         <h2 className="font-display text-xl font-semibold uppercase tracking-wide text-fg">Books</h2>

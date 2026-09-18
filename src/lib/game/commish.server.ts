@@ -335,3 +335,55 @@ export async function setGrokbotPasswordHandler({
   return setNamedPassword(sql, context.userId, GROKBOT_PASSWORD_NAME, data, "not-grokbot1");
 }
 
+async function lookupInspector1Ids(sql: Sql): Promise<string[]> {
+  const rows = await sql.query<{ user_id: string }>(
+    `select distinct x.user_id
+       from (
+         select p.user_id
+           from player_profiles p
+          where lower(trim(coalesce(p.display_name, ''))) = 'inspector1'
+         union
+         select u.id
+           from "user" u
+          where lower(trim(coalesce(u.name, ''))) = 'inspector1'
+       ) x
+      where x.user_id is not null and x.user_id <> ''`,
+  );
+  return rows.map((row) => String(row.user_id)).filter(Boolean);
+}
+
+export async function resetInspector1DailyHandler({
+  context,
+}: {
+  context: { userId: string };
+}): Promise<CommishOk> {
+  await assertCommish(context.userId);
+  const sql = await getSql();
+  const ids = await lookupInspector1Ids(sql);
+  if (!ids.length) return { ok: false, reason: "not found" };
+  const { dailyDayStamp } = await import("./daily");
+  const day = dailyDayStamp();
+  await sql.query(`delete from darkness_daily_runs where day = $1::date and user_id = any($2::text[])`, [day, ids]);
+  console.log("[darkness] ceo reset inspector1 daily", { ids, day });
+  return { ok: true };
+}
+
+export async function resetInspector1WeeklyHandler({
+  context,
+}: {
+  context: { userId: string };
+}): Promise<CommishOk> {
+  await assertCommish(context.userId);
+  const sql = await getSql();
+  const ids = await lookupInspector1Ids(sql);
+  if (!ids.length) return { ok: false, reason: "not found" };
+  const { nflClock } = await import("./weekly-sleeper");
+  const clock = await nflClock();
+  await sql.query(
+    `delete from darkness_weekly_runs where season = $1 and week = $2 and user_id = any($3::text[])`,
+    [clock.season, clock.week, ids],
+  );
+  console.log("[darkness] ceo reset inspector1 weekly", { ids, season: clock.season, week: clock.week });
+  return { ok: true };
+}
+
