@@ -15,3 +15,19 @@ import type { LotChoice, Seat } from "./types";
 const LOCAL_KEY = "darkness-v9";
 const NET_KEY = "darkness-net-v1";
 const JOIN_LOCK = "darkness-join-lock";
+
+export type PlayMode = "local" | "online" | "daily" | "weekly" | "watch";
+
+export interface ClientState extends GameState {
+  hydrated: boolean;
+  mode: PlayMode;
+  roomCode: string | null;
+  token: string | null;
+  mySeat: Seat | null;
+  version: number;
+  netError: string | null;
+  busy: boolean;
+  acting: boolean;
+  lobbyStay: boolean;
+  roomFilled: boolean;
+}
