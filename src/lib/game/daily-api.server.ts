@@ -388,12 +388,6 @@ async function finishStaleDailyRuns(sql: Sql, day: DayRow, _opts?: { force?: boo
 export async function getDailyHandler({ context }: { context: { userId: string | null } }): Promise<DailyMeta> {
     const sql = await getSql();
     await ensureDailyTables(sql);
-    try {
-      const { resetInspector1Once } = await import("./inspector1-reset.server");
-      await resetInspector1Once(sql);
-    } catch (err) {
-      console.error("[darkness] inspector1 reset failed", err);
-    }
     const today = dailyDayStamp();
     const day = await ensureToday(sql, today);
     const userId = context.userId;
@@ -405,12 +399,6 @@ export async function getDailyHandler({ context }: { context: { userId: string |
 export async function claimDailyHandler({ context }: { context: { userId: string } }): Promise<DailyMeta> {
     const sql = await getSql();
     await ensureDailyTables(sql);
-    try {
-      const { resetInspector1Once } = await import("./inspector1-reset.server");
-      await resetInspector1Once(sql);
-    } catch (err) {
-      console.error("[darkness] inspector1 reset failed", err);
-    }
     const today = dailyDayStamp();
     const day = await ensureToday(sql, today);
     const run = await loadRun(sql, today, context.userId);
