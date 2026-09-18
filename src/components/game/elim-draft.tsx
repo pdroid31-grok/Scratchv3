@@ -118,7 +118,7 @@ export function ElimDraftScreen() {
             {elim.year}
           </p>
           <h1 className="mt-2 font-display text-xl font-semibold uppercase leading-none tracking-tight text-fg">
-            Round {elim.round + 1} · {slotLabel(pos)}
+            Round {elim.round + 1} \u00b7 {slotLabel(pos)}
           </h1>
         </div>
         <AuthBar className="shrink-0" />
@@ -168,7 +168,7 @@ export function ElimDraftScreen() {
                     <p className="font-display text-[10px] font-semibold uppercase tracking-wider text-subtle">
                       {slotLabel(slot)}
                     </p>
-                    <p className="truncate text-[10px] leading-tight text-fg">{pick ? pick.player.name : "—"}</p>
+                    <p className="truncate text-[10px] leading-tight text-fg">{pick ? pick.player.name : "\u2014"}</p>
                   </li>
                 );
               })}
@@ -187,7 +187,7 @@ export function ElimDraftScreen() {
         ) : (
           <>
             <span className="font-medium text-fg">{names[currentBidder]}</span>
-            {mine ? " is on the clock — plus takes the name." : " is on the clock. Wait your turn."}
+            {mine ? " is on the clock \u2014 plus takes the name." : " is on the clock. Wait your turn."}
           </>
         )}
       </p>
@@ -244,7 +244,7 @@ export function ElimDraftScreen() {
                   {owner === null
                     ? tooMuch
                       ? `Max $${cap}`
-                      : `${player.team} · ${player.ppr.toFixed(1)}`
+                      : `${player.team} \u00b7 ${player.ppr.toFixed(1)}`
                     : names[owner]}
                 </span>
               </button>
@@ -277,7 +277,7 @@ export function ElimDraftScreen() {
             </p>
             <p className="mt-2 text-sm text-muted">
               {mode === "weekly"
-                ? "Your picks are saved. Come back to finish before kickoff — the week is not spent until you lock."
+                ? "Your picks are saved. Come back to finish before kickoff \u2014 the week is not spent until you lock."
                 : "The clock keeps running. Leftover slots auto-pick and the lineup still submits."}
             </p>
             <div className="mt-4 grid grid-cols-2 gap-2">
@@ -296,6 +296,7 @@ export function ElimDraftScreen() {
         <SeasonCard
           player={scout}
           year={elim.year}
+          showZeroWeeks={mode === "daily"}
           onClose={() => setScout(null)}
           action={
             <Button
@@ -387,7 +388,7 @@ function DraftRosterCard({
       >
         <div className="border-b border-border px-4 py-4 sm:px-5">
           <p className="font-display text-xs font-semibold uppercase tracking-[0.28em] text-turf">
-            Roster · ${spent} spent · ${cash} left
+            Roster \u00b7 ${spent} spent \u00b7 ${cash} left
           </p>
           <h2 id="roster-card-title" className="mt-2 font-display text-3xl font-semibold uppercase tracking-tight text-fg">
             <GmName seat={seat} size="md" link={false} />
