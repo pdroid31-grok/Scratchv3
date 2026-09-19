@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { avatarById } from "@/lib/game/avatars";
+import { dailyDayStamp } from "@/lib/game/daily";
 import {
   getWeekly,
   listSeasonBoard,
@@ -11,8 +12,29 @@ import {
   type WeeklyBoardRow,
   type WeeklyMeta,
 } from "@/lib/game/weekly-api";
+import {
+  WEEKLY_STRIP_CACHE,
+  readKeyedCache,
+  readWeeklyCur,
+  weeklyStripKey,
+  writeKeyedCache,
+  writeWeeklyCur,
+} from "@/lib/game/play-strip-cache";
 import { useProfile } from "@/lib/game/profile-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
+
+type WeeklyStripCache = {
+  key: string;
+  meta: WeeklyMeta | null;
+  board: WeeklyBoard | null;
+  season: SeasonBoardRow | null;
+};
+
+function readThisWeekCache(): WeeklyStripCache | null {
+  const cur = readWeeklyCur();
+  if (!cur || cur.day !== dailyDayStamp()) return null;
+  return readKeyedCache<WeeklyStripCache>(WEEKLY_STRIP_CACHE, cur.key);
+}
 
 export function PlayWeeklyStrip({ onOpen }: { onOpen?: () => void }) {
   const { user } = useCurrentUserState();
@@ -27,6 +49,14 @@ export function PlayWeeklyStrip({ onOpen }: { onOpen?: () => void }) {
     void load();
   }, [load, user?.id]);
 
+  useLayoutEffect(() => {
+    const hit = readThisWeekCache();
+    if (!hit) return;
+    setMeta(hit.meta);
+    setBoard(hit.board);
+    setSeason(hit.season);
+  }, []);
+
   useEffect(() => {
     let live = true;
     const pull = () => {
@@ -37,15 +67,22 @@ export function PlayWeeklyStrip({ onOpen }: { onOpen?: () => void }) {
       ])
         .then(([nextMeta, nextBoard, nextSeason]) => {
           if (!live) return;
+          const nextLeader = nextSeason.rows[0] ?? null;
           setMeta(nextMeta);
           setBoard(nextBoard);
-          setSeason(nextSeason.rows[0] ?? null);
+          setSeason(nextLeader);
+          const key = weeklyStripKey(nextMeta.season, nextMeta.week);
+          const day = dailyDayStamp();
+          writeKeyedCache(WEEKLY_STRIP_CACHE, {
+            key,
+            meta: nextMeta,
+            board: nextBoard,
+            season: nextLeader,
+          });
+          writeWeeklyCur(key, day);
         })
         .catch(() => {
-          if (!live) return;
-          setMeta(null);
-          setBoard(null);
-          setSeason(null);
+          /* keep same-key cache; do not wipe this week's faces */
         });
     };
     pull();

@@ -1,11 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { avatarById } from "@/lib/game/avatars";
 import { dailyDayStamp, dailyYesterday } from "@/lib/game/daily";
 import { getDaily, listDailyBoard, type DailyBoard, type DailyBoardRow, type DailyMeta } from "@/lib/game/daily-api";
+import { DAILY_STRIP_CACHE, readKeyedCache, writeKeyedCache } from "@/lib/game/play-strip-cache";
 import { useProfile } from "@/lib/game/profile-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
+
+type DailyStripCache = {
+  key: string;
+  meta: DailyMeta | null;
+  todayBoard: DailyBoard | null;
+  yestBoard: DailyBoard | null;
+};
+
+function readTodayDailyCache(): DailyStripCache | null {
+  return readKeyedCache<DailyStripCache>(DAILY_STRIP_CACHE, dailyDayStamp());
+}
 
 export function PlayDailyStrip({ onOpen }: { onOpen?: () => void }) {
   const { user } = useCurrentUserState();
@@ -19,6 +31,14 @@ export function PlayDailyStrip({ onOpen }: { onOpen?: () => void }) {
   useEffect(() => {
     void load();
   }, [load, user?.id]);
+
+  useLayoutEffect(() => {
+    const hit = readTodayDailyCache();
+    if (!hit) return;
+    setMeta(hit.meta);
+    setTodayBoard(hit.todayBoard);
+    setYestBoard(hit.yestBoard);
+  }, []);
 
   useEffect(() => {
     let live = true;
@@ -35,12 +55,15 @@ export function PlayDailyStrip({ onOpen }: { onOpen?: () => void }) {
           setMeta(nextMeta);
           setTodayBoard(nextToday);
           setYestBoard(nextYest);
+          writeKeyedCache(DAILY_STRIP_CACHE, {
+            key: day,
+            meta: nextMeta,
+            todayBoard: nextToday,
+            yestBoard: nextYest,
+          });
         })
         .catch(() => {
-          if (!live) return;
-          setMeta(null);
-          setTodayBoard({ day, year: 0, week: null, awarded: false, winnerId: null, rows: [] });
-          setYestBoard({ day: yest, year: 0, week: null, awarded: false, winnerId: null, rows: [] });
+          /* keep same-key cache; do not wipe today's faces */
         });
     };
     pull();
