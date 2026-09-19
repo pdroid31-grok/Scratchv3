@@ -347,6 +347,12 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
         sourceKey: weeklyWinKey(season, week, row.userId),
       });
     }
+    try {
+      const { maybeGrantBullseye } = await import("./board-feats.server");
+      await maybeGrantBullseye(sql, row.userId, row.score);
+    } catch (err) {
+      console.error("[darkness] bullseye weekly failed", err);
+    }
   }
   await sql.query(
     `update darkness_weekly_weeks set awarded = true where season = $1 and week = $2 and awarded = false`,

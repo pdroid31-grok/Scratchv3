@@ -83,6 +83,8 @@ export const AVATARS = [
   { id: "crypepe", name: "Crying", src: "/avatars/crypepe.jpg?v=2" },
   { id: "joker", name: "Joker", src: "/avatars/joker.jpg?v=2" },
   { id: "doubletrouble", name: "Double Trouble", src: "/avatars/doubletrouble.jpg?v=4" },
+  { id: "bullseye", name: "Bullseye", src: "/avatars/bullseye.jpg?v=1" },
+  { id: "rainyday", name: "Rainy Day", src: "/avatars/rainyday.jpg?v=1" },
   { id: "golden", name: "Golden", src: "/avatars/golden.jpg?v=1" },
 ] as const;
 
@@ -124,6 +126,8 @@ export const SILVER_MEDAL_ID = "silvermedal" as const satisfies AvatarId;
 export const CRYPEPE_ID = "crypepe" as const satisfies AvatarId;
 export const JOKER_ID = "joker" as const satisfies AvatarId;
 export const DOUBLE_TROUBLE_ID = "doubletrouble" as const satisfies AvatarId;
+export const BULLSEYE_ID = "bullseye" as const satisfies AvatarId;
+export const RAINY_DAY_ID = "rainyday" as const satisfies AvatarId;
 export const BANANA_SCORE_UNDER = 60;
 export const CROSSWORD_STREAK_NEED = 10;
 export const LOCKED_IN_STREAK_NEED = 100;
@@ -147,6 +151,8 @@ const FEAT_IDS = new Set<string>([
   CRYPEPE_ID,
   JOKER_ID,
   DOUBLE_TROUBLE_ID,
+  BULLSEYE_ID,
+  RAINY_DAY_ID,
 ]);
 export const ACHIEVEMENT_UNLOCKS = [
   { id: CLUB_200_ID, how: "Score 200+ points in a single match." },
@@ -159,6 +165,8 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: SNIPER_ID, how: "Finish a Weekly Match 1st by less than 1.0 over 2nd." },
   { id: SILVER_MEDAL_ID, how: "Finish 2nd on 5 separate Daily boards." },
   { id: DOUBLE_TROUBLE_ID, how: "Win Daily and Weekly on the same day." },
+  { id: BULLSEYE_ID, how: "Score exactly 100.0 in a Daily or Weekly Match." },
+  { id: RAINY_DAY_ID, how: "Finish last in Daily two days in a row." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];
 export const PRIZE_AVATARS = AVATARS.filter(
   (avatar) => avatar.id !== "poor" && avatar.id !== "golden" && !STAR_IDS.has(avatar.id) && !FEAT_IDS.has(avatar.id),
@@ -186,6 +194,10 @@ export function hitBoxAddict(owned: readonly string[]): boolean {
 /** Daily Match score (not weekly, not private). Under 60 unlocks Trash Can. */
 export function hitBananaScore(score: number): boolean {
   return Number.isFinite(score) && score < BANANA_SCORE_UNDER;
+}
+
+export function hitBullseyeScore(score: number): boolean {
+  return Number.isFinite(score) && Math.round(score * 10) / 10 === 100;
 }
 
 export function justUnlockedBanana(before: readonly string[], after: readonly string[]): boolean {

@@ -241,6 +241,12 @@ async function settleYesterday(sql: Sql, today: string): Promise<void> {
   } catch (err) {
     console.error("[darkness] double trouble daily failed", err);
   }
+  try {
+    const { maybeGrantRainyDay } = await import("./board-feats.server");
+    await maybeGrantRainyDay(sql, yday);
+  } catch (err) {
+    console.error("[darkness] rainy day failed", err);
+  }
 }
 
 async function loadRun(sql: Sql, day: string, userId: string): Promise<RunRow | null> {
@@ -367,6 +373,12 @@ async function completeDailyRun(
       kind: "daily_score",
       sourceKey: scoreKey,
     });
+  }
+  try {
+    const { maybeGrantBullseye } = await import("./board-feats.server");
+    await maybeGrantBullseye(sql, userId, score);
+  } catch (err) {
+    console.error("[darkness] bullseye daily failed", err);
   }
   void ensureDailyProfile(sql, userId).catch((err) => console.error("[darkness] daily profile failed", err));
   void import("./scratch.server")
