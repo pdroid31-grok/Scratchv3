@@ -98,6 +98,49 @@ function weekFinished(awarded: boolean, window: { open: boolean; live: boolean; 
   return Boolean(window.done);
 }
 
+/** Own week only. Never reuse another week’s live/open window. */
+async function weekFinishedOwn(
+  awarded: boolean,
+  season: number,
+  weekNo: number,
+  known?: { open: boolean; live: boolean; done: boolean } | null,
+): Promise<boolean> {
+  if (awarded) return true;
+  const window = known ?? (await weekWindow(season, weekNo));
+  return weekFinished(false, window);
+}
+
+function floorEligibleRun(row: SeasonDoneRun): boolean {
+  const name = clipDisplayName(row.name ?? "") || "GM";
+  if (skipWeeklyFloorName(name, row.user_id) || skipWeeklyFloorName(row.name, row.user_id)) return false;
+  // status=done already. Score may be null (locked before kickoff / live / unawarded).
+  return realWeeklyLock(row.picks);
+}
+
+function weekFloorMin(runs: SeasonDoneRun[], weekNo: number): number | null {
+  const scored = runs.filter((row) => row.week === weekNo && floorEligibleRun(row) && row.score != null);
+  if (!scored.length) return null;
+  return Math.min(...scored.map((row) => asNum(row.score)));
+}
+
+function weekLockedIds(runs: SeasonDoneRun[], weekNo: number): Set<string> {
+  return new Set(runs.filter((row) => row.week === weekNo && floorEligibleRun(row)).map((row) => row.user_id));
+}
+
+function floorFace(row: SeasonDoneRun): WeeklyBoardRow {
+  return {
+    id: row.user_id,
+    name: clipDisplayName(row.name ?? "") || "GM",
+    avatarId: clampAvatar(row.avatar_id ?? "poor"),
+    score: 0,
+    paid: false,
+    winner: false,
+    stars: Math.max(0, Math.floor(Number(row.daily_stars) || 0)),
+    hasPicks: false,
+    floor: true,
+  };
+}
+
 function rankWeeklyBoard(a: WeeklyBoardRow, b: WeeklyBoardRow, byScore: boolean): number {
   if (byScore) {
     const score = b.score - a.score;
@@ -696,34 +739,19 @@ export async function listWeeklyBoardHandler({ data }: { data: { season: number;
       })
       .filter((row): row is NonNullable<typeof row> => Boolean(row))
       .sort((a, b) => rankWeeklyBoard(a, b, week.awarded || window.live));
-    if (weekFinished(Boolean(week.awarded), window)) {
-      const real = ranked.filter((row) => row.hasPicks);
-      const scored = week.awarded || window.live ? real : real.filter((row) => row.score !== 0);
-      if (scored.length) {
-        const floorScore = Math.min(...scored.map((row) => row.score));
-        const lockedIds = new Set(real.map((row) => row.id));
-        const seasonRuns = await loadSeasonDoneRuns(sql, season);
-        const eligible = new Map<string, SeasonDoneRun>();
+    if (await weekFinishedOwn(Boolean(week.awarded), season, weekNo, window)) {
+      const seasonRuns = await loadSeasonDoneRuns(sql, season);
+      // Was: scored = awarded || live ? real : real.filter(score !== 0)
+      // That dropped fill when this week’s board scores were 0, and ignored
+      // season locks with score null (Week 2 waiting-kickoff).
+      const floorScore = weekFloorMin(seasonRuns, weekNo);
+      if (floorScore != null) {
+        const lockedIds = weekLockedIds(seasonRuns, weekNo);
+        const seen = new Set(ranked.map((row) => row.id));
         for (const row of seasonRuns) {
-          const name = clipDisplayName(row.name ?? "") || "GM";
-          if (skipWeeklyFloorName(name, row.user_id) || skipWeeklyFloorName(row.name, row.user_id)) continue;
-          if (!realWeeklyLock(row.picks)) continue;
-          if (!eligible.has(row.user_id)) eligible.set(row.user_id, row);
-        }
-        for (const [id, row] of eligible) {
-          if (lockedIds.has(id)) continue;
-          const name = clipDisplayName(row.name ?? "") || "GM";
-          ranked.push({
-            id,
-            name,
-            avatarId: clampAvatar(row.avatar_id ?? "poor"),
-            score: floorScore,
-            paid: false,
-            winner: false,
-            stars: Math.max(0, Math.floor(Number(row.daily_stars) || 0)),
-            hasPicks: false,
-            floor: true,
-          });
+          if (!floorEligibleRun(row) || lockedIds.has(row.user_id) || seen.has(row.user_id)) continue;
+          seen.add(row.user_id);
+          ranked.push({ ...floorFace(row), score: floorScore });
         }
         ranked.sort((a, b) => rankWeeklyBoard(a, b, true));
       }
@@ -894,24 +922,19 @@ export async function listSeasonBoardHandler({ data }: { data: { season: number 
   );
   const seasonRuns = await loadSeasonDoneRuns(sql, season);
   const eligible = new Map<string, SeasonDoneRun>();
-  const realByWeek = new Map<number, SeasonDoneRun[]>();
   for (const row of seasonRuns) {
-    const name = clipDisplayName(row.name ?? "") || "GM";
-    if (skipWeeklyFloorName(name, row.user_id) || skipWeeklyFloorName(row.name, row.user_id)) continue;
-    if (!realWeeklyLock(row.picks)) continue;
+    if (!floorEligibleRun(row)) continue;
     if (!eligible.has(row.user_id)) eligible.set(row.user_id, row);
-    const list = realByWeek.get(row.week) ?? [];
-    list.push(row);
-    realByWeek.set(row.week, list);
   }
   for (const week of weekRows) {
-    const isCurrent = season === clock.season && week.week === clock.week;
-    const weekWindowState = isCurrent ? window : { open: false, live: false, done: Boolean(week.awarded) };
-    if (!weekFinished(Boolean(week.awarded), weekWindowState)) continue;
-    const real = (realByWeek.get(week.week) ?? []).filter((row) => row.score != null);
-    if (!real.length) continue;
-    const floorScore = Math.min(...real.map((row) => asNum(row.score)));
-    const lockedIds = new Set((realByWeek.get(week.week) ?? []).map((row) => row.user_id));
+    const own =
+      season === clock.season && week.week === clock.week
+        ? window
+        : null;
+    if (!(await weekFinishedOwn(Boolean(week.awarded), season, week.week, own))) continue;
+    const floorScore = weekFloorMin(seasonRuns, week.week);
+    if (floorScore == null) continue;
+    const lockedIds = weekLockedIds(seasonRuns, week.week);
     for (const [id, face] of eligible) {
       if (lockedIds.has(id)) continue;
       const name = clipDisplayName(face.name ?? "") || "GM";
