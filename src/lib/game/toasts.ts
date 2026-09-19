@@ -2,6 +2,13 @@ import type { AvatarId } from "./avatars";
 
 export type ToastKind = "daily_win" | "weekly_win" | "star_unlock" | "feat_unlock";
 
+export const TOAST_TEST_PREFIX = "toast-test:inspector1:";
+export const TOAST_TEST_KEYS = {
+  daily_win: `${TOAST_TEST_PREFIX}daily_win`,
+  weekly_win: `${TOAST_TEST_PREFIX}weekly_win`,
+  feat_unlock: `${TOAST_TEST_PREFIX}feat_unlock`,
+} as const;
+
 export type ToastPick = {
   slot: string;
   name: string;

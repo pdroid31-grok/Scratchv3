@@ -94,3 +94,11 @@ export const resetInspector1Weekly = createServerFn({ method: "POST" })
     const { resetInspector1WeeklyHandler } = await import("./commish.server");
     return resetInspector1WeeklyHandler({ context });
   });
+
+export const replayInspector1Toasts = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(() => ({}))
+  .handler(async ({ context }): Promise<CommishOk> => {
+    const { replayInspector1ToastsHandler } = await import("./commish.server");
+    return replayInspector1ToastsHandler({ context });
+  });

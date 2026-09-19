@@ -387,3 +387,18 @@ export async function resetInspector1WeeklyHandler({
   return { ok: true };
 }
 
+export async function replayInspector1ToastsHandler({
+  context,
+}: {
+  context: { userId: string };
+}): Promise<CommishOk> {
+  await assertCommish(context.userId);
+  const sql = await getSql();
+  const ids = await lookupInspector1Ids(sql);
+  if (!ids.length) return { ok: false, reason: "not found" };
+  const { replayInspector1TestToasts } = await import("./toasts.server");
+  await replayInspector1TestToasts(sql, ids);
+  console.log("[darkness] ceo replay inspector1 toasts", { ids });
+  return { ok: true };
+}
+

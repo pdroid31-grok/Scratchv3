@@ -16,6 +16,7 @@ import {
   setHeisenbergPassword,
   resetInspector1Daily,
   resetInspector1Weekly,
+  replayInspector1Toasts,
   type CommishBook,
   type CommishOk,
   type CommishPasswordStatus,
@@ -175,6 +176,23 @@ export function CommishSettingsPage() {
             }}
           >
             Reset Inspector1 Weekly (current week)
+          </Button>
+          <Button
+            type="button"
+            size="lg"
+            variant="secondary"
+            className="font-display uppercase tracking-wider"
+            disabled={busy}
+            onClick={() => {
+              if (!window.confirm("Test toasts only. Awards unchanged.")) return;
+              setBusy(true);
+              setNote(null);
+              void replayInspector1Toasts({ data: {} })
+                .then((result) => setNote(result.ok ? "Inspector1 test toasts queued." : result.reason))
+                .finally(() => setBusy(false));
+            }}
+          >
+            Replay Inspector toasts
           </Button>
         </div>
       </section>
