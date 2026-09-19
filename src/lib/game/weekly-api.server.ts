@@ -58,7 +58,20 @@ function asTime(value: unknown): number {
 }
 
 function realWeeklyLock(picks: unknown): boolean {
-  return clipWeeklyPickIds(picks).length > 0;
+  if (picks == null) return false;
+  let raw: unknown = picks;
+  if (typeof raw === "string") {
+    const text = raw.trim();
+    if (!text || text === "null" || text === "[]" || text === "{}") return false;
+    try {
+      raw = JSON.parse(text) as unknown;
+    } catch {
+      return true;
+    }
+  }
+  if (clipWeeklyPickIds(raw).length > 0) return true;
+  if (Array.isArray(raw)) return raw.length > 0;
+  return Boolean(raw && typeof raw === "object" && Object.keys(raw as object).length > 0);
 }
 
 function skipWeeklyFloorName(name?: string | null, userId?: string | null): boolean {
@@ -92,35 +105,45 @@ async function loadSeasonDoneRuns(sql: Sql, season: number): Promise<SeasonDoneR
   );
 }
 
-function weekFinished(awarded: boolean, window: { open: boolean; live: boolean; done: boolean }): boolean {
-  if (awarded) return true;
-  if (window.open || window.live) return false;
-  return Boolean(window.done);
+function usableFloorPts(value: unknown): number | null {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n === 0) return null;
+  return n;
 }
 
-/** Own week only. Never reuse another week’s live/open window. */
 async function weekFinishedOwn(
   awarded: boolean,
   season: number,
   weekNo: number,
+  clock: { season: number; week: number },
   known?: { open: boolean; live: boolean; done: boolean } | null,
 ): Promise<boolean> {
   if (awarded) return true;
-  const window = known ?? (await weekWindow(season, weekNo));
-  return weekFinished(false, window);
+  if (season === clock.season && weekNo < clock.week) return true;
+  if (known) return Boolean(known.done);
+  const window = await weekWindow(season, weekNo);
+  return Boolean(window.done);
 }
 
 function floorEligibleRun(row: SeasonDoneRun): boolean {
   const name = clipDisplayName(row.name ?? "") || "GM";
   if (skipWeeklyFloorName(name, row.user_id) || skipWeeklyFloorName(row.name, row.user_id)) return false;
-  // status=done already. Score may be null (locked before kickoff / live / unawarded).
   return realWeeklyLock(row.picks);
 }
 
-function weekFloorMin(runs: SeasonDoneRun[], weekNo: number): number | null {
-  const scored = runs.filter((row) => row.week === weekNo && floorEligibleRun(row) && row.score != null);
-  if (!scored.length) return null;
-  return Math.min(...scored.map((row) => asNum(row.score)));
+function weekFloorMin(
+  runs: SeasonDoneRun[],
+  weekNo: number,
+  boardTotals?: Map<string, number>,
+): number | null {
+  const vals: number[] = [];
+  for (const row of runs) {
+    if (row.week !== weekNo || !floorEligibleRun(row)) continue;
+    const pts = usableFloorPts(row.score) ?? usableFloorPts(boardTotals?.get(row.user_id));
+    if (pts != null) vals.push(pts);
+  }
+  if (!vals.length) return null;
+  return Math.min(...vals);
 }
 
 function weekLockedIds(runs: SeasonDoneRun[], weekNo: number): Set<string> {
@@ -739,12 +762,13 @@ export async function listWeeklyBoardHandler({ data }: { data: { season: number;
       })
       .filter((row): row is NonNullable<typeof row> => Boolean(row))
       .sort((a, b) => rankWeeklyBoard(a, b, week.awarded || window.live));
-    if (await weekFinishedOwn(Boolean(week.awarded), season, weekNo, window)) {
+    if (await weekFinishedOwn(Boolean(week.awarded), season, weekNo, clock, window)) {
       const seasonRuns = await loadSeasonDoneRuns(sql, season);
-      // Was: scored = awarded || live ? real : real.filter(score !== 0)
-      // That dropped fill when this week’s board scores were 0, and ignored
-      // season locks with score null (Week 2 waiting-kickoff).
-      const floorScore = weekFloorMin(seasonRuns, weekNo);
+      const boardTotals = new Map<string, number>();
+      for (const row of ranked) {
+        if (row.hasPicks) boardTotals.set(row.id, row.score);
+      }
+      const floorScore = weekFloorMin(seasonRuns, weekNo, boardTotals);
       if (floorScore != null) {
         const lockedIds = weekLockedIds(seasonRuns, weekNo);
         const seen = new Set(ranked.map((row) => row.id));
@@ -931,8 +955,18 @@ export async function listSeasonBoardHandler({ data }: { data: { season: number 
       season === clock.season && week.week === clock.week
         ? window
         : null;
-    if (!(await weekFinishedOwn(Boolean(week.awarded), season, week.week, own))) continue;
-    const floorScore = weekFloorMin(seasonRuns, week.week);
+    if (!(await weekFinishedOwn(Boolean(week.awarded), season, week.week, clock, own))) continue;
+    const boardTotals = new Map<string, number>();
+    for (const row of seasonRuns) {
+      if (row.week !== week.week || !floorEligibleRun(row)) continue;
+      const stored = usableFloorPts(row.score);
+      if (stored != null) boardTotals.set(row.user_id, stored);
+      else {
+        const computed = usableFloorPts(weeklyTotal(hydrateWeeklyPicks(row.picks, {}, "stored")));
+        if (computed != null) boardTotals.set(row.user_id, computed);
+      }
+    }
+    const floorScore = weekFloorMin(seasonRuns, week.week, boardTotals);
     if (floorScore == null) continue;
     const lockedIds = weekLockedIds(seasonRuns, week.week);
     for (const [id, face] of eligible) {
