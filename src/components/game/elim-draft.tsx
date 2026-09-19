@@ -197,6 +197,9 @@ export function ElimDraftScreen() {
           const owner = takenBy(player.id);
           const tooMuch = owner === null && !legal.has(player.id);
           const pickDisabled = !canPick(player.id);
+          const hostedOpen = hostedDraft && owner === null && !tooMuch;
+          const rowPlus = hostedOpen ? plusTone : hostedDraft ? "text-muted" : "text-accent";
+          const rowRing = hostedOpen ? cardRing : "";
           return (
             <li key={player.id} className="flex items-stretch gap-1.5">
               <button
@@ -206,7 +209,7 @@ export function ElimDraftScreen() {
                 onClick={() => draft(player.id)}
                 className={cn(
                   "flex size-11 shrink-0 items-center justify-center rounded-xl bg-surface/90 shadow-[var(--shadow-border)]",
-                  plusTone,
+                  rowPlus,
                   pickDisabled ? "opacity-40" : "hover:bg-surface-2",
                 )}
               >
@@ -218,7 +221,7 @@ export function ElimDraftScreen() {
                 onClick={() => setScout(player)}
                 className={cn(
                   "flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded-xl bg-surface/90 px-2 py-1 text-left shadow-[var(--shadow-border)] hover:bg-surface-2",
-                  cardRing,
+                  rowRing,
                   owner !== null && !(elim.lastPickId === player.id && holding) && "opacity-40",
                   tooMuch && owner === null && "opacity-50",
                   elim.lastPickId === player.id && holding && "ring-1 ring-accent",
