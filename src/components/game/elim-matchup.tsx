@@ -341,6 +341,7 @@ export function ElimMatchupScreen() {
               >
                 See results
               </Button>
+              {mode !== "daily" ? (
               <Button
                 variant="secondary"
                 size="lg"
@@ -352,6 +353,7 @@ export function ElimMatchupScreen() {
               >
                 Leave game
               </Button>
+              ) : null}
             </div>
           ) : (
           <div className="relative z-10 mt-1.5 grid shrink-0 gap-1.5">
