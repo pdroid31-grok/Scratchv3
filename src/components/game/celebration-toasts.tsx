@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
-import { avatarById } from "@/lib/game/avatars";
+import { Star, X } from "lucide-react";
+import { ACHIEVEMENT_UNLOCKS, avatarById } from "@/lib/game/avatars";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { formatToastDay, listToasts, seenToast, type ToastItem, type ToastPick } from "@/lib/game/toasts-api";
 
@@ -29,25 +29,63 @@ function LineupRows({ picks }: { picks: ToastPick[] }) {
   );
 }
 
+function PayoutMark({ coins, stars }: { coins: number; stars: number }) {
+  return (
+    <p className="flex shrink-0 items-center gap-2 font-display text-xl font-semibold tabular-nums leading-none tracking-wide text-fg sm:text-2xl">
+      <span>+${coins}</span>
+      <span className="inline-flex items-center gap-1">
+        +{stars}
+        <Star className="size-[1.15em] shrink-0 text-fg" fill="currentColor" />
+      </span>
+    </p>
+  );
+}
+
+function WinFace({
+  name,
+  avatarId,
+  score,
+  coins,
+  stars,
+}: {
+  name?: string;
+  avatarId?: string;
+  score: number;
+  coins: number;
+  stars: number;
+}) {
+  const look = avatarById(avatarId ?? "poor");
+  return (
+    <div className="mt-3 flex items-center gap-3">
+      <img src={look.src} alt="" className="size-12 rounded-lg object-cover shadow-[var(--shadow-border)]" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-display text-sm font-semibold uppercase tracking-wide text-fg">{name}</p>
+        <p className="text-sm tabular-nums text-muted">{score.toFixed(1)}</p>
+      </div>
+      <PayoutMark coins={coins} stars={stars} />
+    </div>
+  );
+}
+
+function featHow(id?: string): string {
+  return ACHIEVEMENT_UNLOCKS.find((row) => row.id === id)?.how ?? "";
+}
+
 function ToastBody({ item }: { item: ToastItem }) {
   const p = item.payload;
   if (item.kind === "daily_win") {
-    const look = avatarById(p.avatarId ?? "poor");
     return (
       <>
         <p className="font-display text-xl font-semibold uppercase tracking-wide text-fg">
           Congrats on winning the Daily Match for {p.day ? formatToastDay(p.day) : "today"}.
         </p>
-        <div className="mt-3 flex items-center gap-3">
-          <img src={look.src} alt="" className="size-12 rounded-lg object-cover shadow-[var(--shadow-border)]" />
-          <div className="min-w-0">
-            <p className="truncate font-display text-sm font-semibold uppercase tracking-wide text-fg">{p.name}</p>
-            <p className="text-sm tabular-nums text-muted">{(p.score ?? 0).toFixed(1)}</p>
-          </div>
-        </div>
-        <p className="mt-3 font-display text-sm font-semibold uppercase tracking-wide text-turf">
-          +${p.coins ?? 1} · +{p.stars ?? 1} Daily star
-        </p>
+        <WinFace
+          name={p.name}
+          avatarId={p.avatarId}
+          score={p.score ?? 0}
+          coins={p.coins ?? 1}
+          stars={p.stars ?? 1}
+        />
         <div className="mt-3">
           <LineupRows picks={p.picks ?? []} />
         </div>
@@ -55,22 +93,18 @@ function ToastBody({ item }: { item: ToastItem }) {
     );
   }
   if (item.kind === "weekly_win") {
-    const look = avatarById(p.avatarId ?? "poor");
     return (
       <>
         <p className="font-display text-xl font-semibold uppercase tracking-wide text-fg">
           Congrats on winning the Weekly Match for Week {p.week ?? ""}.
         </p>
-        <div className="mt-3 flex items-center gap-3">
-          <img src={look.src} alt="" className="size-12 rounded-lg object-cover shadow-[var(--shadow-border)]" />
-          <div className="min-w-0">
-            <p className="truncate font-display text-sm font-semibold uppercase tracking-wide text-fg">{p.name}</p>
-            <p className="text-sm tabular-nums text-muted">{(p.score ?? 0).toFixed(1)}</p>
-          </div>
-        </div>
-        <p className="mt-3 font-display text-sm font-semibold uppercase tracking-wide text-turf">
-          +${p.coins ?? 2} · +{p.stars ?? 2} Daily stars
-        </p>
+        <WinFace
+          name={p.name}
+          avatarId={p.avatarId}
+          score={p.score ?? 0}
+          coins={p.coins ?? 2}
+          stars={p.stars ?? 2}
+        />
         <div className="mt-3">
           <LineupRows picks={p.picks ?? []} />
         </div>
@@ -78,6 +112,7 @@ function ToastBody({ item }: { item: ToastItem }) {
     );
   }
   const prize = avatarById(p.prizeId ?? "poor");
+  const how = featHow(p.prizeId);
   return (
     <>
       <p className="font-display text-xl font-semibold uppercase tracking-wide text-fg">
@@ -86,11 +121,16 @@ function ToastBody({ item }: { item: ToastItem }) {
       <div className="mt-4 flex flex-col items-center gap-2">
         <img src={prize.src} alt="" className="size-28 rounded-xl object-cover shadow-[var(--shadow-border)]" />
         <p className="font-display text-sm font-semibold uppercase tracking-wide text-fg">{prize.name}</p>
-        <p className="text-sm text-muted">
-          {item.kind === "star_unlock"
-            ? `from ${p.starNeed ?? 0} Daily stars`
-            : "from Achievement"}
-        </p>
+        {item.kind === "star_unlock" ? (
+          <p className="flex items-center justify-center gap-1 text-sm text-muted">
+            <span>From obtaining {p.starNeed ?? 0}</span>
+            <Star className="size-[1.15em] shrink-0 text-fg" fill="currentColor" />
+          </p>
+        ) : (
+          <p className="text-center text-sm text-muted">
+            From Achievement{how ? `: ${how}` : ""}
+          </p>
+        )}
       </div>
     </>
   );
@@ -153,12 +193,8 @@ export function CelebrationToasts() {
       role="dialog"
       aria-modal="true"
       aria-label="Celebration"
-      onClick={dismiss}
     >
-      <section
-        className="relative max-h-[min(88vh,40rem)] w-full max-w-lg overflow-y-auto rounded-xl bg-surface px-4 py-5 shadow-[var(--shadow-border)] sm:px-5"
-        onClick={(event) => event.stopPropagation()}
-      >
+      <section className="relative max-h-[min(88vh,40rem)] w-full max-w-lg overflow-y-auto rounded-xl bg-surface px-4 py-5 shadow-[var(--shadow-border)] sm:px-5">
         <button
           type="button"
           className="absolute right-3 top-3 flex size-11 items-center justify-center rounded-full bg-bg text-fg shadow-[var(--shadow-border)]"
