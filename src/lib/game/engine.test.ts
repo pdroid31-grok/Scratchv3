@@ -996,7 +996,7 @@ describe("avatars", () => {
     assert.equal(pickPrize(ownedAll), null);
     assert.equal(
       PRIZE_AVATARS.some((avatar) =>
-        ["club200", "peeping", "banana", "crossword", "thanos", "boxaddict", "commish", "jail", "8ball", "ghostpepe", "lockedin", "sniper", "silvermedal", "crypepe", "joker"].includes(avatar.id),
+        ["club200", "peeping", "banana", "crossword", "thanos", "boxaddict", "commish", "jail", "8ball", "ghostpepe", "lockedin", "sniper", "silvermedal", "crypepe", "joker", "doubletrouble"].includes(avatar.id),
       ),
       false,
     );

@@ -224,6 +224,12 @@ async function settleYesterday(sql: Sql, today: string): Promise<void> {
   } catch (err) {
     console.error("[darkness] daily news failed", err);
   }
+  try {
+    const { grantDoubleTroubleAfterDaily } = await import("./double-trouble.server");
+    await grantDoubleTroubleAfterDaily(sql, yday, ids);
+  } catch (err) {
+    console.error("[darkness] double trouble daily failed", err);
+  }
 }
 
 async function loadRun(sql: Sql, day: string, userId: string): Promise<RunRow | null> {

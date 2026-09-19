@@ -82,6 +82,7 @@ export const AVATARS = [
   { id: "jail", name: "Jail", src: "/avatars/jail.jpg?v=1" },
   { id: "crypepe", name: "Crying", src: "/avatars/crypepe.jpg?v=2" },
   { id: "joker", name: "Joker", src: "/avatars/joker.jpg?v=2" },
+  { id: "doubletrouble", name: "Double Trouble", src: "/avatars/doubletrouble.jpg?v=1" },
   { id: "golden", name: "Golden", src: "/avatars/golden.jpg?v=1" },
 ] as const;
 
@@ -122,6 +123,7 @@ export const SNIPER_ID = "sniper" as const satisfies AvatarId;
 export const SILVER_MEDAL_ID = "silvermedal" as const satisfies AvatarId;
 export const CRYPEPE_ID = "crypepe" as const satisfies AvatarId;
 export const JOKER_ID = "joker" as const satisfies AvatarId;
+export const DOUBLE_TROUBLE_ID = "doubletrouble" as const satisfies AvatarId;
 export const BANANA_SCORE_UNDER = 60;
 export const CROSSWORD_STREAK_NEED = 10;
 export const LOCKED_IN_STREAK_NEED = 100;
@@ -144,6 +146,7 @@ const FEAT_IDS = new Set<string>([
   JAIL_ID,
   CRYPEPE_ID,
   JOKER_ID,
+  DOUBLE_TROUBLE_ID,
 ]);
 export const ACHIEVEMENT_UNLOCKS = [
   { id: CLUB_200_ID, how: "Score 200+ points in a single match." },
@@ -155,6 +158,7 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: LOCKED_IN_ID, how: "100 consecutive calendar days with a Daily Match submitted." },
   { id: SNIPER_ID, how: "Finish a Weekly Match 1st by less than 1.0 over 2nd." },
   { id: SILVER_MEDAL_ID, how: "Finish 2nd on 5 separate Daily boards." },
+  { id: DOUBLE_TROUBLE_ID, how: "Win Daily and Weekly on the same day." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];
 export const PRIZE_AVATARS = AVATARS.filter(
   (avatar) => avatar.id !== "poor" && avatar.id !== "golden" && !STAR_IDS.has(avatar.id) && !FEAT_IDS.has(avatar.id),

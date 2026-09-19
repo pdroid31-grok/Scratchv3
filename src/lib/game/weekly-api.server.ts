@@ -353,6 +353,17 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
     [season, week],
   );
   try {
+    const { grantDoubleTroubleAfterWeekly } = await import("./double-trouble.server");
+    await grantDoubleTroubleAfterWeekly(sql, {
+      week,
+      endAt: window.endAt,
+      games: window.games,
+      winnerIds: [...winners],
+    });
+  } catch (err) {
+    console.error("[darkness] double trouble weekly failed", err);
+  }
+  try {
     const { recordNewsSafe, newsActor, formatNewsScore } = await import("./news.server");
     for (const row of scored) {
       if (!winners.has(row.userId)) continue;
