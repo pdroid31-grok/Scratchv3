@@ -91,6 +91,12 @@ export async function recordLookUnlockNews(
       prizeLabel: prize.name,
     },
   });
+  try {
+    const { recordUnlockToast } = await import("./toasts.server");
+    await recordUnlockToast(sql, userId, prize.id, from);
+  } catch (err) {
+    console.error("[darkness] unlock toast failed", err);
+  }
 }
 
 export async function recordNewsSafe(

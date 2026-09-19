@@ -1,0 +1,176 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { X } from "lucide-react";
+import { avatarById } from "@/lib/game/avatars";
+import { useCurrentUserState } from "@/lib/auth/use-current-user";
+import { formatToastDay, listToasts, seenToast, type ToastItem, type ToastPick } from "@/lib/game/toasts-api";
+
+function LineupRows({ picks }: { picks: ToastPick[] }) {
+  if (!picks.length) return <p className="text-sm text-muted">No lineup saved.</p>;
+  return (
+    <ol className="grid gap-1.5">
+      {picks.map((pick) => (
+        <li
+          key={pick.slot}
+          className="flex items-center gap-3 rounded-md bg-bg px-3 py-2 shadow-[var(--shadow-border)]"
+        >
+          <span className="w-10 shrink-0 font-display text-xs font-semibold uppercase tracking-wide text-subtle">
+            {pick.slot}
+          </span>
+          <span className="w-8 shrink-0 text-xs tabular-nums text-muted">${pick.cost}</span>
+          <span className="min-w-0 flex-1 truncate text-sm text-fg">{pick.name}</span>
+          <span className="w-12 shrink-0 text-right font-display text-sm font-semibold tabular-nums text-fg">
+            {pick.score.toFixed(1)}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function ToastBody({ item }: { item: ToastItem }) {
+  const p = item.payload;
+  if (item.kind === "daily_win") {
+    const look = avatarById(p.avatarId ?? "poor");
+    return (
+      <>
+        <p className="font-display text-xl font-semibold uppercase tracking-wide text-fg">
+          Congrats on winning the Daily Match for {p.day ? formatToastDay(p.day) : "today"}.
+        </p>
+        <div className="mt-3 flex items-center gap-3">
+          <img src={look.src} alt="" className="size-12 rounded-lg object-cover shadow-[var(--shadow-border)]" />
+          <div className="min-w-0">
+            <p className="truncate font-display text-sm font-semibold uppercase tracking-wide text-fg">{p.name}</p>
+            <p className="text-sm tabular-nums text-muted">{(p.score ?? 0).toFixed(1)}</p>
+          </div>
+        </div>
+        <p className="mt-3 font-display text-sm font-semibold uppercase tracking-wide text-turf">
+          +${p.coins ?? 1} · +{p.stars ?? 1} Daily star
+        </p>
+        <div className="mt-3">
+          <LineupRows picks={p.picks ?? []} />
+        </div>
+      </>
+    );
+  }
+  if (item.kind === "weekly_win") {
+    const look = avatarById(p.avatarId ?? "poor");
+    return (
+      <>
+        <p className="font-display text-xl font-semibold uppercase tracking-wide text-fg">
+          Congrats on winning the Weekly Match for Week {p.week ?? ""}.
+        </p>
+        <div className="mt-3 flex items-center gap-3">
+          <img src={look.src} alt="" className="size-12 rounded-lg object-cover shadow-[var(--shadow-border)]" />
+          <div className="min-w-0">
+            <p className="truncate font-display text-sm font-semibold uppercase tracking-wide text-fg">{p.name}</p>
+            <p className="text-sm tabular-nums text-muted">{(p.score ?? 0).toFixed(1)}</p>
+          </div>
+        </div>
+        <p className="mt-3 font-display text-sm font-semibold uppercase tracking-wide text-turf">
+          +${p.coins ?? 2} · +{p.stars ?? 2} Daily stars
+        </p>
+        <div className="mt-3">
+          <LineupRows picks={p.picks ?? []} />
+        </div>
+      </>
+    );
+  }
+  const prize = avatarById(p.prizeId ?? "poor");
+  return (
+    <>
+      <p className="font-display text-xl font-semibold uppercase tracking-wide text-fg">
+        Congrats you unlocked &ldquo;{p.prizeLabel ?? prize.name}&rdquo;.
+      </p>
+      <div className="mt-4 flex flex-col items-center gap-2">
+        <img src={prize.src} alt="" className="size-28 rounded-xl object-cover shadow-[var(--shadow-border)]" />
+        <p className="font-display text-sm font-semibold uppercase tracking-wide text-fg">{prize.name}</p>
+        <p className="text-sm text-muted">
+          {item.kind === "star_unlock"
+            ? `from ${p.starNeed ?? 0} Daily stars`
+            : "from Achievement"}
+        </p>
+      </div>
+    </>
+  );
+}
+
+export function CelebrationToasts() {
+  const { user, isPending } = useCurrentUserState();
+  const [queue, setQueue] = useState<ToastItem[]>([]);
+
+  useEffect(() => {
+    if (isPending || !user) {
+      setQueue([]);
+      return;
+    }
+    let live = true;
+    async function pull() {
+      try {
+        const rows = await listToasts();
+        if (live) setQueue(rows);
+      } catch {
+        if (live) setQueue([]);
+      }
+    }
+    void pull();
+    const id = window.setInterval(() => void pull(), 30_000);
+    const onVis = () => {
+      if (document.visibilityState === "visible") void pull();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      live = false;
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [user, isPending]);
+
+  const item = queue[0];
+
+  function dismiss() {
+    if (!item) return;
+    const key = item.sourceKey;
+    setQueue((rows) => rows.filter((row) => row.sourceKey !== key));
+    void seenToast({ data: { sourceKey: key } }).catch(() => undefined);
+  }
+
+  useEffect(() => {
+    if (!item) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") dismiss();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [item]);
+
+  if (!user || !item) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-bg/80 p-4 sm:items-center"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Celebration"
+      onClick={dismiss}
+    >
+      <section
+        className="relative max-h-[min(88vh,40rem)] w-full max-w-lg overflow-y-auto rounded-xl bg-surface px-4 py-5 shadow-[var(--shadow-border)] sm:px-5"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          className="absolute right-3 top-3 flex size-11 items-center justify-center rounded-full bg-bg text-fg shadow-[var(--shadow-border)]"
+          aria-label="Close"
+          onClick={dismiss}
+        >
+          <X className="size-5" strokeWidth={2} />
+        </button>
+        <div className="pr-12">
+          <ToastBody item={item} />
+        </div>
+      </section>
+    </div>
+  );
+}

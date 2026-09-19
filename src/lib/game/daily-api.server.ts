@@ -171,8 +171,8 @@ async function settleYesterday(sql: Sql, today: string): Promise<void> {
     }
     return;
   }
-  const top = await sql.query<{ user_id: string; score: number | string; name: string | null }>(
-    `select r.user_id, r.score,
+  const top = await sql.query<{ user_id: string; score: number | string; name: string | null; picks: unknown }>(
+    `select r.user_id, r.score, r.picks,
             coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name
        from darkness_daily_runs r
        left join player_profiles p on p.user_id = r.user_id
@@ -223,6 +223,17 @@ async function settleYesterday(sql: Sql, today: string): Promise<void> {
     }
   } catch (err) {
     console.error("[darkness] daily news failed", err);
+  }
+  try {
+    const { recordDailyWinToast } = await import("./toasts.server");
+    for (const id of ids) {
+      const hit = eligible.find((row) => row.user_id === id);
+      if (!hit) continue;
+      const picks = hydrateDailyPicks(day.year, day.week, hit.picks);
+      await recordDailyWinToast(sql, { userId: id, day: yday, score: asNum(hit.score), picks });
+    }
+  } catch (err) {
+    console.error("[darkness] daily toast failed", err);
   }
   try {
     const { grantDoubleTroubleAfterDaily } = await import("./double-trouble.server");

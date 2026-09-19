@@ -382,6 +382,21 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
   } catch (err) {
     console.error("[darkness] weekly news failed", err);
   }
+  try {
+    const { recordWeeklyWinToast } = await import("./toasts.server");
+    for (const row of scored) {
+      if (!winners.has(row.userId)) continue;
+      await recordWeeklyWinToast(sql, {
+        userId: row.userId,
+        season,
+        week,
+        score: row.score,
+        picks: row.picks,
+      });
+    }
+  } catch (err) {
+    console.error("[darkness] weekly toast failed", err);
+  }
 }
 
 async function settleSafe(sql: Sql, season: number, week: number): Promise<void> {

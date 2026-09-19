@@ -13,6 +13,7 @@ import { RerollCinematic, useRerollCinematic } from "@/components/game/reroll-ci
 import { LoanPopup } from "@/components/game/loan-popup";
 import { GameChat } from "@/components/game/game-chat";
 import { WatchBar } from "@/components/game/watch-bar";
+import { CelebrationToasts } from "@/components/game/celebration-toasts";
 import { elimStartOpen } from "@/lib/game/elim";
 import { useGame } from "@/lib/game/store";
 import { useProfile } from "@/lib/game/profile-store";
@@ -78,6 +79,7 @@ export function GameApp({
     return (
       <div className="flex min-h-full flex-1 flex-col">
         <SetupScreen prefillRoom={prefillRoom} prefillTab={prefillTab} prefillBoard={prefillBoard} boards={boards} />
+        <CelebrationToasts />
       </div>
     );
   }
@@ -116,6 +118,7 @@ export function GameApp({
       )}
       </div>
       {mode === "watch" ? <WatchBar /> : null}
+      <CelebrationToasts />
     </div>
   );
 }
