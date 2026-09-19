@@ -26,6 +26,7 @@ export type WeeklyBoardRow = {
   winner: boolean;
   stars: number;
   hasPicks: boolean;
+  floor?: boolean;
 };
 
 export type WeeklyBoard = {

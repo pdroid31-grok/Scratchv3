@@ -273,7 +273,10 @@ function WeekRowBody({ row, place }: { row: WeeklyBoardRow; place: number }) {
         <span className="block min-w-0 truncate font-display text-sm font-semibold uppercase tracking-wide text-fg">
           {row.name}
         </span>
-        <span className="mt-0.5 block text-xs tabular-nums text-muted">{row.score.toFixed(1)}</span>
+        <span className="mt-0.5 block text-xs tabular-nums text-muted">
+          {row.score.toFixed(1)}
+          {row.floor ? "*" : ""}
+        </span>
       </span>
     </span>
   );

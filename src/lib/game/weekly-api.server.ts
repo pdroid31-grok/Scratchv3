@@ -1,5 +1,5 @@
 /** Server-only weekly elimination writes. Do not import from client modules. */
-import type { WeeklyBoard, WeeklyBoardPack, WeeklyLineup, WeeklyMeta, WeeklyPickPayload, WeeklyResume, WeeklyStatus, SeasonBoard } from "./weekly-api-types";
+import type { WeeklyBoard, WeeklyBoardPack, WeeklyBoardRow, WeeklyLineup, WeeklyMeta, WeeklyPickPayload, WeeklyResume, WeeklyStatus, SeasonBoard } from "./weekly-api-types";
 export type { WeeklyBoard, WeeklyBoardPack, WeeklyLineup, WeeklyMeta, WeeklyResume, WeeklyStatus, SeasonBoard } from "./weekly-api-types";
 import { ELIM_SLOTS, slotPos, type ElimSlot } from "./elim-data";
 import {
@@ -24,7 +24,7 @@ import {
 } from "./weekly";
 import { fillPackedOpponents, nflClock, playersFromPack, sidMap, weekOpponents, weekWindow, weeklyLiveStats, weeklyProjections, attachFinishedWeekActuals } from "./weekly-sleeper";
 import { type ElimPick } from "./elim";
-import { clipDisplayName, isAwardSkippedName, isHiddenBoardName } from "./stats-shared";
+import { clipDisplayName, isAwardSkippedName, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
 import { clampAvatar } from "./avatars";
 
 type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
@@ -55,6 +55,57 @@ function asTime(value: unknown): number {
   if (value instanceof Date) return value.getTime();
   const n = Date.parse(String(value ?? ""));
   return Number.isFinite(n) ? n : 0;
+}
+
+function realWeeklyLock(picks: unknown): boolean {
+  return clipWeeklyPickIds(picks).length > 0;
+}
+
+function skipWeeklyFloorName(name?: string | null, userId?: string | null): boolean {
+  return isHiddenBoardName(name) || isAwardSkippedName(name) || isHiddenBoardId(userId);
+}
+
+type SeasonDoneRun = {
+  user_id: string;
+  week: number;
+  score: number | string | null;
+  picks: unknown;
+  name: string | null;
+  avatar_id: string | null;
+  daily_stars: number | string | null;
+};
+
+async function loadSeasonDoneRuns(sql: Sql, season: number): Promise<SeasonDoneRun[]> {
+  return sql.query<SeasonDoneRun>(
+    `select r.user_id,
+            r.week,
+            r.score,
+            r.picks,
+            coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), 'GM') as name,
+            p.avatar_id,
+            p.daily_stars
+       from darkness_weekly_runs r
+       left join player_profiles p on p.user_id = r.user_id
+       left join "user" u on u.id = r.user_id
+      where r.season = $1 and r.status = 'done'`,
+    [season],
+  );
+}
+
+function weekFinished(awarded: boolean, window: { open: boolean; live: boolean; done: boolean }): boolean {
+  if (awarded) return true;
+  if (window.open || window.live) return false;
+  return Boolean(window.done);
+}
+
+function rankWeeklyBoard(a: WeeklyBoardRow, b: WeeklyBoardRow, byScore: boolean): number {
+  if (byScore) {
+    const score = b.score - a.score;
+    if (score) return score;
+    const floor = Number(Boolean(a.floor)) - Number(Boolean(b.floor));
+    if (floor) return floor;
+  }
+  return a.name.localeCompare(b.name);
 }
 
 async function getSql(): Promise<Sql> {
@@ -644,9 +695,39 @@ export async function listWeeklyBoardHandler({ data }: { data: { season: number;
         };
       })
       .filter((row): row is NonNullable<typeof row> => Boolean(row))
-      .sort((a, b) =>
-        week.awarded || window.live ? b.score - a.score || a.name.localeCompare(b.name) : a.name.localeCompare(b.name),
-      );
+      .sort((a, b) => rankWeeklyBoard(a, b, week.awarded || window.live));
+    if (weekFinished(Boolean(week.awarded), window)) {
+      const real = ranked.filter((row) => row.hasPicks);
+      const scored = week.awarded || window.live ? real : real.filter((row) => row.score !== 0);
+      if (scored.length) {
+        const floorScore = Math.min(...scored.map((row) => row.score));
+        const lockedIds = new Set(real.map((row) => row.id));
+        const seasonRuns = await loadSeasonDoneRuns(sql, season);
+        const eligible = new Map<string, SeasonDoneRun>();
+        for (const row of seasonRuns) {
+          const name = clipDisplayName(row.name ?? "") || "GM";
+          if (skipWeeklyFloorName(name, row.user_id) || skipWeeklyFloorName(row.name, row.user_id)) continue;
+          if (!realWeeklyLock(row.picks)) continue;
+          if (!eligible.has(row.user_id)) eligible.set(row.user_id, row);
+        }
+        for (const [id, row] of eligible) {
+          if (lockedIds.has(id)) continue;
+          const name = clipDisplayName(row.name ?? "") || "GM";
+          ranked.push({
+            id,
+            name,
+            avatarId: clampAvatar(row.avatar_id ?? "poor"),
+            score: floorScore,
+            paid: false,
+            winner: false,
+            stars: Math.max(0, Math.floor(Number(row.daily_stars) || 0)),
+            hasPicks: false,
+            floor: true,
+          });
+        }
+        ranked.sort((a, b) => rankWeeklyBoard(a, b, true));
+      }
+    }
     return {
       season,
       week: weekNo,
@@ -804,6 +885,47 @@ export async function listSeasonBoardHandler({ data }: { data: { season: number 
             weeks: 1,
           });
         }
+      }
+    }
+  }
+  const weekRows = await sql.query<{ week: number; awarded: boolean }>(
+    `select week, awarded from darkness_weekly_weeks where season = $1`,
+    [season],
+  );
+  const seasonRuns = await loadSeasonDoneRuns(sql, season);
+  const eligible = new Map<string, SeasonDoneRun>();
+  const realByWeek = new Map<number, SeasonDoneRun[]>();
+  for (const row of seasonRuns) {
+    const name = clipDisplayName(row.name ?? "") || "GM";
+    if (skipWeeklyFloorName(name, row.user_id) || skipWeeklyFloorName(row.name, row.user_id)) continue;
+    if (!realWeeklyLock(row.picks)) continue;
+    if (!eligible.has(row.user_id)) eligible.set(row.user_id, row);
+    const list = realByWeek.get(row.week) ?? [];
+    list.push(row);
+    realByWeek.set(row.week, list);
+  }
+  for (const week of weekRows) {
+    const isCurrent = season === clock.season && week.week === clock.week;
+    const weekWindowState = isCurrent ? window : { open: false, live: false, done: Boolean(week.awarded) };
+    if (!weekFinished(Boolean(week.awarded), weekWindowState)) continue;
+    const real = (realByWeek.get(week.week) ?? []).filter((row) => row.score != null);
+    if (!real.length) continue;
+    const floorScore = Math.min(...real.map((row) => asNum(row.score)));
+    const lockedIds = new Set((realByWeek.get(week.week) ?? []).map((row) => row.user_id));
+    for (const [id, face] of eligible) {
+      if (lockedIds.has(id)) continue;
+      const name = clipDisplayName(face.name ?? "") || "GM";
+      const prev = merged.get(id);
+      if (prev) {
+        prev.score = Math.round((prev.score + floorScore) * 10) / 10;
+      } else {
+        merged.set(id, {
+          id,
+          name,
+          avatarId: clampAvatar(face.avatar_id ?? "poor"),
+          score: floorScore,
+          weeks: 0,
+        });
       }
     }
   }
