@@ -131,23 +131,19 @@ function floorEligibleRun(row: SeasonDoneRun): boolean {
   return realWeeklyLock(row.picks);
 }
 
-function weekFloorMin(
-  runs: SeasonDoneRun[],
-  weekNo: number,
-  boardTotals?: Map<string, number>,
-): number | null {
+function weekFloorMin(shown: { hasPicks?: boolean; floor?: boolean; score: number }[]): number | null {
   const vals: number[] = [];
-  for (const row of runs) {
-    if (row.week !== weekNo || !floorEligibleRun(row)) continue;
-    const pts = usableFloorPts(row.score) ?? usableFloorPts(boardTotals?.get(row.user_id));
+  for (const row of shown) {
+    if (row.floor || row.hasPicks === false) continue;
+    const pts = usableFloorPts(row.score);
     if (pts != null) vals.push(pts);
   }
   if (!vals.length) return null;
   return Math.min(...vals);
 }
 
-function weekLockedIds(runs: SeasonDoneRun[], weekNo: number): Set<string> {
-  return new Set(runs.filter((row) => row.week === weekNo && floorEligibleRun(row)).map((row) => row.user_id));
+function weekBoardIds(runs: SeasonDoneRun[], weekNo: number): Set<string> {
+  return new Set(runs.filter((row) => row.week === weekNo).map((row) => row.user_id));
 }
 
 function floorFace(row: SeasonDoneRun): WeeklyBoardRow {
@@ -764,17 +760,12 @@ export async function listWeeklyBoardHandler({ data }: { data: { season: number;
       .sort((a, b) => rankWeeklyBoard(a, b, week.awarded || window.live));
     if (await weekFinishedOwn(Boolean(week.awarded), season, weekNo, clock, window)) {
       const seasonRuns = await loadSeasonDoneRuns(sql, season);
-      const boardTotals = new Map<string, number>();
-      for (const row of ranked) {
-        if (row.hasPicks) boardTotals.set(row.id, row.score);
-      }
-      const floorScore = weekFloorMin(seasonRuns, weekNo, boardTotals);
+      const floorScore = weekFloorMin(ranked);
       if (floorScore != null) {
-        const lockedIds = weekLockedIds(seasonRuns, weekNo);
-        const seen = new Set(ranked.map((row) => row.id));
+        const onBoard = new Set([...ranked.map((row) => row.id), ...weekBoardIds(seasonRuns, weekNo)]);
         for (const row of seasonRuns) {
-          if (!floorEligibleRun(row) || lockedIds.has(row.user_id) || seen.has(row.user_id)) continue;
-          seen.add(row.user_id);
+          if (!floorEligibleRun(row) || onBoard.has(row.user_id)) continue;
+          onBoard.add(row.user_id);
           ranked.push({ ...floorFace(row), score: floorScore });
         }
         ranked.sort((a, b) => rankWeeklyBoard(a, b, true));
@@ -956,21 +947,22 @@ export async function listSeasonBoardHandler({ data }: { data: { season: number 
         ? window
         : null;
     if (!(await weekFinishedOwn(Boolean(week.awarded), season, week.week, clock, own))) continue;
-    const boardTotals = new Map<string, number>();
+    const shown: { hasPicks: boolean; score: number }[] = [];
     for (const row of seasonRuns) {
-      if (row.week !== week.week || !floorEligibleRun(row)) continue;
+      if (row.week !== week.week) continue;
+      const name = clipDisplayName(row.name ?? "") || "GM";
+      if (skipWeeklyFloorName(name, row.user_id) || skipWeeklyFloorName(row.name, row.user_id)) continue;
       const stored = usableFloorPts(row.score);
-      if (stored != null) boardTotals.set(row.user_id, stored);
-      else {
-        const computed = usableFloorPts(weeklyTotal(hydrateWeeklyPicks(row.picks, {}, "stored")));
-        if (computed != null) boardTotals.set(row.user_id, computed);
-      }
+      const computed =
+        stored ?? usableFloorPts(weeklyTotal(hydrateWeeklyPicks(row.picks, {}, "stored")));
+      if (computed == null) continue;
+      shown.push({ hasPicks: true, score: computed });
     }
-    const floorScore = weekFloorMin(seasonRuns, week.week, boardTotals);
+    const floorScore = weekFloorMin(shown);
     if (floorScore == null) continue;
-    const lockedIds = weekLockedIds(seasonRuns, week.week);
+    const onBoard = weekBoardIds(seasonRuns, week.week);
     for (const [id, face] of eligible) {
-      if (lockedIds.has(id)) continue;
+      if (onBoard.has(id)) continue;
       const name = clipDisplayName(face.name ?? "") || "GM";
       const prev = merged.get(id);
       if (prev) {
