@@ -82,7 +82,7 @@ export const AVATARS = [
   { id: "jail", name: "Jail", src: "/avatars/jail.jpg?v=1" },
   { id: "crypepe", name: "Crying", src: "/avatars/crypepe.jpg?v=2" },
   { id: "joker", name: "Joker", src: "/avatars/joker.jpg?v=2" },
-  { id: "doubletrouble", name: "Double Trouble", src: "/avatars/doubletrouble.jpg?v=1" },
+  { id: "doubletrouble", name: "Double Trouble", src: "/avatars/doubletrouble.jpg?v=3" },
   { id: "golden", name: "Golden", src: "/avatars/golden.jpg?v=1" },
 ] as const;
 
