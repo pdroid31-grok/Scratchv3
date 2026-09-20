@@ -542,10 +542,22 @@ async function resolveClock(sql: Sql): Promise<{
     await expirePlaying(sql, next.season, next.week, window.open);
     await reopenPatOnce(sql, next.season, next.week);
     await reopenMswanLate(sql, next.season, next.week);
+    try {
+      const { mergeCommishW2Once } = await import("./commish-w2-merge.server");
+      await mergeCommishW2Once(sql);
+    } catch (err) {
+      console.error("[darkness] commish w2 merge failed", err);
+    }
     return { clock: next, window };
   }
   await reopenPatOnce(sql, clock.season, clock.week);
   await reopenMswanLate(sql, clock.season, clock.week);
+  try {
+    const { mergeCommishW2Once } = await import("./commish-w2-merge.server");
+    await mergeCommishW2Once(sql);
+  } catch (err) {
+    console.error("[darkness] commish w2 merge failed", err);
+  }
   return { clock, window };
 }
 
@@ -776,7 +788,7 @@ export async function listWeeklyBoardHandler({ data }: { data: { season: number;
             ? weeklyTotal(picks)
             : 0;
         const name = clipDisplayName(row.name ?? "") || "GM";
-        if (isHiddenBoardName(name) || isHiddenBoardName(row.name)) return null;
+        if (isHiddenBoardId(row.user_id) || isHiddenBoardName(name) || isHiddenBoardName(row.name)) return null;
         return {
           id: row.user_id,
           name,
@@ -909,7 +921,7 @@ export async function listSeasonBoardHandler({ data }: { data: { season: number 
   const merged = new Map(
     rows.flatMap((row) => {
       const name = clipDisplayName(row.name ?? "") || "GM";
-      if (isHiddenBoardName(name) || isHiddenBoardName(row.name)) return [];
+      if (isHiddenBoardId(row.user_id) || isHiddenBoardName(name) || isHiddenBoardName(row.name)) return [];
       return [[
         row.user_id,
         {
@@ -945,7 +957,7 @@ export async function listSeasonBoardHandler({ data }: { data: { season: number 
         [clock.season, clock.week],
       );
       for (const row of liveRuns) {
-        if (isHiddenBoardName(row.name)) continue;
+        if (isHiddenBoardId(row.user_id) || isHiddenBoardName(row.name)) continue;
         const pts = weeklyTotal(hydrateWeeklyPicks(row.picks, live, "zero"));
         const prev = merged.get(row.user_id);
         if (prev) {
