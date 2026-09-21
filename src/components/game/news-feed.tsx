@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, X } from "lucide-react";
-import { avatarById } from "@/lib/game/avatars";
+import { ACHIEVEMENT_UNLOCKS, avatarById, starNeed } from "@/lib/game/avatars";
 import { formatNewsTime, type NewsFace, type NewsItem } from "@/lib/game/news";
 import { listNews } from "@/lib/game/news-api";
 
@@ -213,13 +213,19 @@ function NewsLine({ item, onPeek }: { item: NewsItem; onPeek: (look: LookPeek) =
     );
   }
   if ((item.kind === "star_unlock" || item.kind === "feat_unlock") && a && item.prizeId) {
+    const need = starNeed(item.prizeId);
+    const how = ACHIEVEMENT_UNLOCKS.find((row) => row.id === item.prizeId)?.how ?? "";
     return (
       <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-fg">
         <Face face={a} onPeek={onPeek} />
         <span className="text-muted">unlocked</span>
         <PrizeMark id={item.prizeId} label={item.prizeLabel} onPeek={onPeek} />
         <span className="text-muted">
-          {item.kind === "star_unlock" ? "from Daily Stars" : "from Achievements"}
+          {item.kind === "star_unlock"
+            ? `from ${need} Daily stars`
+            : how
+              ? `from Achievement: ${how}`
+              : "from Achievements"}
         </span>
       </p>
     );
