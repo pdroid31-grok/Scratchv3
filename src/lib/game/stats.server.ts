@@ -713,6 +713,14 @@ export async function grantStarLooks(
     JSON.stringify(next),
     userId,
   ]);
+  try {
+    const { recordLookUnlockNews } = await import("./news.server");
+    for (const id of missing) {
+      await recordLookUnlockNews(sql, userId, id, "stars");
+    }
+  } catch (err) {
+    console.error("[darkness] star unlock news failed", err);
+  }
   return next;
 }
 
@@ -732,11 +740,7 @@ async function catchUpStarLooksAll(sql: {
       const stars = Math.max(0, asInt(row.daily_stars));
       const missing = starLooksFor(stars).filter((id) => !owned.includes(id));
       if (!missing.length) continue;
-      const next = [...owned, ...missing];
-      await sql.query(`update player_profiles set owned = $1, updated_at = now() where user_id = $2`, [
-        JSON.stringify(next),
-        row.user_id,
-      ]);
+      await grantStarLooks(sql, row.user_id, owned, stars);
       report.push({
         id: row.user_id,
         name: clipDisplayName(row.display_name ?? "") || "GM",
@@ -986,6 +990,12 @@ export async function getMyStatsHandler({ context }: { context: { userId: string
     try {
       await syncDailyStarsFromPayouts(sql);
       const report = await catchUpStarLooksAll(sql);
+      try {
+        const { backfillPatDjUnlockOnce } = await import("./news.server");
+        await backfillPatDjUnlockOnce(sql);
+      } catch (err) {
+        console.error("[darkness] pat dj unlock backfill failed", err);
+      }
       if (report.length) {
         try {
           await sql.query(`

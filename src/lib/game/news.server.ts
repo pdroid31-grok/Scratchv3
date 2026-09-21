@@ -99,6 +99,27 @@ export async function recordLookUnlockNews(
   }
 }
 
+const PAT_DJ_FLAG = "news-toast-pat-dj-v1";
+const PAT_DJ_USER = "Sth5J7JYgRUEnwGxVWFVh3foFcPf9Erh";
+const PAT_DJ_ID = "dj" as const;
+
+/** One-shot: Pat already owns DJ. Write missing star_unlock news + unseen toast. Do not touch owned/bank/stars. */
+export async function backfillPatDjUnlockOnce(sql: Sql): Promise<void> {
+  await sql.query(`
+    create table if not exists darkness_news_flags (
+      key text primary key,
+      created_at timestamptz not null default now()
+    )`);
+  const already = await sql.query<{ key: string }>(
+    `select key from darkness_news_flags where key = $1`,
+    [PAT_DJ_FLAG],
+  );
+  if (already[0]) return;
+  await recordLookUnlockNews(sql, PAT_DJ_USER, PAT_DJ_ID, "stars");
+  await sql.query(`insert into darkness_news_flags (key) values ($1) on conflict do nothing`, [PAT_DJ_FLAG]);
+  console.log("[darkness] news toast pat dj v1");
+}
+
 export async function recordNewsSafe(
   sql: Sql,
   input: { sourceKey: string; payload: NewsPayload },
