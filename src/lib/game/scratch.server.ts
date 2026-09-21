@@ -274,6 +274,12 @@ export async function claimScratchCard(sql: Sql, userId: string, cardId: number)
           [JSON.stringify(next), fresh, userId],
         );
         grantedAvatar = fresh;
+        try {
+          const { recordLookUnlockNews } = await import("./news.server");
+          await recordLookUnlockNews(sql, userId, fresh, "feats");
+        } catch (err) {
+          console.error("[darkness] scratch feat news failed", err);
+        }
       }
     }
     await syncDailyStarsFromPayouts(sql, userId);

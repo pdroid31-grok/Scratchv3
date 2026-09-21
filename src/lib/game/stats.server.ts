@@ -597,6 +597,7 @@ async function grantEarnedFeats(
       userId,
     ]);
   }
+  await announceFeatUnlocks(sql, userId, add);
   return next;
 }
 
@@ -648,6 +649,7 @@ async function grantSeedClub200(
     JSON.stringify(next),
     userId,
   ]);
+  await announceFeatUnlocks(sql, userId, [CLUB_200_ID]);
   return next;
 }
 
@@ -692,11 +694,28 @@ export async function grantPeeping(
     JSON.stringify(owned),
     userId,
   ]);
+  await announceFeatUnlocks(sql, userId, [PEEPING_ID]);
   return true;
 }
 
 function paidLooks(owned: readonly string[]): number {
   return owned.filter((id) => id !== "poor" && id !== "golden" && !isStarAvatar(id) && !isFeatAvatar(id)).length;
+}
+
+async function announceFeatUnlocks(
+  sql: { query: <T>(text: string, params?: unknown[]) => Promise<T[]> },
+  userId: string,
+  ids: readonly string[],
+): Promise<void> {
+  if (!ids.length) return;
+  try {
+    const { recordLookUnlockNews } = await import("./news.server");
+    for (const id of ids) {
+      await recordLookUnlockNews(sql, userId, id, "feats");
+    }
+  } catch (err) {
+    console.error("[darkness] feat unlock news failed", err);
+  }
 }
 
 /** Append Daily Unlock looks the star count already earned. Never strips, never equips. */
@@ -919,6 +938,7 @@ export async function settleProfile(
       JSON.stringify(owned),
       userId,
     ]);
+    await announceFeatUnlocks(sql, userId, [CLUB_200_ID]);
   } else if (!clubHit && owned.includes(CLUB_200_ID)) {
     owned = owned.filter((id) => id !== CLUB_200_ID);
     if (avatarId === CLUB_200_ID) avatarId = "poor";
