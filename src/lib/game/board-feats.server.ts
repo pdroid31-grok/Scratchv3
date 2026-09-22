@@ -7,6 +7,8 @@ import {
   earlyBirdDayCount,
   nightOwlDayCount,
   lostGapHit,
+  comebackKidHit,
+  freeFallHit,
   BULLSEYE_ID,
   RAINY_DAY_ID,
   EARLY_BIRD_ID,
@@ -14,6 +16,9 @@ import {
   LOST_ID,
   VEGAS_ID,
   NIGHT_OWL_ID,
+  COMEBACK_KID_ID,
+  FREE_FALL_ID,
+  BOX_LUNCH_ID,
   EARLY_BIRD_NEED,
   NIGHT_OWL_NEED,
   FEAT_TRACK_FROM,
@@ -232,5 +237,86 @@ export async function maybeGrantVegas(sql: Sql, userId: string): Promise<void> {
     await grantFeat(sql, userId, VEGAS_ID);
   } catch (err) {
     console.error("[darkness] vegas grant failed", err);
+  }
+}
+
+async function visiblePlaceIds(sql: Sql, day: string, edge: "min" | "max"): Promise<string[]> {
+  if (!day || day < FEAT_TRACK_FROM) return [];
+  const rows = await sql.query<{ user_id: string; name: string | null; score: number | string }>(
+    `select r.user_id,
+            coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name,
+            r.score
+       from darkness_daily_runs r
+       left join player_profiles p on p.user_id = r.user_id
+       left join "user" u on u.id = r.user_id
+      where r.day = $1::date and r.status = 'done' and r.score is not null`,
+    [day],
+  );
+  const visible: { userId: string; score: number }[] = [];
+  for (const row of rows) {
+    if (skipBoardRow(row.user_id, row.name) || skipBoardRow(row.user_id, clipGm(row.name ?? ""))) continue;
+    const score = Number(row.score);
+    if (!Number.isFinite(score)) continue;
+    visible.push({ userId: row.user_id, score });
+  }
+  if (visible.length < 2) return [];
+  const bound = edge === "min" ? Math.min(...visible.map((row) => row.score)) : Math.max(...visible.map((row) => row.score));
+  return visible.filter((row) => row.score === bound).map((row) => row.userId);
+}
+
+async function dayAwarded(sql: Sql, day: string): Promise<boolean> {
+  const rows = await sql.query<{ awarded: boolean }>(
+    `select awarded from darkness_daily_days where day = $1::date`,
+    [day],
+  );
+  return Boolean(rows[0]?.awarded);
+}
+
+export async function maybeGrantComebackPair(sql: Sql, day: string): Promise<void> {
+  try {
+    if (!day || day < FEAT_TRACK_FROM) return;
+    const prev = dailyYesterday(day);
+    if (prev < FEAT_TRACK_FROM) return;
+    if (!(await dayAwarded(sql, day)) || !(await dayAwarded(sql, prev))) return;
+    const prevLast = await visiblePlaceIds(sql, prev, "min");
+    const prevFirst = await visiblePlaceIds(sql, prev, "max");
+    const todayLast = await visiblePlaceIds(sql, day, "min");
+    const todayFirst = await visiblePlaceIds(sql, day, "max");
+    const ids = new Set([...prevLast, ...prevFirst, ...todayLast, ...todayFirst]);
+    for (const userId of ids) {
+      if (comebackKidHit(prevLast, todayFirst, userId)) await grantFeat(sql, userId, COMEBACK_KID_ID);
+      if (freeFallHit(prevFirst, todayLast, userId)) await grantFeat(sql, userId, FREE_FALL_ID);
+    }
+  } catch (err) {
+    console.error("[darkness] comeback pair grant failed", err);
+  }
+}
+
+export async function maybeGrantBoxLunch(sql: Sql, userId: string, at = Date.now()): Promise<void> {
+  try {
+    const day = dailyDayStamp(at);
+    if (!day || day < FEAT_TRACK_FROM) return;
+    const box = await sql.query<{ ok: number | string }>(
+      `select 1 as ok
+         from darkness_news
+        where kind = 'box'
+          and source_key like $1
+          and to_char(created_at at time zone 'America/New_York', 'YYYY-MM-DD') = $2
+        limit 1`,
+      [`box:${userId}:%`, day],
+    );
+    const scratch = await sql.query<{ ok: number | string }>(
+      `select 1 as ok
+         from darkness_scratch_cards
+        where user_id = $1
+          and scratched_at is not null
+          and to_char(scratched_at at time zone 'America/New_York', 'YYYY-MM-DD') = $2
+        limit 1`,
+      [userId, day],
+    );
+    if (!box[0] || !scratch[0]) return;
+    await grantFeat(sql, userId, BOX_LUNCH_ID);
+  } catch (err) {
+    console.error("[darkness] box lunch grant failed", err);
   }
 }

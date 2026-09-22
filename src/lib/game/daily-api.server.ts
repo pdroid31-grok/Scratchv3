@@ -150,6 +150,12 @@ async function settleYesterday(sql: Sql, today: string): Promise<void> {
     } catch {
       /* payouts table may not exist yet */
     }
+    try {
+      const { maybeGrantComebackPair } = await import("./board-feats.server");
+      await maybeGrantComebackPair(sql, yday);
+    } catch (err) {
+      console.error("[darkness] comeback pair failed", err);
+    }
     return;
   }
   await finishStaleDailyRuns(sql, day, { force: true });
@@ -168,6 +174,12 @@ async function settleYesterday(sql: Sql, today: string): Promise<void> {
     );
     for (const row of existingWin) {
       await syncDailyStarsFromPayouts(sql, row.user_id);
+    }
+    try {
+      const { maybeGrantComebackPair } = await import("./board-feats.server");
+      await maybeGrantComebackPair(sql, yday);
+    } catch (err) {
+      console.error("[darkness] comeback pair failed", err);
     }
     return;
   }
@@ -242,8 +254,9 @@ async function settleYesterday(sql: Sql, today: string): Promise<void> {
     console.error("[darkness] double trouble daily failed", err);
   }
   try {
-    const { maybeGrantRainyDay } = await import("./board-feats.server");
+    const { maybeGrantRainyDay, maybeGrantComebackPair } = await import("./board-feats.server");
     await maybeGrantRainyDay(sql, yday);
+    await maybeGrantComebackPair(sql, yday);
   } catch (err) {
     console.error("[darkness] rainy day failed", err);
   }

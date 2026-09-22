@@ -301,6 +301,12 @@ export async function claimScratchCard(sql: Sql, userId: string, cardId: number)
         console.error("[darkness] vegas scratch failed", err);
       }
     }
+    try {
+      const { maybeGrantBoxLunch } = await import("./board-feats.server");
+      await maybeGrantBoxLunch(sql, userId);
+    } catch (err) {
+      console.error("[darkness] box lunch scratch failed", err);
+    }
   }
   const book = await sql.query<{
     coins: number | string | null;

@@ -7,7 +7,7 @@ import { applyPrize, bagLegend, HALFTIME_BAG, prizeLabel, redactHalftime, type P
 import { clipDisplayName, hostedNightKey, nightKey, opponentKey, planHostedNightWrite, isBankCommish } from "./stats-shared";
 import { parseRankTab } from "./rank-tabs";
 import { hostedMatchView, historyLineScore } from "./hosted-match";
-import { clampAvatar, isUnlocked, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, walletBalance, PRIZE_AVATARS, WIN_PAY, BOX_COST, GOLDEN_COST, boxPoolOwnedCount, hitBananaScore, hitBoxAddict, justUnlockedBanana, justUnlockedScratchLook, BOX_ADDICT_POOL_NEED, BANANA_SCORE_UNDER, avatarById, hitHeavyHitterScore, skipHeavyHitterWeek, stampDayGap, lostGapHit, earlyBirdDayCount, nightOwlDayCount, EARLY_BIRD_NEED, NIGHT_OWL_NEED, FEAT_TRACK_FROM, LOST_GAP_DAYS, HEAVY_HITTER_PPR } from "./avatars";
+import { clampAvatar, isUnlocked, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, walletBalance, PRIZE_AVATARS, WIN_PAY, BOX_COST, GOLDEN_COST, boxPoolOwnedCount, hitBananaScore, hitBoxAddict, justUnlockedBanana, justUnlockedScratchLook, BOX_ADDICT_POOL_NEED, BANANA_SCORE_UNDER, avatarById, hitHeavyHitterScore, skipHeavyHitterWeek, stampDayGap, lostGapHit, earlyBirdDayCount, nightOwlDayCount, comebackKidHit, freeFallHit, EARLY_BIRD_NEED, NIGHT_OWL_NEED, FEAT_TRACK_FROM, LOST_GAP_DAYS, HEAVY_HITTER_PPR } from "./avatars";
 import { PLAYERS } from "./players";
 import { ratingFromPpr } from "./ratings";
 import { emptyRoster, type Roster } from "./types";
@@ -996,7 +996,7 @@ describe("avatars", () => {
     assert.equal(pickPrize(ownedAll), null);
     assert.equal(
       PRIZE_AVATARS.some((avatar) =>
-        ["club200", "peeping", "banana", "crossword", "thanos", "boxaddict", "commish", "jail", "8ball", "ghostpepe", "lockedin", "sniper", "silvermedal", "crypepe", "joker", "doubletrouble", "bullseye", "rainyday", "earlybird", "heavyhitter", "lost", "vegas", "nightowl"].includes(avatar.id),
+        ["club200", "peeping", "banana", "crossword", "thanos", "boxaddict", "commish", "jail", "8ball", "ghostpepe", "lockedin", "sniper", "silvermedal", "crypepe", "joker", "doubletrouble", "bullseye", "rainyday", "earlybird", "heavyhitter", "lost", "vegas", "nightowl", "comebackkid", "freefall", "boxlunch"].includes(avatar.id),
       ),
       false,
     );
@@ -1083,5 +1083,15 @@ describe("avatars", () => {
     assert.equal(pickPrize(["poor"], "lostp") === "lost", false);
     assert.equal(pickPrize(["poor"], "vegas") === "vegas", false);
     assert.equal(pickPrize(["poor"], "owl") === "nightowl", false);
+    assert.equal(comebackKidHit(["a"], ["a"], "a"), true);
+    assert.equal(comebackKidHit(["a"], ["b"], "a"), false);
+    assert.equal(freeFallHit(["a"], ["a"], "a"), true);
+    assert.equal(freeFallHit(["a"], ["b"], "a"), false);
+    assert.equal(avatarById("comebackkid").name, "Comeback Kid");
+    assert.equal(avatarById("freefall").name, "Free Fall");
+    assert.equal(avatarById("boxlunch").name, "Box Lunch");
+    assert.equal(pickPrize(["poor"], "come") === "comebackkid", false);
+    assert.equal(pickPrize(["poor"], "fall") === "freefall", false);
+    assert.equal(pickPrize(["poor"], "lunch") === "boxlunch", false);
   });
 });

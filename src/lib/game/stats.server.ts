@@ -1217,6 +1217,12 @@ export async function openMysteryBoxHandler({ context }: { context: { userId: st
     } catch (err) {
       console.error("[darkness] box news failed", err);
     }
+    try {
+      const { maybeGrantBoxLunch } = await import("./board-feats.server");
+      await maybeGrantBoxLunch(sql, context.userId);
+    } catch (err) {
+      console.error("[darkness] box lunch failed", err);
+    }
     return { ok: true, prize, coins: next.coins, owned: next.owned, avatarId: settled.avatarId };
 }
 

@@ -90,6 +90,9 @@ export const AVATARS = [
   { id: "lost", name: "Lost", src: "/avatars/lost.jpg?v=1" },
   { id: "vegas", name: "Vegas", src: "/avatars/vegas.jpg?v=1" },
   { id: "nightowl", name: "Night Owl", src: "/avatars/nightowl.jpg?v=1" },
+  { id: "comebackkid", name: "Comeback Kid", src: "/avatars/comebackkid.jpg?v=1" },
+  { id: "freefall", name: "Free Fall", src: "/avatars/freefall.jpg?v=1" },
+  { id: "boxlunch", name: "Box Lunch", src: "/avatars/boxlunch.jpg?v=1" },
   { id: "golden", name: "Golden", src: "/avatars/golden.jpg?v=1" },
 ] as const;
 
@@ -138,6 +141,9 @@ export const HEAVY_HITTER_ID = "heavyhitter" as const satisfies AvatarId;
 export const LOST_ID = "lost" as const satisfies AvatarId;
 export const VEGAS_ID = "vegas" as const satisfies AvatarId;
 export const NIGHT_OWL_ID = "nightowl" as const satisfies AvatarId;
+export const COMEBACK_KID_ID = "comebackkid" as const satisfies AvatarId;
+export const FREE_FALL_ID = "freefall" as const satisfies AvatarId;
+export const BOX_LUNCH_ID = "boxlunch" as const satisfies AvatarId;
 export const BANANA_SCORE_UNDER = 60;
 export const CROSSWORD_STREAK_NEED = 10;
 export const LOCKED_IN_STREAK_NEED = 100;
@@ -173,6 +179,9 @@ const FEAT_IDS = new Set<string>([
   LOST_ID,
   VEGAS_ID,
   NIGHT_OWL_ID,
+  COMEBACK_KID_ID,
+  FREE_FALL_ID,
+  BOX_LUNCH_ID,
 ]);
 export const ACHIEVEMENT_UNLOCKS = [
   { id: CLUB_200_ID, how: "Score 200+ points in a single match." },
@@ -192,6 +201,9 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: LOST_ID, how: "Go 10+ days between Daily submissions." },
   { id: VEGAS_ID, how: "Open your first scratch ticket." },
   { id: NIGHT_OWL_ID, how: "Be the last to submit a Daily Match 10 times." },
+  { id: COMEBACK_KID_ID, how: "Finish last in Daily, then first the next day." },
+  { id: FREE_FALL_ID, how: "Finish first in Daily, then last the next day." },
+  { id: BOX_LUNCH_ID, how: "Open a Mystery Box and a scratch ticket the same day." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];
 export const PRIZE_AVATARS = AVATARS.filter(
   (avatar) => avatar.id !== "poor" && avatar.id !== "golden" && !STAR_IDS.has(avatar.id) && !FEAT_IDS.has(avatar.id),
@@ -243,6 +255,16 @@ export function stampDayGap(from: string, to: string): number {
 
 export function lostGapHit(prev: string, cur: string, from = FEAT_TRACK_FROM): boolean {
   return prev >= from && stampDayGap(prev, cur) >= LOST_GAP_DAYS;
+}
+
+export function freeFallHit(prevFirst: readonly string[], todayLast: readonly string[], userId: string): boolean {
+  return prevFirst.includes(userId) && todayLast.includes(userId);
+}
+  return prevFirst.includes(userId) && todayLast.includes(userId);
+}
+
+export function comebackKidHit(prevLast: readonly string[], todayFirst: readonly string[], userId: string): boolean {
+  return prevLast.includes(userId) && todayFirst.includes(userId);
 }
 
 export type EarlyBirdRow = { day: string; userId: string; at: number };
