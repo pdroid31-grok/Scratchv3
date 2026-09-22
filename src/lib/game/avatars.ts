@@ -93,6 +93,11 @@ export const AVATARS = [
   { id: "comebackkid", name: "Comeback Kid", src: "/avatars/comebackkid.jpg?v=1" },
   { id: "freefall", name: "Free Fall", src: "/avatars/freefall.jpg?v=1" },
   { id: "boxlunch", name: "Box Lunch", src: "/avatars/boxlunch.jpg?v=1" },
+  { id: "football", name: "Football", src: "/avatars/football.jpg?v=1" },
+  { id: "luchador", name: "Luchador", src: "/avatars/luchador.jpg?v=1" },
+  { id: "tailgater", name: "Tailgater", src: "/avatars/tailgater.jpg?v=1" },
+  { id: "broadcast", name: "Broadcast", src: "/avatars/broadcast.jpg?v=1" },
+  { id: "rubberduck", name: "Rubber Duck", src: "/avatars/rubberduck.jpg?v=1" },
   { id: "golden", name: "Golden", src: "/avatars/golden.jpg?v=1" },
 ] as const;
 
