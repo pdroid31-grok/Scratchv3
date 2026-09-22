@@ -9,13 +9,82 @@ import { listNews } from "@/lib/game/news-api";
 type LookPeek = { src: string; name: string };
 
 const newsLinkClass =
-  "mt-4 inline-flex w-full items-center justify-center gap-2 font-display text-xl font-semibold uppercase leading-none tracking-wide text-muted hover:text-fg sm:text-2xl";
+  "mt-4 inline-flex w-full flex-nowrap items-center justify-center gap-2 whitespace-nowrap font-display text-xl font-semibold uppercase leading-none tracking-wide text-muted hover:text-fg sm:text-2xl";
 
 const newsArrowClass = "size-7 shrink-0 sm:size-8";
 
+const NEWS_SEEN_KEY = "dksfantasy.news.lastSeenId";
+
+function newsCursor(item: NewsItem): number {
+  const id = Number(item.id);
+  if (Number.isFinite(id) && id > 0) return id;
+  const at = Number(item.event_at ?? item.at);
+  return Number.isFinite(at) ? at : 0;
+}
+
+function readLastSeen(): number {
+  try {
+    const n = Number(window.localStorage.getItem(NEWS_SEEN_KEY));
+    return Number.isFinite(n) ? n : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function markNewsSeen(rows: NewsItem[]): void {
+  let max = 0;
+  for (const row of rows) max = Math.max(max, newsCursor(row));
+  if (!max) return;
+  try {
+    if (max > readLastSeen()) window.localStorage.setItem(NEWS_SEEN_KEY, String(max));
+  } catch {
+    /* private mode */
+  }
+}
+
+function unseenCount(rows: NewsItem[]): number {
+  const seen = readLastSeen();
+  return rows.reduce((n, row) => n + (newsCursor(row) > seen ? 1 : 0), 0);
+}
+
 export function NewsStrip({ onOpen }: { onOpen: () => void }) {
+  const [rows, setRows] = useState<NewsItem[]>([]);
+
+  useEffect(() => {
+    let live = true;
+    async function pull() {
+      try {
+        const next = await listNews();
+        if (live) setRows(next);
+      } catch {
+        if (live) setRows([]);
+      }
+    }
+    void pull();
+    const id = window.setInterval(() => void pull(), 30_000);
+    const onVis = () => {
+      if (document.visibilityState === "visible") void pull();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      live = false;
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, []);
+
+  const extra = unseenCount(rows);
+
   return (
-    <button type="button" className={newsLinkClass} onClick={onOpen}>
+    <button
+      type="button"
+      className={newsLinkClass}
+      onClick={() => {
+        markNewsSeen(rows);
+        onOpen();
+      }}
+    >
+      {extra > 0 ? <span className="shrink-0 leading-none">+{extra}</span> : null}
       <span className="leading-none">News Feed</span>
       <ArrowRight className={newsArrowClass} strokeWidth={2.5} aria-hidden />
     </button>
@@ -41,7 +110,10 @@ export function NewsFeed({ onPlay }: { onPlay: () => void }) {
     let live = true;
     void listNews()
       .then((next) => {
-        if (live) setRows(next);
+        if (live) {
+          setRows(next);
+          markNewsSeen(next);
+        }
       })
       .catch(() => {
         if (live) setRows([]);
