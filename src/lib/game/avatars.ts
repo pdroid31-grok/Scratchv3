@@ -191,7 +191,7 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: THANOS_ID, how: "Own 50 unique avatars." },
   { id: BOX_ADDICT_ID, how: "Open 25 mystery boxes." },
   { id: LOCKED_IN_ID, how: "100 consecutive calendar days with a Daily Match submitted." },
-  { id: SNIPER_ID, how: "Finish a Weekly Match 1st by less than 1.0 over 2nd." },
+  { id: SNIPER_ID, how: "Win a Weekly Match by less than 1 point over 2nd Place." },
   { id: SILVER_MEDAL_ID, how: "Finish 2nd on 5 separate Daily boards." },
   { id: DOUBLE_TROUBLE_ID, how: "Win Daily and Weekly on the same day." },
   { id: BULLSEYE_ID, how: "Score exactly 100.0 in a Daily or Weekly Match." },
