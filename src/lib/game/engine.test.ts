@@ -7,7 +7,7 @@ import { applyPrize, bagLegend, HALFTIME_BAG, prizeLabel, redactHalftime, type P
 import { clipDisplayName, hostedNightKey, nightKey, opponentKey, planHostedNightWrite, isBankCommish } from "./stats-shared";
 import { parseRankTab } from "./rank-tabs";
 import { hostedMatchView, historyLineScore } from "./hosted-match";
-import { clampAvatar, isUnlocked, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, walletBalance, PRIZE_AVATARS, WIN_PAY, BOX_COST, GOLDEN_COST, boxPoolOwnedCount, hitBananaScore, hitBoxAddict, justUnlockedBanana, justUnlockedScratchLook, BOX_ADDICT_POOL_NEED, BANANA_SCORE_UNDER, avatarById, hitHeavyHitterScore, skipHeavyHitterWeek, stampDayGap, lostGapHit, earlyBirdDayCount, EARLY_BIRD_NEED, FEAT_TRACK_FROM, LOST_GAP_DAYS, HEAVY_HITTER_PPR } from "./avatars";
+import { clampAvatar, isUnlocked, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, walletBalance, PRIZE_AVATARS, WIN_PAY, BOX_COST, GOLDEN_COST, boxPoolOwnedCount, hitBananaScore, hitBoxAddict, justUnlockedBanana, justUnlockedScratchLook, BOX_ADDICT_POOL_NEED, BANANA_SCORE_UNDER, avatarById, hitHeavyHitterScore, skipHeavyHitterWeek, stampDayGap, lostGapHit, earlyBirdDayCount, nightOwlDayCount, EARLY_BIRD_NEED, NIGHT_OWL_NEED, FEAT_TRACK_FROM, LOST_GAP_DAYS, HEAVY_HITTER_PPR } from "./avatars";
 import { PLAYERS } from "./players";
 import { ratingFromPpr } from "./ratings";
 import { emptyRoster, type Roster } from "./types";
@@ -996,7 +996,7 @@ describe("avatars", () => {
     assert.equal(pickPrize(ownedAll), null);
     assert.equal(
       PRIZE_AVATARS.some((avatar) =>
-        ["club200", "peeping", "banana", "crossword", "thanos", "boxaddict", "commish", "jail", "8ball", "ghostpepe", "lockedin", "sniper", "silvermedal", "crypepe", "joker", "doubletrouble", "bullseye", "rainyday", "earlybird", "heavyhitter", "lost", "vegas"].includes(avatar.id),
+        ["club200", "peeping", "banana", "crossword", "thanos", "boxaddict", "commish", "jail", "8ball", "ghostpepe", "lockedin", "sniper", "silvermedal", "crypepe", "joker", "doubletrouble", "bullseye", "rainyday", "earlybird", "heavyhitter", "lost", "vegas", "nightowl"].includes(avatar.id),
       ),
       false,
     );
@@ -1046,6 +1046,7 @@ describe("avatars", () => {
   it("tracks Early Bird, Lost, and Heavy Hitter from native days only", () => {
     assert.equal(FEAT_TRACK_FROM, "2026-09-17");
     assert.equal(EARLY_BIRD_NEED, 10);
+    assert.equal(NIGHT_OWL_NEED, 10);
     assert.equal(LOST_GAP_DAYS, 10);
     assert.equal(HEAVY_HITTER_PPR, 50);
     assert.equal(stampDayGap("2026-09-17", "2026-09-27"), 10);
@@ -1065,7 +1066,15 @@ describe("avatars", () => {
     rows.push({ day: "2026-09-16", userId: "pat", at: 0 });
     assert.equal(earlyBirdDayCount("pat", rows), 10);
     assert.equal(earlyBirdDayCount("ty", rows), 0);
+    assert.equal(nightOwlDayCount("ty", rows), 10);
+    assert.equal(nightOwlDayCount("pat", rows), 0);
+    const moved = rows.map((row) =>
+      row.day === "2026-09-17" && row.userId === "pat" ? { ...row, at: 99 } : row,
+    );
+    assert.equal(nightOwlDayCount("ty", moved), 9);
+    assert.equal(nightOwlDayCount("pat", moved), 1);
     assert.equal(avatarById("earlybird").name, "Early Bird");
+    assert.equal(avatarById("nightowl").name, "Night Owl");
     assert.equal(avatarById("heavyhitter").name, "Heavy Hitter");
     assert.equal(avatarById("lost").name, "Lost");
     assert.equal(avatarById("vegas").name, "Vegas");
@@ -1073,5 +1082,6 @@ describe("avatars", () => {
     assert.equal(pickPrize(["poor"], "heavy") === "heavyhitter", false);
     assert.equal(pickPrize(["poor"], "lostp") === "lost", false);
     assert.equal(pickPrize(["poor"], "vegas") === "vegas", false);
+    assert.equal(pickPrize(["poor"], "owl") === "nightowl", false);
   });
 });

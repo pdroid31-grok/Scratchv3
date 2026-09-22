@@ -89,6 +89,7 @@ export const AVATARS = [
   { id: "heavyhitter", name: "Heavy Hitter", src: "/avatars/heavyhitter.jpg?v=1" },
   { id: "lost", name: "Lost", src: "/avatars/lost.jpg?v=1" },
   { id: "vegas", name: "Vegas", src: "/avatars/vegas.jpg?v=1" },
+  { id: "nightowl", name: "Night Owl", src: "/avatars/nightowl.jpg?v=1" },
   { id: "golden", name: "Golden", src: "/avatars/golden.jpg?v=1" },
 ] as const;
 
@@ -136,6 +137,7 @@ export const EARLY_BIRD_ID = "earlybird" as const satisfies AvatarId;
 export const HEAVY_HITTER_ID = "heavyhitter" as const satisfies AvatarId;
 export const LOST_ID = "lost" as const satisfies AvatarId;
 export const VEGAS_ID = "vegas" as const satisfies AvatarId;
+export const NIGHT_OWL_ID = "nightowl" as const satisfies AvatarId;
 export const BANANA_SCORE_UNDER = 60;
 export const CROSSWORD_STREAK_NEED = 10;
 export const LOCKED_IN_STREAK_NEED = 100;
@@ -145,6 +147,7 @@ export const SILVER_SECOND_NEED = 5;
 export const SNIPER_MARGIN = 1;
 export const FEAT_TRACK_FROM = "2026-09-17";
 export const EARLY_BIRD_NEED = 10;
+export const NIGHT_OWL_NEED = 10;
 export const LOST_GAP_DAYS = 10;
 export const HEAVY_HITTER_PPR = 50;
 const STAR_IDS = new Set<string>(STAR_UNLOCKS.map((row) => row.id));
@@ -169,6 +172,7 @@ const FEAT_IDS = new Set<string>([
   HEAVY_HITTER_ID,
   LOST_ID,
   VEGAS_ID,
+  NIGHT_OWL_ID,
 ]);
 export const ACHIEVEMENT_UNLOCKS = [
   { id: CLUB_200_ID, how: "Score 200+ points in a single match." },
@@ -187,6 +191,7 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: HEAVY_HITTER_ID, how: "Draft a player who scores 50+ in a Weekly Match." },
   { id: LOST_ID, how: "Go 10+ days between Daily submissions." },
   { id: VEGAS_ID, how: "Open your first scratch ticket." },
+  { id: NIGHT_OWL_ID, how: "Be the last to submit a Daily Match 10 times." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];
 export const PRIZE_AVATARS = AVATARS.filter(
   (avatar) => avatar.id !== "poor" && avatar.id !== "golden" && !STAR_IDS.has(avatar.id) && !FEAT_IDS.has(avatar.id),
@@ -255,6 +260,23 @@ export function earlyBirdDayCount(userId: string, rows: readonly EarlyBirdRow[],
   for (const list of byDay.values()) {
     const min = Math.min(...list.map((row) => row.at));
     if (list.some((row) => row.at === min && row.userId === userId)) n += 1;
+  }
+  return n;
+}
+
+/** Distinct days this user still holds last visible lock that day. Sep 16 and earlier skipped. Last can move until midnight ET. */
+export function nightOwlDayCount(userId: string, rows: readonly EarlyBirdRow[], from = FEAT_TRACK_FROM): number {
+  const byDay = new Map<string, { userId: string; at: number }[]>();
+  for (const row of rows) {
+    if (!row.day || row.day < from || !row.userId || !Number.isFinite(row.at)) continue;
+    const list = byDay.get(row.day) ?? [];
+    list.push({ userId: row.userId, at: row.at });
+    byDay.set(row.day, list);
+  }
+  let n = 0;
+  for (const list of byDay.values()) {
+    const max = Math.max(...list.map((row) => row.at));
+    if (list.some((row) => row.at === max && row.userId === userId)) n += 1;
   }
   return n;
 }

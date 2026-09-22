@@ -375,9 +375,10 @@ async function completeDailyRun(
     });
   }
   try {
-    const { maybeGrantBullseye, maybeGrantEarlyBird, maybeGrantLost } = await import("./board-feats.server");
+    const { maybeGrantBullseye, maybeGrantEarlyBird, maybeGrantNightOwl, maybeGrantLost } = await import("./board-feats.server");
     await maybeGrantBullseye(sql, userId, score);
     await maybeGrantEarlyBird(sql, userId);
+    await maybeGrantNightOwl(sql, userId);
     await maybeGrantLost(sql, userId, day.day);
   } catch (err) {
     console.error("[darkness] daily feat grant failed", err);

@@ -5,6 +5,7 @@ import {
   hitHeavyHitterScore,
   skipHeavyHitterWeek,
   earlyBirdDayCount,
+  nightOwlDayCount,
   lostGapHit,
   BULLSEYE_ID,
   RAINY_DAY_ID,
@@ -12,14 +13,16 @@ import {
   HEAVY_HITTER_ID,
   LOST_ID,
   VEGAS_ID,
+  NIGHT_OWL_ID,
   EARLY_BIRD_NEED,
+  NIGHT_OWL_NEED,
   FEAT_TRACK_FROM,
   type AvatarId,
   type EarlyBirdRow,
 } from "./avatars";
 import { clipGm, isAwardSkippedName, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
 import { isCommishSettingsUser } from "./commish-types";
-import { dailyYesterday } from "./daily";
+import { dailyDayStamp, dailyYesterday } from "./daily";
 
 export const RAINY_DAY_FROM = "2026-09-19";
 
@@ -148,6 +151,44 @@ export async function maybeGrantEarlyBird(sql: Sql, userId: string): Promise<voi
     await grantFeat(sql, userId, EARLY_BIRD_ID);
   } catch (err) {
     console.error("[darkness] early bird grant failed", err);
+  }
+}
+
+/** Grant once the user still holds last visible Daily lock on 10 distinct ET days (>= 2026-09-17). Last can move until midnight ET. */
+export async function maybeGrantNightOwl(sql: Sql, userId: string): Promise<void> {
+  try {
+    const rows = await sql.query<{
+      day: string;
+      user_id: string;
+      name: string | null;
+      finished_at: unknown;
+      started_at: unknown;
+    }>(
+      `select r.day::text as day,
+              r.user_id,
+              coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name,
+              r.finished_at,
+              r.started_at
+         from darkness_daily_runs r
+         left join player_profiles p on p.user_id = r.user_id
+         left join "user" u on u.id = r.user_id
+        where r.day >= $1::date and r.status = 'done'`,
+      [FEAT_TRACK_FROM],
+    );
+    const today = dailyDayStamp();
+    const visible: EarlyBirdRow[] = [];
+    for (const row of rows) {
+      if (skipBoardRow(row.user_id, row.name) || skipBoardRow(row.user_id, clipGm(row.name ?? ""))) continue;
+      const at = asTime(row.finished_at) || asTime(row.started_at);
+      if (!at) continue;
+      const day = String(row.day).slice(0, 10);
+      if (day < today && dailyDayStamp(at) !== day) continue;
+      visible.push({ day, userId: row.user_id, at });
+    }
+    if (nightOwlDayCount(userId, visible) < NIGHT_OWL_NEED) return;
+    await grantFeat(sql, userId, NIGHT_OWL_ID);
+  } catch (err) {
+    console.error("[darkness] night owl grant failed", err);
   }
 }
 
