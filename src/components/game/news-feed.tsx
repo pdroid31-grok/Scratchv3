@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, X } from "lucide-react";
 import { ACHIEVEMENT_UNLOCKS, avatarById, starNeed } from "@/lib/game/avatars";
 import { formatNewsTime, type NewsFace, type NewsItem } from "@/lib/game/news";
-import { listNews } from "@/lib/game/news-api";
+import { listNews, markNewsSeen, peekNewsUnseen } from "@/lib/game/news-api";
 
 type LookPeek = { src: string; name: string };
 
@@ -13,51 +13,17 @@ const newsLinkClass =
 
 const newsArrowClass = "size-7 shrink-0 sm:size-8";
 
-const NEWS_SEEN_KEY = "dksfantasy.news.lastSeenId";
-
-function newsCursor(item: NewsItem): number {
-  const id = Number(item.id);
-  if (Number.isFinite(id) && id > 0) return id;
-  const at = Number(item.event_at ?? item.at);
-  return Number.isFinite(at) ? at : 0;
-}
-
-function readLastSeen(): number {
-  try {
-    const n = Number(window.localStorage.getItem(NEWS_SEEN_KEY));
-    return Number.isFinite(n) ? n : 0;
-  } catch {
-    return 0;
-  }
-}
-
-function markNewsSeen(rows: NewsItem[]): void {
-  let max = 0;
-  for (const row of rows) max = Math.max(max, newsCursor(row));
-  if (!max) return;
-  try {
-    if (max > readLastSeen()) window.localStorage.setItem(NEWS_SEEN_KEY, String(max));
-  } catch {
-    /* private mode */
-  }
-}
-
-function unseenCount(rows: NewsItem[]): number {
-  const seen = readLastSeen();
-  return rows.reduce((n, row) => n + (newsCursor(row) > seen ? 1 : 0), 0);
-}
-
 export function NewsStrip({ onOpen }: { onOpen: () => void }) {
-  const [rows, setRows] = useState<NewsItem[]>([]);
+  const [extra, setExtra] = useState(0);
 
   useEffect(() => {
     let live = true;
     async function pull() {
       try {
-        const next = await listNews();
-        if (live) setRows(next);
+        const n = await peekNewsUnseen();
+        if (live) setExtra(Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0);
       } catch {
-        if (live) setRows([]);
+        if (live) setExtra(0);
       }
     }
     void pull();
@@ -73,14 +39,12 @@ export function NewsStrip({ onOpen }: { onOpen: () => void }) {
     };
   }, []);
 
-  const extra = unseenCount(rows);
-
   return (
     <button
       type="button"
       className={newsLinkClass}
       onClick={() => {
-        markNewsSeen(rows);
+        void markNewsSeen();
         onOpen();
       }}
     >
@@ -112,7 +76,7 @@ export function NewsFeed({ onPlay }: { onPlay: () => void }) {
       .then((next) => {
         if (live) {
           setRows(next);
-          markNewsSeen(next);
+          void markNewsSeen();
         }
       })
       .catch(() => {

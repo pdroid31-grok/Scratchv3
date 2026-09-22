@@ -28,6 +28,19 @@ export async function ensureNewsTable(sql: Sql): Promise<void> {
   await sql.query("create index if not exists darkness_news_created_idx on darkness_news (created_at desc, id desc)");
 }
 
+async function ensureNewsSeenColumn(sql: Sql): Promise<void> {
+  await sql.query(`alter table player_profiles add column if not exists last_seen_event_at bigint`);
+}
+
+function maxEventAt(items: readonly NewsItem[]): number {
+  let max = 0;
+  for (const item of items) {
+    const at = Number(item.event_at);
+    if (Number.isFinite(at) && at > max) max = at;
+  }
+  return max;
+}
+
 function newsHidden(userId?: string | null, name?: string | null): boolean {
   return isHiddenBoardId(userId) || isHiddenBoardName(name);
 }
@@ -504,6 +517,50 @@ export async function listNewsHandler(): Promise<NewsItem[]> {
     }
     return rankNews(out);
   }
+}
+
+export async function peekNewsUnseenHandler(userId: string | null): Promise<number> {
+  if (!userId) return 0;
+  const items = await listNewsHandler();
+  const max = maxEventAt(items);
+  const { getSql } = await import("@/lib/db");
+  const sql = await getSql();
+  await ensureNewsSeenColumn(sql);
+  const rows = await sql.query<{ last_seen_event_at: number | string | null }>(
+    `select last_seen_event_at from player_profiles where user_id = $1`,
+    [userId],
+  );
+  if (!rows[0]) return 0;
+  const seen = Number(rows[0].last_seen_event_at);
+  if (!Number.isFinite(seen) || seen <= 0) {
+    if (max > 0) {
+      await sql.query(
+        `update player_profiles
+            set last_seen_event_at = $1, updated_at = now()
+          where user_id = $2
+            and (last_seen_event_at is null or last_seen_event_at <= 0)`,
+        [max, userId],
+      );
+    }
+    return 0;
+  }
+  return items.reduce((n, item) => n + (Number(item.event_at) > seen ? 1 : 0), 0);
+}
+
+export async function markNewsSeenHandler(userId: string | null): Promise<void> {
+  if (!userId) return;
+  const max = maxEventAt(await listNewsHandler());
+  if (!max) return;
+  const { getSql } = await import("@/lib/db");
+  const sql = await getSql();
+  await ensureNewsSeenColumn(sql);
+  await sql.query(
+    `update player_profiles
+        set last_seen_event_at = greatest(coalesce(last_seen_event_at, 0), $1),
+            updated_at = now()
+      where user_id = $2`,
+    [max, userId],
+  );
 }
 
 export { formatNewsScore, newsFace };
