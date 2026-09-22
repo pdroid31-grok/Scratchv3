@@ -260,8 +260,6 @@ export function lostGapHit(prev: string, cur: string, from = FEAT_TRACK_FROM): b
 export function freeFallHit(prevFirst: readonly string[], todayLast: readonly string[], userId: string): boolean {
   return prevFirst.includes(userId) && todayLast.includes(userId);
 }
-  return prevFirst.includes(userId) && todayLast.includes(userId);
-}
 
 export function comebackKidHit(prevLast: readonly string[], todayFirst: readonly string[], userId: string): boolean {
   return prevLast.includes(userId) && todayFirst.includes(userId);
