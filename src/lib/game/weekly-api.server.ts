@@ -348,10 +348,11 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
       });
     }
     try {
-      const { maybeGrantBullseye } = await import("./board-feats.server");
+      const { maybeGrantBullseye, maybeGrantHeavyHitter } = await import("./board-feats.server");
       await maybeGrantBullseye(sql, row.userId, row.score);
+      await maybeGrantHeavyHitter(sql, row.userId, season, week, row.picks);
     } catch (err) {
-      console.error("[darkness] bullseye weekly failed", err);
+      console.error("[darkness] weekly feat grant failed", err);
     }
   }
   await sql.query(
@@ -788,6 +789,11 @@ export async function listWeeklyBoardHandler({ data }: { data: { season: number;
             ? weeklyTotal(picks)
             : 0;
         const name = clipDisplayName(row.name ?? "") || "GM";
+        if (window.live) {
+          void import("./board-feats.server")
+            .then(({ maybeGrantHeavyHitter }) => maybeGrantHeavyHitter(sql, row.user_id, season, weekNo, picks))
+            .catch((err) => console.error("[darkness] heavy hitter live failed", err));
+        }
         if (isHiddenBoardId(row.user_id) || isHiddenBoardName(name) || isHiddenBoardName(row.name)) return null;
         return {
           id: row.user_id,

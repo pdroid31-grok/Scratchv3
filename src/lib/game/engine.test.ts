@@ -7,7 +7,7 @@ import { applyPrize, bagLegend, HALFTIME_BAG, prizeLabel, redactHalftime, type P
 import { clipDisplayName, hostedNightKey, nightKey, opponentKey, planHostedNightWrite, isBankCommish } from "./stats-shared";
 import { parseRankTab } from "./rank-tabs";
 import { hostedMatchView, historyLineScore } from "./hosted-match";
-import { clampAvatar, isUnlocked, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, walletBalance, PRIZE_AVATARS, WIN_PAY, BOX_COST, GOLDEN_COST, boxPoolOwnedCount, hitBananaScore, hitBoxAddict, justUnlockedBanana, justUnlockedScratchLook, BOX_ADDICT_POOL_NEED, BANANA_SCORE_UNDER, avatarById } from "./avatars";
+import { clampAvatar, isUnlocked, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, walletBalance, PRIZE_AVATARS, WIN_PAY, BOX_COST, GOLDEN_COST, boxPoolOwnedCount, hitBananaScore, hitBoxAddict, justUnlockedBanana, justUnlockedScratchLook, BOX_ADDICT_POOL_NEED, BANANA_SCORE_UNDER, avatarById, hitHeavyHitterScore, skipHeavyHitterWeek, stampDayGap, lostGapHit, earlyBirdDayCount, EARLY_BIRD_NEED, FEAT_TRACK_FROM, LOST_GAP_DAYS, HEAVY_HITTER_PPR } from "./avatars";
 import { PLAYERS } from "./players";
 import { ratingFromPpr } from "./ratings";
 import { emptyRoster, type Roster } from "./types";
@@ -996,7 +996,7 @@ describe("avatars", () => {
     assert.equal(pickPrize(ownedAll), null);
     assert.equal(
       PRIZE_AVATARS.some((avatar) =>
-        ["club200", "peeping", "banana", "crossword", "thanos", "boxaddict", "commish", "jail", "8ball", "ghostpepe", "lockedin", "sniper", "silvermedal", "crypepe", "joker", "doubletrouble", "bullseye", "rainyday"].includes(avatar.id),
+        ["club200", "peeping", "banana", "crossword", "thanos", "boxaddict", "commish", "jail", "8ball", "ghostpepe", "lockedin", "sniper", "silvermedal", "crypepe", "joker", "doubletrouble", "bullseye", "rainyday", "earlybird", "heavyhitter", "lost", "vegas"].includes(avatar.id),
       ),
       false,
     );
@@ -1041,5 +1041,37 @@ describe("avatars", () => {
       ),
       2,
     );
+  });
+
+  it("tracks Early Bird, Lost, and Heavy Hitter from native days only", () => {
+    assert.equal(FEAT_TRACK_FROM, "2026-09-17");
+    assert.equal(EARLY_BIRD_NEED, 10);
+    assert.equal(LOST_GAP_DAYS, 10);
+    assert.equal(HEAVY_HITTER_PPR, 50);
+    assert.equal(stampDayGap("2026-09-17", "2026-09-27"), 10);
+    assert.equal(lostGapHit("2026-09-17", "2026-09-27"), true);
+    assert.equal(lostGapHit("2026-09-16", "2026-09-27"), false);
+    assert.equal(lostGapHit("2026-09-17", "2026-09-26"), false);
+    assert.equal(hitHeavyHitterScore(50), true);
+    assert.equal(hitHeavyHitterScore(49.9), false);
+    assert.equal(skipHeavyHitterWeek(2026, 1), true);
+    assert.equal(skipHeavyHitterWeek(2026, 2), false);
+    const rows = [];
+    for (let i = 0; i < 10; i += 1) {
+      const day = `2026-09-${String(17 + i).padStart(2, "0")}`;
+      rows.push({ day, userId: "pat", at: i + 1 });
+      rows.push({ day, userId: "ty", at: i + 10 });
+    }
+    rows.push({ day: "2026-09-16", userId: "pat", at: 0 });
+    assert.equal(earlyBirdDayCount("pat", rows), 10);
+    assert.equal(earlyBirdDayCount("ty", rows), 0);
+    assert.equal(avatarById("earlybird").name, "Early Bird");
+    assert.equal(avatarById("heavyhitter").name, "Heavy Hitter");
+    assert.equal(avatarById("lost").name, "Lost");
+    assert.equal(avatarById("vegas").name, "Vegas");
+    assert.equal(pickPrize(["poor"], "early") === "earlybird", false);
+    assert.equal(pickPrize(["poor"], "heavy") === "heavyhitter", false);
+    assert.equal(pickPrize(["poor"], "lostp") === "lost", false);
+    assert.equal(pickPrize(["poor"], "vegas") === "vegas", false);
   });
 });

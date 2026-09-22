@@ -85,6 +85,10 @@ export const AVATARS = [
   { id: "doubletrouble", name: "Double Trouble", src: "/avatars/doubletrouble.jpg?v=4" },
   { id: "bullseye", name: "Bullseye", src: "/avatars/bullseye.jpg?v=1" },
   { id: "rainyday", name: "Rainy Day", src: "/avatars/rainyday.jpg?v=1" },
+  { id: "earlybird", name: "Early Bird", src: "/avatars/earlybird.jpg?v=1" },
+  { id: "heavyhitter", name: "Heavy Hitter", src: "/avatars/heavyhitter.jpg?v=1" },
+  { id: "lost", name: "Lost", src: "/avatars/lost.jpg?v=1" },
+  { id: "vegas", name: "Vegas", src: "/avatars/vegas.jpg?v=1" },
   { id: "golden", name: "Golden", src: "/avatars/golden.jpg?v=1" },
 ] as const;
 
@@ -128,6 +132,10 @@ export const JOKER_ID = "joker" as const satisfies AvatarId;
 export const DOUBLE_TROUBLE_ID = "doubletrouble" as const satisfies AvatarId;
 export const BULLSEYE_ID = "bullseye" as const satisfies AvatarId;
 export const RAINY_DAY_ID = "rainyday" as const satisfies AvatarId;
+export const EARLY_BIRD_ID = "earlybird" as const satisfies AvatarId;
+export const HEAVY_HITTER_ID = "heavyhitter" as const satisfies AvatarId;
+export const LOST_ID = "lost" as const satisfies AvatarId;
+export const VEGAS_ID = "vegas" as const satisfies AvatarId;
 export const BANANA_SCORE_UNDER = 60;
 export const CROSSWORD_STREAK_NEED = 10;
 export const LOCKED_IN_STREAK_NEED = 100;
@@ -135,6 +143,10 @@ export const THANOS_OWN_NEED = 50;
 export const BOX_ADDICT_POOL_NEED = 25;
 export const SILVER_SECOND_NEED = 5;
 export const SNIPER_MARGIN = 1;
+export const FEAT_TRACK_FROM = "2026-09-17";
+export const EARLY_BIRD_NEED = 10;
+export const LOST_GAP_DAYS = 10;
+export const HEAVY_HITTER_PPR = 50;
 const STAR_IDS = new Set<string>(STAR_UNLOCKS.map((row) => row.id));
 const FEAT_IDS = new Set<string>([
   CLUB_200_ID,
@@ -153,6 +165,10 @@ const FEAT_IDS = new Set<string>([
   DOUBLE_TROUBLE_ID,
   BULLSEYE_ID,
   RAINY_DAY_ID,
+  EARLY_BIRD_ID,
+  HEAVY_HITTER_ID,
+  LOST_ID,
+  VEGAS_ID,
 ]);
 export const ACHIEVEMENT_UNLOCKS = [
   { id: CLUB_200_ID, how: "Score 200+ points in a single match." },
@@ -167,6 +183,10 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: DOUBLE_TROUBLE_ID, how: "Win Daily and Weekly on the same day." },
   { id: BULLSEYE_ID, how: "Score exactly 100.0 in a Daily or Weekly Match." },
   { id: RAINY_DAY_ID, how: "Finish last in Daily two days in a row." },
+  { id: EARLY_BIRD_ID, how: "Be the first to submit a Daily Match 10 times." },
+  { id: HEAVY_HITTER_ID, how: "Draft a player who scores 50+ in a Weekly Match." },
+  { id: LOST_ID, how: "Go 10+ days between Daily submissions." },
+  { id: VEGAS_ID, how: "Open your first scratch ticket." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];
 export const PRIZE_AVATARS = AVATARS.filter(
   (avatar) => avatar.id !== "poor" && avatar.id !== "golden" && !STAR_IDS.has(avatar.id) && !FEAT_IDS.has(avatar.id),
@@ -198,6 +218,45 @@ export function hitBananaScore(score: number): boolean {
 
 export function hitBullseyeScore(score: number): boolean {
   return Number.isFinite(score) && Math.round(score * 10) / 10 === 100;
+}
+
+export function hitHeavyHitterScore(score: number): boolean {
+  return Number.isFinite(score) && score >= HEAVY_HITTER_PPR;
+}
+
+export function skipHeavyHitterWeek(season: number, week: number): boolean {
+  return season === 2026 && week === 1;
+}
+
+export function stampDayGap(from: string, to: string): number {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || to <= from) return 0;
+  const a = Date.parse(`${from}T00:00:00.000Z`);
+  const b = Date.parse(`${to}T00:00:00.000Z`);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return 0;
+  return Math.round((b - a) / 86_400_000);
+}
+
+export function lostGapHit(prev: string, cur: string, from = FEAT_TRACK_FROM): boolean {
+  return prev >= from && stampDayGap(prev, cur) >= LOST_GAP_DAYS;
+}
+
+export type EarlyBirdRow = { day: string; userId: string; at: number };
+
+/** Distinct days this user was first visible lock that day. Sep 16 and earlier skipped. */
+export function earlyBirdDayCount(userId: string, rows: readonly EarlyBirdRow[], from = FEAT_TRACK_FROM): number {
+  const byDay = new Map<string, { userId: string; at: number }[]>();
+  for (const row of rows) {
+    if (!row.day || row.day < from || !row.userId || !Number.isFinite(row.at)) continue;
+    const list = byDay.get(row.day) ?? [];
+    list.push({ userId: row.userId, at: row.at });
+    byDay.set(row.day, list);
+  }
+  let n = 0;
+  for (const list of byDay.values()) {
+    const min = Math.min(...list.map((row) => row.at));
+    if (list.some((row) => row.at === min && row.userId === userId)) n += 1;
+  }
+  return n;
 }
 
 export function justUnlockedBanana(before: readonly string[], after: readonly string[]): boolean {

@@ -375,10 +375,12 @@ async function completeDailyRun(
     });
   }
   try {
-    const { maybeGrantBullseye } = await import("./board-feats.server");
+    const { maybeGrantBullseye, maybeGrantEarlyBird, maybeGrantLost } = await import("./board-feats.server");
     await maybeGrantBullseye(sql, userId, score);
+    await maybeGrantEarlyBird(sql, userId);
+    await maybeGrantLost(sql, userId, day.day);
   } catch (err) {
-    console.error("[darkness] bullseye daily failed", err);
+    console.error("[darkness] daily feat grant failed", err);
   }
   void ensureDailyProfile(sql, userId).catch((err) => console.error("[darkness] daily profile failed", err));
   void import("./scratch.server")

@@ -289,6 +289,18 @@ export async function claimScratchCard(sql: Sql, userId: string, cardId: number)
     );
     const { grantStarLooks } = await import("./stats.server");
     await grantStarLooks(sql, userId, parseOwned(starRows[0]?.owned), asInt(starRows[0]?.daily_stars));
+    const scratched = await sql.query<{ n: number | string }>(
+      `select count(*)::int as n from darkness_scratch_cards where user_id = $1 and scratched_at is not null`,
+      [userId],
+    );
+    if (asInt(scratched[0]?.n) === 1) {
+      try {
+        const { maybeGrantVegas } = await import("./board-feats.server");
+        await maybeGrantVegas(sql, userId);
+      } catch (err) {
+        console.error("[darkness] vegas scratch failed", err);
+      }
+    }
   }
   const book = await sql.query<{
     coins: number | string | null;
