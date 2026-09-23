@@ -19,7 +19,7 @@ import {
 } from "./daily";
 import { scoredWeek, type ElimPick } from "./elim";
 import { clipDisplayName, isAwardSkippedName, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
-import { clampAvatar, type AvatarId } from "./avatars";
+import { clampAvatar, DOUBLE_DONUT_FROM, type AvatarId } from "./avatars";
 
 type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
 
@@ -393,10 +393,8 @@ async function completeDailyRun(
     await maybeGrantEarlyBird(sql, userId);
     await maybeGrantNightOwl(sql, userId);
     await maybeGrantLost(sql, userId, day.day);
-    if (day.day >= "2026-09-17") {
-      await maybeGrantDoubleDonutDaily(sql, userId);
-      await maybeGrantLumpedUp(sql, userId);
-    }
+    if (day.day >= DOUBLE_DONUT_FROM) await maybeGrantDoubleDonutDaily(sql, userId);
+    if (day.day >= "2026-09-17") await maybeGrantLumpedUp(sql, userId);
   } catch (err) {
     console.error("[darkness] daily feat grant failed", err);
   }

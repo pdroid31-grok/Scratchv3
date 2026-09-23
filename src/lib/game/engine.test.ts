@@ -7,7 +7,7 @@ import { applyPrize, bagLegend, HALFTIME_BAG, prizeLabel, redactHalftime, type P
 import { clipDisplayName, hostedNightKey, nightKey, opponentKey, planHostedNightWrite, isBankCommish } from "./stats-shared";
 import { parseRankTab } from "./rank-tabs";
 import { hostedMatchView, historyLineScore } from "./hosted-match";
-import { clampAvatar, isUnlocked, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, walletBalance, PRIZE_AVATARS, WIN_PAY, BOX_COST, GOLDEN_COST, boxPoolOwnedCount, hitBananaScore, hitBoxAddict, justUnlockedBanana, justUnlockedScratchLook, BOX_ADDICT_POOL_NEED, BANANA_SCORE_UNDER, avatarById, hitHeavyHitterScore, skipHeavyHitterWeek, stampDayGap, lostGapHit, earlyBirdDayCount, nightOwlDayCount, comebackKidHit, freeFallHit, EARLY_BIRD_NEED, NIGHT_OWL_NEED, FEAT_TRACK_FROM, LOST_GAP_DAYS, HEAVY_HITTER_PPR, lumpedUpHit, weeklyRealZeroCount, doubleDonutHit, isExactZeroScore, lookSource } from "./avatars";
+import { clampAvatar, isUnlocked, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, walletBalance, PRIZE_AVATARS, WIN_PAY, BOX_COST, GOLDEN_COST, boxPoolOwnedCount, hitBananaScore, hitBoxAddict, justUnlockedBanana, justUnlockedScratchLook, BOX_ADDICT_POOL_NEED, BANANA_SCORE_UNDER, avatarById, hitHeavyHitterScore, skipHeavyHitterWeek, stampDayGap, lostGapHit, earlyBirdDayCount, nightOwlDayCount, comebackKidHit, freeFallHit, EARLY_BIRD_NEED, NIGHT_OWL_NEED, FEAT_TRACK_FROM, DOUBLE_DONUT_FROM, LOST_GAP_DAYS, HEAVY_HITTER_PPR, lumpedUpHit, weeklyRealZeroCount, doubleDonutHit, isExactZeroScore, lookSource } from "./avatars";
 import { PLAYERS } from "./players";
 import { ratingFromPpr } from "./ratings";
 import { emptyRoster, type Roster } from "./types";
@@ -1053,6 +1053,7 @@ describe("avatars", () => {
 
   it("tracks Early Bird, Lost, and Heavy Hitter from native days only", () => {
     assert.equal(FEAT_TRACK_FROM, "2026-09-17");
+    assert.equal(DOUBLE_DONUT_FROM, "2026-09-23");
     assert.equal(EARLY_BIRD_NEED, 10);
     assert.equal(NIGHT_OWL_NEED, 10);
     assert.equal(LOST_GAP_DAYS, 10);

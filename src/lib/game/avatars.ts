@@ -168,6 +168,7 @@ export const HEAVY_HITTER_PPR = 50;
 export const LUMPED_UP_UNDER = 100;
 export const LUMPED_UP_DAYS = 3;
 export const DOUBLE_DONUT_NEED = 2;
+export const DOUBLE_DONUT_FROM = "2026-09-23";
 const STAR_IDS = new Set<string>(STAR_UNLOCKS.map((row) => row.id));
 const FEAT_IDS = new Set<string>([
   CLUB_200_ID,

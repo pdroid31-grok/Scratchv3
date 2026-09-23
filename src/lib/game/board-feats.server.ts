@@ -24,6 +24,7 @@ import {
   EARLY_BIRD_NEED,
   NIGHT_OWL_NEED,
   FEAT_TRACK_FROM,
+  DOUBLE_DONUT_FROM,
   doubleDonutHit,
   isExactZeroScore,
   lumpedUpHit,
@@ -373,7 +374,7 @@ export async function maybeGrantDoubleDonutDaily(sql: Sql, userId: string): Prom
           and r.status = 'done'
           and r.day >= $2::date
           and r.picks is not null`,
-      [userId, FEAT_TRACK_FROM],
+      [userId, DOUBLE_DONUT_FROM],
     );
     for (const row of rows) {
       const picks = Array.isArray(row.picks) ? (row.picks as { id?: string; name?: string; team?: string }[]) : [];
@@ -397,7 +398,7 @@ export async function maybeGrantDoubleDonutWeekly(
 ): Promise<void> {
   try {
     if (!weekDone) return;
-    if (!awardDay || awardDay < FEAT_TRACK_FROM) return;
+    if (!awardDay || awardDay < DOUBLE_DONUT_FROM) return;
     const rows = Array.isArray(picks) ? (picks as { id?: string; sid?: string; name?: string; team?: string; vs?: string }[]) : [];
     if (!doubleDonutHit(weeklyRealZeroCount(rows, live, finalTeams))) return;
     await grantFeat(sql, userId, DOUBLE_DONUT_ID);

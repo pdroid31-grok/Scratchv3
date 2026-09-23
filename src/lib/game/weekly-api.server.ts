@@ -298,8 +298,8 @@ async function grantWeeklyDoubleDonuts(sql: Sql, season: number, week: number): 
   if (!isWeekSlateFinal(window.games)) return;
   const { weeklyAwardEtDay } = await import("./double-trouble.server");
   const awardDay = weeklyAwardEtDay(window.games, window.endAt);
-  const { FEAT_TRACK_FROM } = await import("./avatars");
-  if (!awardDay || awardDay < FEAT_TRACK_FROM) {
+  const { DOUBLE_DONUT_FROM } = await import("./avatars");
+  if (!awardDay || awardDay < DOUBLE_DONUT_FROM) {
     await sql.query(`insert into darkness_weekly_flags (key) values ($1) on conflict (key) do nothing`, [key]);
     return;
   }
