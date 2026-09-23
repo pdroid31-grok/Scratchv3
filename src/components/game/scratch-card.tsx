@@ -324,7 +324,7 @@ export function ScratchCard() {
             <Button
               type="button"
               size="lg"
-              className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 font-display uppercase tracking-wider"
+              className="absolute left-[50.6%] top-[56.7%] z-10 h-16 min-h-16 -translate-x-1/2 -translate-y-1/2 px-10 font-display text-xl uppercase tracking-wider sm:h-20 sm:min-h-20 sm:px-12 sm:text-2xl"
               disabled={busy}
               onClick={() => void start()}
             >
