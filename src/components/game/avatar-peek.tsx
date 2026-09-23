@@ -6,11 +6,17 @@ import { X } from "lucide-react";
 export function AvatarPeek({
   src,
   alt = "",
+  name,
+  source,
   className,
+  buttonClassName,
 }: {
   src: string;
   alt?: string;
+  name?: string;
+  source?: string | null;
   className?: string;
+  buttonClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -27,8 +33,8 @@ export function AvatarPeek({
     <>
       <button
         type="button"
-        className="shrink-0"
-        aria-label="View avatar"
+        className={buttonClassName ?? "shrink-0"}
+        aria-label={name ? `View ${name}` : "View avatar"}
         onClick={(event) => {
           event.preventDefault();
           event.stopPropagation();
@@ -42,7 +48,7 @@ export function AvatarPeek({
           className="fixed inset-0 z-50 flex items-center justify-center bg-bg/90 p-5"
           role="dialog"
           aria-modal="true"
-          aria-label="Avatar"
+          aria-label={name || "Avatar"}
           onClick={() => setOpen(false)}
         >
           <button
@@ -53,12 +59,26 @@ export function AvatarPeek({
           >
             <X className="size-5" strokeWidth={2} />
           </button>
-          <img
-            src={src}
-            alt={alt}
-            className="max-h-[min(80vh,28rem)] w-full max-w-sm rounded-xl object-cover shadow-[var(--shadow-border)]"
-            onClick={(event) => event.stopPropagation()}
-          />
+          {name ? (
+            <div className="flex w-full max-w-sm flex-col items-center" onClick={(event) => event.stopPropagation()}>
+              <img
+                src={src}
+                alt={alt}
+                className="max-h-[min(80vh,28rem)] w-full rounded-xl object-cover shadow-[var(--shadow-border)]"
+              />
+              <p className="mt-3 text-center font-display text-lg font-semibold uppercase tracking-wide text-fg">
+                {name}
+              </p>
+              {source ? <p className="mt-1 text-center text-sm text-muted">{source}</p> : null}
+            </div>
+          ) : (
+            <img
+              src={src}
+              alt={alt}
+              className="max-h-[min(80vh,28rem)] w-full max-w-sm rounded-xl object-cover shadow-[var(--shadow-border)]"
+              onClick={(event) => event.stopPropagation()}
+            />
+          )}
         </div>
       ) : null}
     </>

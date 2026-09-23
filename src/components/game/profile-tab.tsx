@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Star } from "lucide-react";
-import { CLOSET_AVATARS, SHIRT_AVATARS, avatarById, isShirtAvatar, isUnlocked, ownsAvatar, remainingToUnlock, type AvatarId } from "@/lib/game/avatars";
+import { CLOSET_AVATARS, SHIRT_AVATARS, avatarById, isShirtAvatar, isUnlocked, lookSource, ownsAvatar, remainingToUnlock, type AvatarId } from "@/lib/game/avatars";
 import { useProfile } from "@/lib/game/profile-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { authEnabled, signOut } from "@/lib/auth/client";
@@ -65,6 +65,8 @@ export function ProfileTab() {
               <AvatarPeek
                 src={selected.src}
                 alt={selected.name}
+                name={selected.name}
+                source={lookSource(selected.id)}
                 className="size-20 rounded-lg object-cover shadow-[var(--shadow-border)] sm:size-24"
               />
               <div className="min-w-0">

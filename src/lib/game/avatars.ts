@@ -446,6 +446,19 @@ export function starNeed(id: string): number {
   return STAR_UNLOCKS.find((row) => row.id === id)?.stars ?? 0;
 }
 
+/** One source line for a profile look. Unknown ids return null — do not invent a source. */
+export function lookSource(id: string): string | null {
+  const star = STAR_UNLOCKS.find((row) => row.id === id);
+  if (star) return `From Daily Unlock, ${star.stars} ★`;
+  const feat = ACHIEVEMENT_UNLOCKS.find((row) => row.id === id);
+  if (feat) return `From Achievement: ${feat.how}`;
+  if (PRIZE_AVATARS.some((avatar) => avatar.id === id)) return "From the Mystery Box";
+  if (id === CRYPEPE_ID || id === JOKER_ID) return "From a scratch ticket";
+  if (id === "poor") return "Starting look";
+  if (id === "golden") return "From the Store";
+  return null;
+}
+
 export function starLooksFor(stars: number): AvatarId[] {
   return STAR_UNLOCKS.filter((row) => stars >= row.stars).map((row) => row.id);
 }

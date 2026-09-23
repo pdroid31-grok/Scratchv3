@@ -7,7 +7,7 @@ import { applyPrize, bagLegend, HALFTIME_BAG, prizeLabel, redactHalftime, type P
 import { clipDisplayName, hostedNightKey, nightKey, opponentKey, planHostedNightWrite, isBankCommish } from "./stats-shared";
 import { parseRankTab } from "./rank-tabs";
 import { hostedMatchView, historyLineScore } from "./hosted-match";
-import { clampAvatar, isUnlocked, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, walletBalance, PRIZE_AVATARS, WIN_PAY, BOX_COST, GOLDEN_COST, boxPoolOwnedCount, hitBananaScore, hitBoxAddict, justUnlockedBanana, justUnlockedScratchLook, BOX_ADDICT_POOL_NEED, BANANA_SCORE_UNDER, avatarById, hitHeavyHitterScore, skipHeavyHitterWeek, stampDayGap, lostGapHit, earlyBirdDayCount, nightOwlDayCount, comebackKidHit, freeFallHit, EARLY_BIRD_NEED, NIGHT_OWL_NEED, FEAT_TRACK_FROM, LOST_GAP_DAYS, HEAVY_HITTER_PPR, lumpedUpHit, weeklyRealZeroCount, doubleDonutHit, isExactZeroScore } from "./avatars";
+import { clampAvatar, isUnlocked, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, walletBalance, PRIZE_AVATARS, WIN_PAY, BOX_COST, GOLDEN_COST, boxPoolOwnedCount, hitBananaScore, hitBoxAddict, justUnlockedBanana, justUnlockedScratchLook, BOX_ADDICT_POOL_NEED, BANANA_SCORE_UNDER, avatarById, hitHeavyHitterScore, skipHeavyHitterWeek, stampDayGap, lostGapHit, earlyBirdDayCount, nightOwlDayCount, comebackKidHit, freeFallHit, EARLY_BIRD_NEED, NIGHT_OWL_NEED, FEAT_TRACK_FROM, LOST_GAP_DAYS, HEAVY_HITTER_PPR, lumpedUpHit, weeklyRealZeroCount, doubleDonutHit, isExactZeroScore, lookSource } from "./avatars";
 import { PLAYERS } from "./players";
 import { ratingFromPpr } from "./ratings";
 import { emptyRoster, type Roster } from "./types";
@@ -973,6 +973,14 @@ describe("avatars", () => {
     assert.equal(hitBananaScore(59.9), true);
     assert.equal(hitBananaScore(60), false);
     assert.equal(hitBananaScore(0), true);
+    assert.equal(lookSource("poor"), "Starting look");
+    assert.equal(lookSource("golden"), "From the Store");
+    assert.equal(lookSource("dj"), "From Daily Unlock, 3 ★");
+    assert.equal(lookSource("doubledonut"), "From Achievement: Start two or more players who score 0 in a Daily or Weekly Match.");
+    assert.equal(lookSource("farmer"), "From the Mystery Box");
+    assert.equal(lookSource("crypepe"), "From a scratch ticket");
+    assert.equal(lookSource("joker"), "From a scratch ticket");
+    assert.equal(lookSource("not-a-look"), null);
     assert.equal(justUnlockedBanana(["poor"], ["poor", "banana"]), true);
     assert.equal(justUnlockedBanana(["poor", "banana"], ["poor", "banana"]), false);
     assert.equal(justUnlockedBanana(["poor"], ["poor", "jail"]), false);
