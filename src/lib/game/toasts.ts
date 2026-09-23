@@ -1,6 +1,6 @@
 import type { AvatarId } from "./avatars";
 
-export type ToastKind = "daily_win" | "weekly_win" | "star_unlock" | "feat_unlock";
+export type ToastKind = "daily_win" | "weekly_win" | "star_unlock" | "feat_unlock" | "scratch_ready";
 
 export const TOAST_TEST_PREFIX = "toast-test:inspector1:";
 export const TOAST_TEST_KEYS = {
@@ -45,10 +45,17 @@ export const TOAST_KIND_RANK: Record<ToastKind, number> = {
   weekly_win: 1,
   star_unlock: 2,
   feat_unlock: 3,
+  scratch_ready: 4,
 };
 
 export function isToastKind(value: string): value is ToastKind {
-  return value === "daily_win" || value === "weekly_win" || value === "star_unlock" || value === "feat_unlock";
+  return (
+    value === "daily_win" ||
+    value === "weekly_win" ||
+    value === "star_unlock" ||
+    value === "feat_unlock" ||
+    value === "scratch_ready"
+  );
 }
 
 export function sortToasts(rows: ToastItem[]): ToastItem[] {

@@ -125,6 +125,30 @@ export function SetupScreen({
     if (!name0Dirty) setName0(gm);
   }, [gm, hostDirty, joinDirty, name0Dirty]);
 
+  useEffect(() => {
+    function openStore() {
+      let want = false;
+      try {
+        want = sessionStorage.getItem("darkness-open-store") === "1";
+        if (want) sessionStorage.removeItem("darkness-open-store");
+      } catch {
+        want = false;
+      }
+      if (!want) return;
+      clearDailyRankings();
+      clearWeeklyRankings();
+      clearPlayHome();
+      setNewsOpen(false);
+      setLobbyOpen(false);
+      setDailyOpen(false);
+      setWeeklyOpen(false);
+      setTab("store");
+    }
+    openStore();
+    window.addEventListener("darkness-open-store", openStore);
+    return () => window.removeEventListener("darkness-open-store", openStore);
+  }, []);
+
   if (tab === "play" && weeklyOpen) {
     return (
       <WeeklyStartScreen

@@ -204,6 +204,42 @@ export async function listUnseenToasts(sql: Sql, userId: string): Promise<ToastI
   return sortToasts(items);
 }
 
+export async function recordScratchReadyMint(sql: Sql, userId: string, cardId: number): Promise<void> {
+  const id = Math.max(0, Math.floor(cardId));
+  if (!userId || !id) return;
+  const actor = await toastActor(sql, userId);
+  if (!actor) return;
+  await recordToastSafe(sql, {
+    userId,
+    kind: "scratch_ready",
+    sourceKey: `scratch-ready-mint:${id}`,
+    payload: { kind: "scratch_ready", name: actor.name, avatarId: actor.avatarId },
+  });
+}
+
+/** One popup for unused tickets minted before scratch-ready toasts existed. */
+export async function recordScratchReadyCatchup(sql: Sql, userId: string): Promise<void> {
+  if (!userId) return;
+  const actor = await toastActor(sql, userId);
+  if (!actor) return;
+  await recordToastSafe(sql, {
+    userId,
+    kind: "scratch_ready",
+    sourceKey: `scratch-ready-catchup:${userId}`,
+    payload: { kind: "scratch_ready", name: actor.name, avatarId: actor.avatarId },
+  });
+}
+
+export async function scratchMintToastKeys(sql: Sql, keys: string[]): Promise<Set<string>> {
+  if (!keys.length) return new Set();
+  await ensureToastsTable(sql);
+  const rows = await sql.query<{ source_key: string }>(
+    `select source_key from darkness_toasts where source_key = any($1::text[])`,
+    [keys],
+  );
+  return new Set(rows.map((row) => row.source_key));
+}
+
 export async function markToastSeen(sql: Sql, userId: string, sourceKey: string): Promise<void> {
   await ensureToastsTable(sql);
   const key = String(sourceKey ?? "").slice(0, 240);

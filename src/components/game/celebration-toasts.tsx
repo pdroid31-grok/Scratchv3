@@ -5,6 +5,7 @@ import { Star, X } from "lucide-react";
 import { ACHIEVEMENT_UNLOCKS, avatarById } from "@/lib/game/avatars";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { formatToastDay, listToasts, seenToast, type ToastItem, type ToastPick } from "@/lib/game/toasts-api";
+import { Button } from "@/components/ui/button";
 
 function LineupRows({ picks }: { picks: ToastPick[] }) {
   if (!picks.length) return <p className="text-sm text-muted">No lineup saved.</p>;
@@ -73,6 +74,20 @@ function featHow(id?: string): string {
 
 function ToastBody({ item }: { item: ToastItem }) {
   const p = item.payload;
+  if (item.kind === "scratch_ready") {
+    return (
+      <>
+        <p className="pr-12 font-display text-xl font-semibold uppercase tracking-wide text-fg">
+          Your scratch ticket is ready
+        </p>
+        <img
+          src="/scratch-ticket.jpg"
+          alt=""
+          className="mt-4 w-full rounded-lg object-cover shadow-[var(--shadow-border)]"
+        />
+      </>
+    );
+  }
   if (item.kind === "daily_win") {
     return (
       <>
@@ -179,7 +194,7 @@ export function CelebrationToasts() {
   useEffect(() => {
     if (!item) return;
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") dismiss();
+      if (event.key === "Escape" && item.kind !== "scratch_ready") dismiss();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -187,12 +202,22 @@ export function CelebrationToasts() {
 
   if (!user || !item) return null;
 
+  function goScratch() {
+    try {
+      sessionStorage.setItem("darkness-open-store", "1");
+    } catch {
+      /* ignore */
+    }
+    window.dispatchEvent(new Event("darkness-open-store"));
+    dismiss();
+  }
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-bg/80 p-4 sm:items-center"
       role="dialog"
       aria-modal="true"
-      aria-label="Celebration"
+      aria-label={item.kind === "scratch_ready" ? "Your scratch ticket is ready" : "Celebration"}
     >
       <section className="relative max-h-[min(88vh,40rem)] w-full max-w-lg overflow-y-auto rounded-xl bg-surface px-4 py-5 shadow-[var(--shadow-border)] sm:px-5">
         <button
@@ -203,9 +228,19 @@ export function CelebrationToasts() {
         >
           <X className="size-5" strokeWidth={2} />
         </button>
-        <div className="pr-12">
+        <div className={item.kind === "scratch_ready" ? "" : "pr-12"}>
           <ToastBody item={item} />
         </div>
+        {item.kind === "scratch_ready" ? (
+          <Button
+            type="button"
+            size="lg"
+            className="mt-4 w-full font-display uppercase tracking-wider"
+            onClick={goScratch}
+          >
+            Go scratch ticket
+          </Button>
+        ) : null}
       </section>
     </div>
   );

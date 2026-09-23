@@ -134,14 +134,48 @@ function rollPrize(): { roll: number; prize: ScratchPrize } {
   return { roll, prize: prizeFromRoll(roll) };
 }
 
-async function mintMissing(sql: Sql, userId: string, need: number): Promise<void> {
+async function mintMissing(sql: Sql, userId: string, need: number, toast = true): Promise<void> {
   for (let i = 0; i < need; i += 1) {
     const { roll, prize } = rollPrize();
-    await sql.query(
+    const rows = await sql.query<{ id: number | string }>(
       `insert into darkness_scratch_cards (user_id, roll, prize, coins, stars, avatar_id)
-       values ($1, $2, $3, $4, $5, $6)`,
+       values ($1, $2, $3, $4, $5, $6)
+       returning id`,
       [userId, roll, prize.key, prize.coins, prize.stars, prize.avatar],
     );
+    if (!toast) continue;
+    const id = asInt(rows[0]?.id);
+    if (!id) continue;
+    try {
+      const { recordScratchReadyMint } = await import("./toasts.server");
+      await recordScratchReadyMint(sql, userId, id);
+    } catch (err) {
+      console.error("[darkness] scratch ready mint toast failed", err);
+    }
+  }
+}
+
+/** One catch-up popup if any unused card has no mint toast. New mints already queued their own. */
+async function notifyScratchReadyCatchup(sql: Sql, userId: string): Promise<void> {
+  if (!userId) return;
+  try {
+    const unused = await sql.query<{ id: number | string }>(
+      `select id from darkness_scratch_cards
+        where user_id = $1 and scratched_at is null
+        order by id asc`,
+      [userId],
+    );
+    const ids = unused.map((row) => asInt(row.id)).filter((id) => id > 0);
+    if (!ids.length) return;
+    const { recordScratchReadyCatchup, scratchMintToastKeys } = await import("./toasts.server");
+    const covered = await scratchMintToastKeys(
+      sql,
+      ids.map((id) => `scratch-ready-mint:${id}`),
+    );
+    if (!ids.some((id) => !covered.has(`scratch-ready-mint:${id}`))) return;
+    await recordScratchReadyCatchup(sql, userId);
+  } catch (err) {
+    console.error("[darkness] scratch ready catchup failed", err);
   }
 }
 
@@ -162,6 +196,7 @@ export async function syncScratchBank(sql: Sql, userId: string): Promise<Scratch
   const missing = Math.max(0, earned.cards - minted);
   if (missing) await mintMissing(sql, userId, missing);
   await mintTestPgStoreTicketOnce(sql, userId);
+  await notifyScratchReadyCatchup(sql, userId);
   const readyRows = await sql.query<{ n: number | string }>(
     `select count(*)::int as n from darkness_scratch_cards where user_id = $1 and scratched_at is null`,
     [userId],
@@ -194,7 +229,7 @@ async function mintTestPgStoreTicketOnce(sql: Sql, userId: string): Promise<void
     [TESTPG_STORE_TICKET_FLAG],
   );
   if (already[0]) return;
-  await mintMissing(sql, userId, 1);
+  await mintMissing(sql, userId, 1, false);
   await sql.query(`insert into darkness_scratch_flags (key) values ($1) on conflict (key) do nothing`, [
     TESTPG_STORE_TICKET_FLAG,
   ]);
