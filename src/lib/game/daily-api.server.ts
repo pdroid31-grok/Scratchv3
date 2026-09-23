@@ -388,11 +388,15 @@ async function completeDailyRun(
     });
   }
   try {
-    const { maybeGrantBullseye, maybeGrantEarlyBird, maybeGrantNightOwl, maybeGrantLost } = await import("./board-feats.server");
+    const { maybeGrantBullseye, maybeGrantEarlyBird, maybeGrantNightOwl, maybeGrantLost, maybeGrantDoubleDonutDaily, maybeGrantLumpedUp } = await import("./board-feats.server");
     await maybeGrantBullseye(sql, userId, score);
     await maybeGrantEarlyBird(sql, userId);
     await maybeGrantNightOwl(sql, userId);
     await maybeGrantLost(sql, userId, day.day);
+    if (day.day >= "2026-09-17") {
+      await maybeGrantDoubleDonutDaily(sql, userId);
+      await maybeGrantLumpedUp(sql, userId);
+    }
   } catch (err) {
     console.error("[darkness] daily feat grant failed", err);
   }

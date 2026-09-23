@@ -22,7 +22,7 @@ import {
   type WeeklyPackedBoard,
   type WeeklyPickSnap,
 } from "./weekly";
-import { fillPackedOpponents, nflClock, playersFromPack, sidMap, weekOpponents, weekWindow, weeklyLiveStats, weeklyProjections, attachFinishedWeekActuals } from "./weekly-sleeper";
+import { fillPackedOpponents, nflClock, playersFromPack, sidMap, weekOpponents, weekWindow, weeklyLiveStats, weeklyProjections, attachFinishedWeekActuals, isWeekSlateFinal, finalSlateTeams } from "./weekly-sleeper";
 import { type ElimPick } from "./elim";
 import { clipDisplayName, isAwardSkippedName, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
 import { clampAvatar } from "./avatars";
@@ -285,6 +285,37 @@ async function loadRun(sql: Sql, season: number, week: number, userId: string): 
   return rows[0] ?? null;
 }
 
+async function grantWeeklyDoubleDonuts(sql: Sql, season: number, week: number): Promise<void> {
+  await sql.query(`
+    create table if not exists darkness_weekly_flags (
+      key text primary key,
+      created_at timestamptz not null default now()
+    )`);
+  const key = `double-donut:${season}-W${week}`;
+  const already = await sql.query<{ key: string }>(`select key from darkness_weekly_flags where key = $1`, [key]);
+  if (already[0]) return;
+  const window = await weekWindow(season, week);
+  if (!isWeekSlateFinal(window.games)) return;
+  const { weeklyAwardEtDay } = await import("./double-trouble.server");
+  const awardDay = weeklyAwardEtDay(window.games, window.endAt);
+  const { FEAT_TRACK_FROM } = await import("./avatars");
+  if (!awardDay || awardDay < FEAT_TRACK_FROM) {
+    await sql.query(`insert into darkness_weekly_flags (key) values ($1) on conflict (key) do nothing`, [key]);
+    return;
+  }
+  const live = await weeklyLiveStats(season, week);
+  const finals = finalSlateTeams(window.games);
+  const runs = await sql.query<{ user_id: string; picks: unknown }>(
+    `select user_id, picks from darkness_weekly_runs where season = $1 and week = $2 and status = 'done'`,
+    [season, week],
+  );
+  const { maybeGrantDoubleDonutWeekly } = await import("./board-feats.server");
+  for (const row of runs) {
+    await maybeGrantDoubleDonutWeekly(sql, row.user_id, row.picks, live, awardDay, true, finals);
+  }
+  await sql.query(`insert into darkness_weekly_flags (key) values ($1) on conflict (key) do nothing`, [key]);
+}
+
 async function settleWeek(sql: Sql, season: number, week: number): Promise<void> {
   const day = await loadWeek(sql, season, week);
   if (!day) return;
@@ -301,6 +332,11 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
       }
     } catch {
       /* payouts table may not exist yet */
+    }
+    try {
+      await grantWeeklyDoubleDonuts(sql, season, week);
+    } catch (err) {
+      console.error("[darkness] double donut weekly failed", err);
     }
     return;
   }
@@ -359,6 +395,11 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
     `update darkness_weekly_weeks set awarded = true where season = $1 and week = $2 and awarded = false`,
     [season, week],
   );
+  try {
+    await grantWeeklyDoubleDonuts(sql, season, week);
+  } catch (err) {
+    console.error("[darkness] double donut weekly failed", err);
+  }
   try {
     const { grantDoubleTroubleAfterWeekly } = await import("./double-trouble.server");
     await grantDoubleTroubleAfterWeekly(sql, {

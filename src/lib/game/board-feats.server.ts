@@ -19,15 +19,26 @@ import {
   COMEBACK_KID_ID,
   FREE_FALL_ID,
   BOX_LUNCH_ID,
+  DOUBLE_DONUT_ID,
+  LUMPED_UP_ID,
   EARLY_BIRD_NEED,
   NIGHT_OWL_NEED,
   FEAT_TRACK_FROM,
+  doubleDonutHit,
+  isExactZeroScore,
+  lumpedUpHit,
+  weeklyRealZeroCount,
   type AvatarId,
   type EarlyBirdRow,
 } from "./avatars";
 import { clipGm, isAwardSkippedName, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
 import { isCommishSettingsUser } from "./commish-types";
 import { dailyDayStamp, dailyYesterday } from "./daily";
+import { teamBye } from "./elim-byes";
+import { hiddenWeeks } from "./elim-data";
+import { ELIM_WEEKS } from "./elim-weeks";
+import { ELIM_LEGACY_WEEKS } from "./elim-legacy-weeks";
+import type { TeamId } from "./types";
 
 export const RAINY_DAY_FROM = "2026-09-19";
 
@@ -318,5 +329,98 @@ export async function maybeGrantBoxLunch(sql: Sql, userId: string, at = Date.now
     await grantFeat(sql, userId, BOX_LUNCH_ID);
   } catch (err) {
     console.error("[darkness] box lunch grant failed", err);
+  }
+}
+
+function rawElimWeek(id: string, week: number): number | null {
+  const raw = ELIM_WEEKS[id] ?? ELIM_LEGACY_WEEKS[id];
+  if (!raw || week < 1 || week > raw.length) return null;
+  const score = raw[week - 1];
+  return typeof score === "number" && Number.isFinite(score) ? score : null;
+}
+
+/** Real 0.0 on that lineup's week. Bye, blank, hidden week, and a missing cell do not count. */
+export function dailyLineupRealZeroCount(
+  picks: readonly { id?: string; name?: string; team?: string }[],
+  year: number,
+  week: number,
+): number {
+  if (!Number.isFinite(year) || !Number.isFinite(week) || week < 1) return 0;
+  if (hiddenWeeks(year).includes(week)) return 0;
+  let n = 0;
+  const seen = new Set<string>();
+  for (const pick of picks) {
+    const id = String(pick.id ?? "").trim();
+    const name = String(pick.name ?? "").trim();
+    const team = String(pick.team ?? "").trim();
+    if (!id || !name || seen.has(id)) continue;
+    if (team && teamBye(year, team as TeamId) === week) continue;
+    const cell = rawElimWeek(id, week);
+    if (cell == null || !isExactZeroScore(cell)) continue;
+    seen.add(id);
+    n += 1;
+  }
+  return n;
+}
+
+export async function maybeGrantDoubleDonutDaily(sql: Sql, userId: string): Promise<void> {
+  try {
+    const rows = await sql.query<{ day: string; year: number | string; week: number | string; picks: unknown }>(
+      `select r.day::text as day, d.year, d.week, r.picks
+         from darkness_daily_runs r
+         join darkness_daily_days d on d.day = r.day
+        where r.user_id = $1
+          and r.status = 'done'
+          and r.day >= $2::date
+          and r.picks is not null`,
+      [userId, FEAT_TRACK_FROM],
+    );
+    for (const row of rows) {
+      const picks = Array.isArray(row.picks) ? (row.picks as { id?: string; name?: string; team?: string }[]) : [];
+      if (!doubleDonutHit(dailyLineupRealZeroCount(picks, Number(row.year), Number(row.week)))) continue;
+      await grantFeat(sql, userId, DOUBLE_DONUT_ID);
+      return;
+    }
+  } catch (err) {
+    console.error("[darkness] double donut daily failed", err);
+  }
+}
+
+export async function maybeGrantDoubleDonutWeekly(
+  sql: Sql,
+  userId: string,
+  picks: unknown,
+  live: Readonly<Record<string, number>>,
+  awardDay: string,
+  weekDone: boolean,
+  finalTeams: ReadonlySet<string>,
+): Promise<void> {
+  try {
+    if (!weekDone) return;
+    if (!awardDay || awardDay < FEAT_TRACK_FROM) return;
+    const rows = Array.isArray(picks) ? (picks as { id?: string; sid?: string; name?: string; team?: string; vs?: string }[]) : [];
+    if (!doubleDonutHit(weeklyRealZeroCount(rows, live, finalTeams))) return;
+    await grantFeat(sql, userId, DOUBLE_DONUT_ID);
+  } catch (err) {
+    console.error("[darkness] double donut weekly failed", err);
+  }
+}
+
+export async function maybeGrantLumpedUp(sql: Sql, userId: string): Promise<void> {
+  try {
+    const rows = await sql.query<{ day: string; score: number | string }>(
+      `select r.day::text as day, r.score
+         from darkness_daily_runs r
+        where r.user_id = $1
+          and r.status = 'done'
+          and r.score is not null
+          and r.day >= $2::date`,
+      [userId, FEAT_TRACK_FROM],
+    );
+    const played = rows.map((row) => ({ day: String(row.day).slice(0, 10), score: Number(row.score) }));
+    if (!lumpedUpHit(played)) return;
+    await grantFeat(sql, userId, LUMPED_UP_ID);
+  } catch (err) {
+    console.error("[darkness] lumped up grant failed", err);
   }
 }

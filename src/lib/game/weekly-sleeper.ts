@@ -28,6 +28,28 @@ const NICKS: Record<string, string> = {
 const DONE = new Set(["complete", "final", "closed", "post_game", "status_final", "final_overtime"]);
 const LIVE = new Set(["in_game", "inprogress", "halftime", "end_period", "status_in_progress"]);
 
+export function isFinalNflStatus(status: string): boolean {
+  const s = String(status || "").toLowerCase();
+  return DONE.has(s) || s === "complete";
+}
+
+/** Every game on the slate is final. A clock-past end time with a game still live is not finished. */
+export function isWeekSlateFinal(games: readonly { status?: string }[]): boolean {
+  return games.length > 0 && games.every((game) => isFinalNflStatus(String(game.status || "")));
+}
+
+export function finalSlateTeams(games: readonly { status?: string; home?: string; away?: string }[]): Set<string> {
+  const out = new Set<string>();
+  for (const game of games) {
+    if (!isFinalNflStatus(String(game.status || ""))) continue;
+    const home = teamOf(game.home);
+    const away = teamOf(game.away);
+    if (home) out.add(home);
+    if (away) out.add(away);
+  }
+  return out;
+}
+
 function gameStarted(status: string): boolean {
   const s = String(status || "").toLowerCase();
   return LIVE.has(s) || DONE.has(s) || s === "complete";

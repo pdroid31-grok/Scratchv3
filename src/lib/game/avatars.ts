@@ -93,6 +93,8 @@ export const AVATARS = [
   { id: "comebackkid", name: "Comeback Kid", src: "/avatars/comebackkid.jpg?v=1" },
   { id: "freefall", name: "Free Fall", src: "/avatars/freefall.jpg?v=1" },
   { id: "boxlunch", name: "Box Lunch", src: "/avatars/boxlunch.jpg?v=1" },
+  { id: "doubledonut", name: "Double Donut", src: "/avatars/doubledonut.jpg?v=1" },
+  { id: "lumpedup", name: "Lumped Up", src: "/avatars/lumpedup.jpg?v=1" },
   { id: "football", name: "Football", src: "/avatars/football.jpg?v=1" },
   { id: "luchador", name: "Luchador", src: "/avatars/luchador.jpg?v=1" },
   { id: "tailgater", name: "Tailgater", src: "/avatars/tailgater.jpg?v=1" },
@@ -149,6 +151,8 @@ export const NIGHT_OWL_ID = "nightowl" as const satisfies AvatarId;
 export const COMEBACK_KID_ID = "comebackkid" as const satisfies AvatarId;
 export const FREE_FALL_ID = "freefall" as const satisfies AvatarId;
 export const BOX_LUNCH_ID = "boxlunch" as const satisfies AvatarId;
+export const DOUBLE_DONUT_ID = "doubledonut" as const satisfies AvatarId;
+export const LUMPED_UP_ID = "lumpedup" as const satisfies AvatarId;
 export const BANANA_SCORE_UNDER = 60;
 export const CROSSWORD_STREAK_NEED = 10;
 export const LOCKED_IN_STREAK_NEED = 100;
@@ -161,6 +165,9 @@ export const EARLY_BIRD_NEED = 10;
 export const NIGHT_OWL_NEED = 10;
 export const LOST_GAP_DAYS = 10;
 export const HEAVY_HITTER_PPR = 50;
+export const LUMPED_UP_UNDER = 100;
+export const LUMPED_UP_DAYS = 3;
+export const DOUBLE_DONUT_NEED = 2;
 const STAR_IDS = new Set<string>(STAR_UNLOCKS.map((row) => row.id));
 const FEAT_IDS = new Set<string>([
   CLUB_200_ID,
@@ -187,6 +194,8 @@ const FEAT_IDS = new Set<string>([
   COMEBACK_KID_ID,
   FREE_FALL_ID,
   BOX_LUNCH_ID,
+  DOUBLE_DONUT_ID,
+  LUMPED_UP_ID,
 ]);
 export const ACHIEVEMENT_UNLOCKS = [
   { id: CLUB_200_ID, how: "Score 200+ points in a single match." },
@@ -209,6 +218,8 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: COMEBACK_KID_ID, how: "Finish last in Daily, then first the next day." },
   { id: FREE_FALL_ID, how: "Finish first in Daily, then last the next day." },
   { id: BOX_LUNCH_ID, how: "Open a Mystery Box and a scratch ticket the same day." },
+  { id: DOUBLE_DONUT_ID, how: "Start two or more players who score 0 in a Daily or Weekly Match." },
+  { id: LUMPED_UP_ID, how: "Score under 100 in Daily three days in a row." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];
 export const PRIZE_AVATARS = AVATARS.filter(
   (avatar) => avatar.id !== "poor" && avatar.id !== "golden" && !STAR_IDS.has(avatar.id) && !FEAT_IDS.has(avatar.id),
@@ -260,6 +271,73 @@ export function stampDayGap(from: string, to: string): number {
 
 export function lostGapHit(prev: string, cur: string, from = FEAT_TRACK_FROM): boolean {
   return prev >= from && stampDayGap(prev, cur) >= LOST_GAP_DAYS;
+}
+
+export function isExactZeroScore(score: number): boolean {
+  return Number.isFinite(score) && Math.round(score * 10) / 10 === 0;
+}
+
+export function doubleDonutHit(zeroCount: number): boolean {
+  return zeroCount >= DOUBLE_DONUT_NEED;
+}
+
+function nextStamp(day: string): string {
+  const [y, m, d] = day.split("-").map(Number);
+  return new Date(Date.UTC(y!, (m ?? 1) - 1, (d ?? 1) + 1)).toISOString().slice(0, 10);
+}
+
+/** Any three calendar days in a row, each a submitted score under 100, on or after `from`. A missing day breaks the run. */
+export function lumpedUpHit(
+  rows: readonly { day: string; score: number }[],
+  from = FEAT_TRACK_FROM,
+): boolean {
+  const scores = new Map<string, number>();
+  for (const row of rows) {
+    const day = String(row.day).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || day < from) continue;
+    const score = Number(row.score);
+    if (!Number.isFinite(score)) continue;
+    scores.set(day, score);
+  }
+  const days = [...scores.keys()].sort();
+  if (!days.length) return false;
+  let day = days[0]!;
+  const last = days[days.length - 1]!;
+  let run = 0;
+  for (let i = 0; i < 400 && day <= last; i += 1) {
+    const score = scores.get(day);
+    if (score == null || score >= LUMPED_UP_UNDER) run = 0;
+    else run += 1;
+    if (run >= LUMPED_UP_DAYS) return true;
+    const next = nextStamp(day);
+    if (next <= day) break;
+    day = next;
+  }
+  return false;
+}
+
+export function weeklyRealZeroCount(
+  picks: readonly { id?: string; sid?: string; name?: string; team?: string; vs?: string }[],
+  live: Readonly<Record<string, number>>,
+  finalTeams?: ReadonlySet<string>,
+): number {
+  let n = 0;
+  const seen = new Set<string>();
+  for (const pick of picks) {
+    const id = String(pick.id ?? "").trim();
+    const sid = String(pick.sid ?? "").trim();
+    const name = String(pick.name ?? "").trim();
+    const team = String(pick.team ?? "").trim().toUpperCase();
+    const vs = String(pick.vs ?? "").trim().toUpperCase();
+    if (!id || !sid || !name || seen.has(id)) continue;
+    if (!vs || vs === "BYE") continue;
+    if (finalTeams && (!team || !finalTeams.has(team))) continue;
+    if (!Object.prototype.hasOwnProperty.call(live, sid)) continue;
+    if (!isExactZeroScore(Number(live[sid]))) continue;
+    seen.add(id);
+    n += 1;
+  }
+  return n;
 }
 
 export function freeFallHit(prevFirst: readonly string[], todayLast: readonly string[], userId: string): boolean {

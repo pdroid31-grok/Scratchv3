@@ -7,7 +7,7 @@ import { applyPrize, bagLegend, HALFTIME_BAG, prizeLabel, redactHalftime, type P
 import { clipDisplayName, hostedNightKey, nightKey, opponentKey, planHostedNightWrite, isBankCommish } from "./stats-shared";
 import { parseRankTab } from "./rank-tabs";
 import { hostedMatchView, historyLineScore } from "./hosted-match";
-import { clampAvatar, isUnlocked, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, walletBalance, PRIZE_AVATARS, WIN_PAY, BOX_COST, GOLDEN_COST, boxPoolOwnedCount, hitBananaScore, hitBoxAddict, justUnlockedBanana, justUnlockedScratchLook, BOX_ADDICT_POOL_NEED, BANANA_SCORE_UNDER, avatarById, hitHeavyHitterScore, skipHeavyHitterWeek, stampDayGap, lostGapHit, earlyBirdDayCount, nightOwlDayCount, comebackKidHit, freeFallHit, EARLY_BIRD_NEED, NIGHT_OWL_NEED, FEAT_TRACK_FROM, LOST_GAP_DAYS, HEAVY_HITTER_PPR } from "./avatars";
+import { clampAvatar, isUnlocked, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, walletBalance, PRIZE_AVATARS, WIN_PAY, BOX_COST, GOLDEN_COST, boxPoolOwnedCount, hitBananaScore, hitBoxAddict, justUnlockedBanana, justUnlockedScratchLook, BOX_ADDICT_POOL_NEED, BANANA_SCORE_UNDER, avatarById, hitHeavyHitterScore, skipHeavyHitterWeek, stampDayGap, lostGapHit, earlyBirdDayCount, nightOwlDayCount, comebackKidHit, freeFallHit, EARLY_BIRD_NEED, NIGHT_OWL_NEED, FEAT_TRACK_FROM, LOST_GAP_DAYS, HEAVY_HITTER_PPR, lumpedUpHit, weeklyRealZeroCount, doubleDonutHit, isExactZeroScore } from "./avatars";
 import { PLAYERS } from "./players";
 import { ratingFromPpr } from "./ratings";
 import { emptyRoster, type Roster } from "./types";
@@ -996,7 +996,7 @@ describe("avatars", () => {
     assert.equal(pickPrize(ownedAll), null);
     assert.equal(
       PRIZE_AVATARS.some((avatar) =>
-        ["club200", "peeping", "banana", "crossword", "thanos", "boxaddict", "commish", "jail", "8ball", "ghostpepe", "lockedin", "sniper", "silvermedal", "crypepe", "joker", "doubletrouble", "bullseye", "rainyday", "earlybird", "heavyhitter", "lost", "vegas", "nightowl", "comebackkid", "freefall", "boxlunch"].includes(avatar.id),
+        ["club200", "peeping", "banana", "crossword", "thanos", "boxaddict", "commish", "jail", "8ball", "ghostpepe", "lockedin", "sniper", "silvermedal", "crypepe", "joker", "doubletrouble", "bullseye", "rainyday", "earlybird", "heavyhitter", "lost", "vegas", "nightowl", "comebackkid", "freefall", "boxlunch", "doubledonut", "lumpedup"].includes(avatar.id),
       ),
       false,
     );
@@ -1053,6 +1053,67 @@ describe("avatars", () => {
     assert.equal(lostGapHit("2026-09-17", "2026-09-27"), true);
     assert.equal(lostGapHit("2026-09-16", "2026-09-27"), false);
     assert.equal(lostGapHit("2026-09-17", "2026-09-26"), false);
+    assert.equal(isExactZeroScore(0), true);
+    assert.equal(isExactZeroScore(0.04), true);
+    assert.equal(isExactZeroScore(0.1), false);
+    assert.equal(doubleDonutHit(1), false);
+    assert.equal(doubleDonutHit(2), true);
+    assert.equal(
+      lumpedUpHit([
+        { day: "2026-09-15", score: 10 },
+        { day: "2026-09-16", score: 10 },
+        { day: "2026-09-17", score: 10 },
+      ]),
+      false,
+    );
+    assert.equal(
+      lumpedUpHit([
+        { day: "2026-09-17", score: 99.9 },
+        { day: "2026-09-18", score: 0 },
+        { day: "2026-09-19", score: 50 },
+      ]),
+      true,
+    );
+    assert.equal(
+      lumpedUpHit([
+        { day: "2026-09-17", score: 40 },
+        { day: "2026-09-19", score: 40 },
+        { day: "2026-09-20", score: 40 },
+      ]),
+      false,
+    );
+    assert.equal(
+      lumpedUpHit([
+        { day: "2026-09-17", score: 99.9 },
+        { day: "2026-09-18", score: 100 },
+        { day: "2026-09-19", score: 10 },
+      ]),
+      false,
+    );
+    assert.equal(
+      weeklyRealZeroCount(
+        [
+          { id: "a", sid: "1", name: "Zero", vs: "NYJ" },
+          { id: "b", sid: "2", name: "Also", vs: "BUF" },
+          { id: "c", sid: "3", name: "Bye", vs: "BYE" },
+          { id: "d", sid: "4", name: "Missing", vs: "KC" },
+          { id: "e", sid: "", name: "Blank", vs: "DAL" },
+        ],
+        { "1": 0, "2": 0, "3": 0 },
+      ),
+      2,
+    );
+    assert.equal(
+      weeklyRealZeroCount(
+        [
+          { id: "a", sid: "1", name: "Final", team: "BAL", vs: "NYJ" },
+          { id: "b", sid: "2", name: "Live", team: "MIA", vs: "BUF" },
+        ],
+        { "1": 0, "2": 0 },
+        new Set(["BAL"]),
+      ),
+      1,
+    );
     assert.equal(hitHeavyHitterScore(50), true);
     assert.equal(hitHeavyHitterScore(49.9), false);
     assert.equal(skipHeavyHitterWeek(2026, 1), true);
