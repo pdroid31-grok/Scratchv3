@@ -102,3 +102,11 @@ export const replayInspector1Toasts = createServerFn({ method: "POST" })
     const { replayInspector1ToastsHandler } = await import("./commish.server");
     return replayInspector1ToastsHandler({ context });
   });
+
+export const giveInspector1Scratch = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(() => ({}))
+  .handler(async ({ context }): Promise<CommishOk> => {
+    const { giveInspector1ScratchHandler } = await import("./commish.server");
+    return giveInspector1ScratchHandler({ context });
+  });

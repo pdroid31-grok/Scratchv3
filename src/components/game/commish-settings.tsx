@@ -17,6 +17,7 @@ import {
   resetInspector1Daily,
   resetInspector1Weekly,
   replayInspector1Toasts,
+  giveInspector1Scratch,
   type CommishBook,
   type CommishOk,
   type CommishPasswordStatus,
@@ -193,6 +194,23 @@ export function CommishSettingsPage() {
             }}
           >
             Replay Inspector toasts
+          </Button>
+          <Button
+            type="button"
+            size="lg"
+            variant="secondary"
+            className="font-display uppercase tracking-wider"
+            disabled={busy}
+            onClick={() => {
+              if (!window.confirm("Mints one unused ticket for Inspector1. Awards and boards unchanged.")) return;
+              setBusy(true);
+              setNote(null);
+              void giveInspector1Scratch({ data: {} })
+                .then((result) => setNote(result.ok ? "Inspector1 scratch ticket minted." : result.reason))
+                .finally(() => setBusy(false));
+            }}
+          >
+            Give Inspector1 a scratch ticket
           </Button>
         </div>
       </section>

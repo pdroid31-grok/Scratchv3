@@ -86,7 +86,16 @@ async function dropHistoricUnused(sql: Sql): Promise<void> {
   );
 }
 
+async function ensureScratchFlags(sql: Sql): Promise<void> {
+  await sql.query(`
+    create table if not exists darkness_scratch_flags (
+      key text primary key,
+      created_at timestamptz not null default now()
+    )`);
+}
+
 async function capPostCutoffUnused(sql: Sql, userId: string, earnedCards: number): Promise<void> {
+  await ensureScratchFlags(sql);
   const scratchedRows = await sql.query<{ n: number | string }>(
     `select count(*)::int as n
        from darkness_scratch_cards
@@ -101,11 +110,15 @@ async function capPostCutoffUnused(sql: Sql, userId: string, earnedCards: number
   await sql.query(
     `delete from darkness_scratch_cards
       where id in (
-        select id from darkness_scratch_cards
-         where user_id = $1
-           and scratched_at is null
-           and created_at >= ($2::timestamp AT TIME ZONE 'America/New_York')
-         order by id asc
+        select c.id from darkness_scratch_cards c
+         where c.user_id = $1
+           and c.scratched_at is null
+           and c.created_at >= ($2::timestamp AT TIME ZONE 'America/New_York')
+           and not exists (
+             select 1 from darkness_scratch_flags f
+              where f.key = ('inspector1-scratch:' || c.id::text)
+           )
+         order by c.id asc
          offset $3
       )`,
     [userId, SCRATCH_BANK_START, allowed],
@@ -134,7 +147,9 @@ function rollPrize(): { roll: number; prize: ScratchPrize } {
   return { roll, prize: prizeFromRoll(roll) };
 }
 
-async function mintMissing(sql: Sql, userId: string, need: number, toast = true): Promise<void> {
+export async function mintMissing(sql: Sql, userId: string, need: number, toast = true): Promise<number[]> {
+  await ensureScratchTables(sql);
+  const minted: number[] = [];
   for (let i = 0; i < need; i += 1) {
     const { roll, prize } = rollPrize();
     const rows = await sql.query<{ id: number | string }>(
@@ -143,15 +158,28 @@ async function mintMissing(sql: Sql, userId: string, need: number, toast = true)
        returning id`,
       [userId, roll, prize.key, prize.coins, prize.stars, prize.avatar],
     );
-    if (!toast) continue;
     const id = asInt(rows[0]?.id);
-    if (!id) continue;
+    if (id) minted.push(id);
+    if (!toast || !id) continue;
     try {
       const { recordScratchReadyMint } = await import("./toasts.server");
       await recordScratchReadyMint(sql, userId, id);
     } catch (err) {
       console.error("[darkness] scratch ready mint toast failed", err);
     }
+  }
+  return minted;
+}
+
+/** CEO Inspector1 tickets stay unused through cap and the TestPG gift flag. */
+export async function keepInspectorScratchCards(sql: Sql, cardIds: number[]): Promise<void> {
+  const ids = cardIds.map((id) => asInt(id)).filter((id) => id > 0);
+  if (!ids.length) return;
+  await ensureScratchFlags(sql);
+  for (const id of ids) {
+    await sql.query(`insert into darkness_scratch_flags (key) values ($1) on conflict (key) do nothing`, [
+      `inspector1-scratch:${id}`,
+    ]);
   }
 }
 

@@ -402,3 +402,21 @@ export async function replayInspector1ToastsHandler({
   return { ok: true };
 }
 
+export async function giveInspector1ScratchHandler({
+  context,
+}: {
+  context: { userId: string };
+}): Promise<CommishOk> {
+  await assertCommish(context.userId);
+  const sql = await getSql();
+  const ids = await lookupInspector1Ids(sql);
+  if (!ids.length) return { ok: false, reason: "not found" };
+  const { mintMissing, keepInspectorScratchCards } = await import("./scratch.server");
+  for (const id of ids) {
+    const cardIds = await mintMissing(sql, id, 1, true);
+    await keepInspectorScratchCards(sql, cardIds);
+  }
+  console.log("[darkness] ceo inspector1 scratch", { ids });
+  return { ok: true };
+}
+

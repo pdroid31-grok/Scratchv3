@@ -204,17 +204,52 @@ export async function listUnseenToasts(sql: Sql, userId: string): Promise<ToastI
   return sortToasts(items);
 }
 
+async function inspectorScratchFace(
+  sql: Sql,
+  userId: string,
+): Promise<{ name: string; avatarId: AvatarId } | null> {
+  const rows = await sql.query<{ name: string | null; avatar_id: string | null }>(
+    `select coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), 'Inspector1') as name,
+            p.avatar_id
+       from (select $1::text as user_id) me
+       left join player_profiles p on p.user_id = me.user_id
+       left join "user" u on u.id = me.user_id
+      where lower(trim(coalesce(p.display_name, ''))) = 'inspector1'
+         or lower(trim(coalesce(u.name, ''))) = 'inspector1'
+      limit 1`,
+    [userId],
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return { name: clipGm(row.name ?? "") || "Inspector1", avatarId: clampAvatar(row.avatar_id ?? "poor") };
+}
+
 export async function recordScratchReadyMint(sql: Sql, userId: string, cardId: number): Promise<void> {
   const id = Math.max(0, Math.floor(cardId));
   if (!userId || !id) return;
   const actor = await toastActor(sql, userId);
-  if (!actor) return;
-  await recordToastSafe(sql, {
-    userId,
-    kind: "scratch_ready",
-    sourceKey: `scratch-ready-mint:${id}`,
-    payload: { kind: "scratch_ready", name: actor.name, avatarId: actor.avatarId },
-  });
+  if (actor) {
+    await recordToastSafe(sql, {
+      userId,
+      kind: "scratch_ready",
+      sourceKey: `scratch-ready-mint:${id}`,
+      payload: { kind: "scratch_ready", name: actor.name, avatarId: actor.avatarId },
+    });
+    return;
+  }
+  const inspector = await inspectorScratchFace(sql, userId);
+  if (!inspector) return;
+  await ensureToastsTable(sql);
+  await sql.query(
+    `insert into darkness_toasts (user_id, kind, source_key, payload)
+     values ($1, 'scratch_ready', $2, $3::jsonb)
+     on conflict (source_key) do nothing`,
+    [
+      userId,
+      `scratch-ready-mint:${id}`,
+      JSON.stringify({ kind: "scratch_ready", name: inspector.name, avatarId: inspector.avatarId }),
+    ],
+  );
 }
 
 /** One popup for unused tickets minted before scratch-ready toasts existed. */
