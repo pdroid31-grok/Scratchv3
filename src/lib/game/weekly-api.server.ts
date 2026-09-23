@@ -585,8 +585,9 @@ async function resolveClock(sql: Sql): Promise<{
     await reopenPatOnce(sql, next.season, next.week);
     await reopenMswanLate(sql, next.season, next.week);
     try {
-      const { mergeCommishW2Once } = await import("./commish-w2-merge.server");
+      const { mergeCommishW2Once, scoreCommishW2Once } = await import("./commish-w2-merge.server");
       await mergeCommishW2Once(sql);
+      await scoreCommishW2Once(sql);
     } catch (err) {
       console.error("[darkness] commish w2 merge failed", err);
     }
@@ -595,8 +596,9 @@ async function resolveClock(sql: Sql): Promise<{
   await reopenPatOnce(sql, clock.season, clock.week);
   await reopenMswanLate(sql, clock.season, clock.week);
   try {
-    const { mergeCommishW2Once } = await import("./commish-w2-merge.server");
+    const { mergeCommishW2Once, scoreCommishW2Once } = await import("./commish-w2-merge.server");
     await mergeCommishW2Once(sql);
+    await scoreCommishW2Once(sql);
   } catch (err) {
     console.error("[darkness] commish w2 merge failed", err);
   }

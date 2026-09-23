@@ -8,6 +8,7 @@ export const COMMISH_SURVIVOR_ID = "e7APj7EJ03oPUXuukNxNpWqDzsCjUrIM";
 export const COMMISH_W2_DONOR_ID = "e20r0ZNjMbkgSw6DsHSpqQLTfXX3Xnfh";
 export const COMMISH_W2_MERGE_KEY = "commish-w2-arkeayes-2026";
 const COMMISH_W2_RUN_KEY = "commish-w2-e20r0-2026";
+export const COMMISH_W2_SCORE_KEY = "commish-w2-score-v1";
 const SEASON = 2026;
 const WEEK = 2;
 
@@ -19,8 +20,20 @@ async function ensureFlagTable(sql: Sql): Promise<void> {
     )`);
 }
 
+function pickRows(raw: unknown): unknown[] {
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return Array.isArray(raw) ? raw : [];
+}
+
 function pickCount(raw: unknown): number {
-  return clipWeeklyPickIds(raw).length;
+  return clipWeeklyPickIds(pickRows(raw)).length;
 }
 
 export async function mergeCommishW2Once(sql: Sql): Promise<void> {
@@ -94,4 +107,62 @@ export async function mergeCommishW2Once(sql: Sql): Promise<void> {
   console.log(
     `[darkness] commish w2 merge donor=${COMMISH_W2_DONOR_ID} copied=${copied ? "yes" : "no"} picks=${n}`,
   );
+}
+
+/** One-shot: store Commish 2026-W2 score from final Sleeper stats. Does not re-settle or pay. */
+export async function scoreCommishW2Once(sql: Sql): Promise<void> {
+  await ensureFlagTable(sql);
+  const already = await sql.query<{ key: string }>(
+    `select key from darkness_weekly_flags where key = $1`,
+    [COMMISH_W2_SCORE_KEY],
+  );
+  if (already[0]) return;
+
+  const { isWeekSlateFinal, weekWindow, weeklyLiveStats } = await import("./weekly-sleeper");
+  const window = await weekWindow(SEASON, WEEK);
+  if (!window.done || !isWeekSlateFinal(window.games)) return;
+
+  const runs = await sql.query<{ status: string; picks: unknown }>(
+    `select status, picks
+       from darkness_weekly_runs
+      where season = $1 and week = $2 and user_id = $3
+      limit 1`,
+    [SEASON, WEEK, COMMISH_SURVIVOR_ID],
+  );
+  const row = runs[0];
+  if (!row || row.status !== "done") return;
+
+  let picks = pickRows(row.picks);
+  if (pickCount(picks) === 0) {
+    const donorRuns = await sql.query<{ status: string; picks: unknown }>(
+      `select status, picks
+         from darkness_weekly_runs
+        where season = $1 and week = $2 and user_id = $3
+        limit 1`,
+      [SEASON, WEEK, COMMISH_W2_DONOR_ID],
+    );
+    const donor = donorRuns[0];
+    if (!donor || donor.status !== "done" || pickCount(donor.picks) === 0) return;
+    picks = pickRows(donor.picks);
+    await sql.query(
+      `update darkness_weekly_runs
+          set picks = $4::jsonb
+        where season = $1 and week = $2 and user_id = $3 and status = 'done'`,
+      [SEASON, WEEK, COMMISH_SURVIVOR_ID, JSON.stringify(picks)],
+    );
+  }
+
+  const live = await weeklyLiveStats(SEASON, WEEK);
+  if (Object.keys(live).length === 0) return;
+  const { hydrateWeeklyPicks, weeklyTotal } = await import("./weekly");
+  const score = weeklyTotal(hydrateWeeklyPicks(picks, live, "zero"));
+  const n = pickCount(picks);
+  await sql.query(
+    `update darkness_weekly_runs
+        set score = $4
+      where season = $1 and week = $2 and user_id = $3 and status = 'done'`,
+    [SEASON, WEEK, COMMISH_SURVIVOR_ID, score],
+  );
+  await sql.query(`insert into darkness_weekly_flags (key) values ($1) on conflict do nothing`, [COMMISH_W2_SCORE_KEY]);
+  console.log(`[darkness] commish w2 score=${score} picks=${n}`);
 }
