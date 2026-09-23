@@ -12,6 +12,7 @@ type NewsPayload = {
   score?: string;
   prizeId?: string;
   prizeLabel?: string;
+  stars?: number;
   day?: string;
   week?: string;
 };
@@ -218,6 +219,7 @@ function parseItem(
     score: raw.score,
     prizeId: raw.prizeId ? clampAvatar(raw.prizeId) : undefined,
     prizeLabel: raw.prizeLabel,
+    stars: Number.isFinite(Number(raw.stars)) ? Math.max(0, Math.floor(Number(raw.stars))) : undefined,
     day: raw.day,
     week: raw.week,
   };

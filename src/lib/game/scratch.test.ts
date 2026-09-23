@@ -11,7 +11,7 @@ import {
   SCRATCH_BANK_START,
   SCRATCH_NEED,
 } from "./scratch";
-import { BOX_ONLY_IDS, justUnlockedScratchLook } from "./avatars";
+import { BOX_ONLY_IDS, justUnlockedScratchLook, starScratchRungs, starScratchRungsCrossed, STAR_SCRATCH_POINTS } from "./avatars";
 
 describe("scratch bank", () => {
   it("1080 becomes 1 card and 80 leftover", () => {
@@ -56,6 +56,22 @@ describe("scratch bank", () => {
     ]);
     assert.equal(withToday, 139);
     assert.deepEqual(scratchFromTotal(withToday), { cards: 0, bank: 139 });
+  });
+
+  it("fills scratch points on empty star rungs only", () => {
+    assert.equal(STAR_SCRATCH_POINTS, 100);
+    assert.deepEqual(starScratchRungs().slice(0, 5), [12, 18, 21, 24, 27]);
+    assert.equal(starScratchRungs().includes(15), false);
+    assert.equal(starScratchRungs().includes(20), false);
+    assert.equal(starScratchRungs().includes(25), false);
+    assert.equal(starScratchRungs().includes(50), false);
+    assert.equal(starScratchRungs().includes(75), false);
+    assert.equal(starScratchRungs().includes(100), false);
+    assert.equal(starScratchRungs().at(-1), 99);
+    assert.deepEqual(starScratchRungsCrossed(11, 12), [12]);
+    assert.deepEqual(starScratchRungsCrossed(40, 40), []);
+    assert.deepEqual(starScratchRungsCrossed(17, 19), [18]);
+    assert.deepEqual(starScratchRungsCrossed(99, 101), []);
   });
 
   it("mints only from post-cutoff scores", () => {

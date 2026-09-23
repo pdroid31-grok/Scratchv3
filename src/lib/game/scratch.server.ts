@@ -1,6 +1,7 @@
 /** Server-only scratch tickets. Prize is rolled here; the client never RNGs. */
 import { randomInt } from "node:crypto";
-import { justUnlockedScratchLook, parseOwned } from "./avatars";
+import { justUnlockedScratchLook, parseOwned, STAR_SCRATCH_POINTS, starScratchRungsCrossed } from "./avatars";
+import { clipGm, isAwardSkippedName, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
 import {
   prizeByKey,
   prizeFromRoll,
@@ -92,6 +93,71 @@ async function ensureScratchFlags(sql: Sql): Promise<void> {
       key text primary key,
       created_at timestamptz not null default now()
     )`);
+}
+
+async function starScratchPointTotal(sql: Sql, userId: string): Promise<number> {
+  await ensureScratchFlags(sql);
+  const rows = await sql.query<{ n: number | string }>(
+    `select count(*)::int as n
+       from darkness_scratch_flags
+      where split_part(key, ':', 1) = 'star-scratch'
+        and split_part(key, ':', 2) = $1`,
+    [userId],
+  );
+  return asInt(rows[0]?.n) * STAR_SCRATCH_POINTS;
+}
+
+async function skipStarScratch(sql: Sql, userId: string): Promise<boolean> {
+  if (isHiddenBoardId(userId)) return true;
+  const rows = await sql.query<{ name: string | null }>(
+    `select coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name
+       from player_profiles p
+       left join "user" u on u.id = p.user_id
+      where p.user_id = $1
+      limit 1`,
+    [userId],
+  );
+  const name = rows[0]?.name ?? "";
+  return isHiddenBoardName(name) || isAwardSkippedName(name) || isHiddenBoardName(clipGm(name));
+}
+
+/** +100 scratch points for rungs crossed by this star gain. Points only — does not mint a ticket. */
+export async function grantStarScratchRungs(sql: Sql, userId: string, before: number, after: number): Promise<void> {
+  const rungs = starScratchRungsCrossed(before, after);
+  if (!userId || !rungs.length) return;
+  if (await skipStarScratch(sql, userId)) return;
+  await ensureScratchFlags(sql);
+  const { recordToastSafe } = await import("./toasts.server");
+  for (const rung of rungs) {
+    const key = `star-scratch:${userId}:${rung}`;
+    const inserted = await sql.query<{ key: string }>(
+      `insert into darkness_scratch_flags (key) values ($1) on conflict (key) do nothing returning key`,
+      [key],
+    );
+    if (!inserted[0]) continue;
+    await recordToastSafe(sql, {
+      userId,
+      kind: "star_unlock",
+      sourceKey: key,
+      payload: { kind: "star_unlock", starNeed: rung, scratchPoints: STAR_SCRATCH_POINTS },
+    });
+    try {
+      const { recordNewsSafe, newsActor } = await import("./news.server");
+      const actor = await newsActor(sql, userId);
+      if (!actor) continue;
+      await recordNewsSafe(sql, {
+        sourceKey: `star_unlock:${userId}:scratch:${rung}`,
+        payload: {
+          kind: "star_unlock",
+          faces: [{ name: actor.name, avatarId: actor.avatarId, userId }],
+          prizeLabel: "+100 scratch points",
+          stars: rung,
+        },
+      });
+    } catch (err) {
+      console.error("[darkness] star scratch news failed", err);
+    }
+  }
 }
 
 async function capPostCutoffUnused(sql: Sql, userId: string, earnedCards: number): Promise<void> {
@@ -210,7 +276,7 @@ async function notifyScratchReadyCatchup(sql: Sql, userId: string): Promise<void
 export async function syncScratchBank(sql: Sql, userId: string): Promise<ScratchState> {
   await ensureScratchTables(sql);
   await dropHistoricUnused(sql);
-  const total = await dailyScoreTotal(sql, userId);
+  const total = (await dailyScoreTotal(sql, userId)) + (await starScratchPointTotal(sql, userId));
   const earned = scratchFromTotal(total);
   await capPostCutoffUnused(sql, userId, earned.cards);
   const mintedRows = await sql.query<{ n: number | string }>(
@@ -308,8 +374,9 @@ export async function claimScratchCard(sql: Sql, userId: string, cardId: number)
   const prize = prizeByKey(String(card.prize));
   const amount = Math.max(0, asInt(card.coins));
   const stars = Math.max(0, asInt(card.stars));
-  const { ensurePayoutsTable, scratchPayoutKey, syncDailyStarsFromPayouts } = await import("./payouts");
+  const { ensurePayoutsTable, scratchPayoutKey, syncDailyStarsFromPayouts, countPayoutStars } = await import("./payouts");
   await ensurePayoutsTable(sql);
+  const beforeStars = await countPayoutStars(sql, userId);
   const inserted = await sql.query<{ id: number }>(
     `insert into darkness_payouts (user_id, amount, stars, kind, source_key)
      values ($1, $2, $3, 'scratch', $4)
@@ -346,6 +413,10 @@ export async function claimScratchCard(sql: Sql, userId: string, cardId: number)
       }
     }
     await syncDailyStarsFromPayouts(sql, userId);
+    if (stars > 0 && beforeStars != null) {
+      const afterStars = await countPayoutStars(sql, userId);
+      if (afterStars != null) await grantStarScratchRungs(sql, userId, beforeStars, afterStars);
+    }
     const starRows = await sql.query<{ daily_stars: number | string | null; owned: unknown }>(
       `select daily_stars, owned from player_profiles where user_id = $1`,
       [userId],

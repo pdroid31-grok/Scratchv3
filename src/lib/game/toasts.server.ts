@@ -141,6 +141,12 @@ async function recordStarJumpToasts(sql: Sql, userId: string, gained: number): P
       },
     });
   }
+  try {
+    const { grantStarScratchRungs } = await import("./scratch.server");
+    await grantStarScratchRungs(sql, userId, before, after);
+  } catch (err) {
+    console.error("[darkness] star scratch points failed", err);
+  }
 }
 
 export async function recordUnlockToast(

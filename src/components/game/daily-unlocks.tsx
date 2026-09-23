@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Lock, Star, Sun, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { STAR_UNLOCKS, avatarById } from "@/lib/game/avatars";
+import { STAR_UNLOCKS, avatarById, starScratchRungs } from "@/lib/game/avatars";
 import { useProfile } from "@/lib/game/profile-store";
 import { cn } from "@/lib/utils";
 
@@ -82,7 +82,35 @@ export function DailyUnlocksSheet({ onClose }: { onClose: () => void }) {
           </button>
         </div>
         <ul className="grid grid-cols-2 gap-3 overflow-y-auto p-4 sm:grid-cols-3">
-          {STAR_UNLOCKS.map((row) => {
+          {[
+            ...STAR_UNLOCKS.map((row) => ({ kind: "look" as const, id: row.id, stars: row.stars })),
+            ...starScratchRungs().map((stars) => ({ kind: "scratch" as const, id: `scratch-${stars}`, stars })),
+          ]
+            .sort((a, b) => a.stars - b.stars)
+            .map((row) => {
+            if (row.kind === "scratch") {
+              const reached = stars >= row.stars;
+              return (
+                <li key={row.id}>
+                  <div className={cn("overflow-hidden rounded-lg bg-bg shadow-[var(--shadow-border)]", !reached && "opacity-80")}>
+                    <div className="relative flex aspect-square items-center justify-center bg-surface-2 px-2 text-center">
+                      <p className="font-display text-xs font-semibold uppercase tracking-wide text-fg">
+                        +100 scratch points
+                      </p>
+                      {!reached ? (
+                        <span className="absolute inset-0 flex items-center justify-center bg-bg/45">
+                          <Lock className="size-6 text-fg" strokeWidth={2} />
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="flex items-center justify-center gap-1 px-2 py-2 text-[11px] tabular-nums text-muted">
+                      <Star className="size-3 text-accent" fill="currentColor" />
+                      {row.stars}
+                    </p>
+                  </div>
+                </li>
+              );
+            }
             const avatar = avatarById(row.id);
             const unlocked = owned.includes(row.id);
             const on = wearing === row.id;

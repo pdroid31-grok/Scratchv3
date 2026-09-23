@@ -31,6 +31,7 @@ export type ToastPayload = {
   prizeId?: AvatarId;
   prizeLabel?: string;
   starNeed?: number;
+  scratchPoints?: number;
 };
 
 export type ToastItem = {

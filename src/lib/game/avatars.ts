@@ -473,6 +473,29 @@ export function starLooksFor(stars: number): AvatarId[] {
   return STAR_UNLOCKS.filter((row) => stars >= row.stars).map((row) => row.id);
 }
 
+/** Scratch-point rungs. +3 from 12 through 100, skipping any star that already unlocks a look. */
+export const STAR_SCRATCH_FROM = 12;
+export const STAR_SCRATCH_CAP = 100;
+export const STAR_SCRATCH_STEP = 3;
+export const STAR_SCRATCH_POINTS = 100;
+
+export function starScratchRungs(): number[] {
+  const taken = new Set<number>(STAR_UNLOCKS.map((row) => row.stars));
+  const out: number[] = [];
+  for (let n = STAR_SCRATCH_FROM; n <= STAR_SCRATCH_CAP; n += STAR_SCRATCH_STEP) {
+    if (!taken.has(n)) out.push(n);
+  }
+  return out;
+}
+
+/** Rungs crossed by this star gain only. Already-passed rungs are not returned. */
+export function starScratchRungsCrossed(before: number, after: number): number[] {
+  const lo = Math.max(0, Math.floor(Number(before) || 0));
+  const hi = Math.min(STAR_SCRATCH_CAP, Math.floor(Number(after) || 0));
+  if (hi <= lo) return [];
+  return starScratchRungs().filter((n) => n > lo && n <= hi);
+}
+
 export function isFeatAvatar(id: string): boolean {
   return FEAT_IDS.has(id);
 }

@@ -248,6 +248,16 @@ function NewsLine({ item, onPeek }: { item: NewsItem; onPeek: (look: LookPeek) =
       </p>
     );
   }
+  if (item.kind === "star_unlock" && a && !item.prizeId && item.prizeLabel) {
+    return (
+      <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-fg">
+        <Face face={a} onPeek={onPeek} />
+        <span className="text-muted">unlocked</span>
+        <span>{item.prizeLabel}</span>
+        <span className="text-muted">from {item.stars ?? 0} Daily stars</span>
+      </p>
+    );
+  }
   if ((item.kind === "star_unlock" || item.kind === "feat_unlock") && a && item.prizeId) {
     const need = starNeed(item.prizeId);
     const how = ACHIEVEMENT_UNLOCKS.find((row) => row.id === item.prizeId)?.how ?? "";

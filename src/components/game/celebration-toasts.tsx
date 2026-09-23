@@ -128,6 +128,17 @@ function ToastBody({ item }: { item: ToastItem }) {
   }
   const prize = avatarById(p.prizeId ?? "poor");
   const how = featHow(p.prizeId);
+  if ((p.scratchPoints ?? 0) > 0) {
+    return (
+      <div className="flex flex-col items-center gap-2 text-center">
+        <p className="flex items-center justify-center gap-1 text-sm text-muted">
+          <span>From obtaining {p.starNeed ?? 0}</span>
+          <Star className="size-[1.15em] shrink-0 text-fg" fill="currentColor" />
+        </p>
+        <p className="font-display text-sm font-semibold uppercase tracking-wide text-fg">+100 scratch points</p>
+      </div>
+    );
+  }
   return (
     <>
       <p className="font-display text-xl font-semibold uppercase tracking-wide text-fg">
