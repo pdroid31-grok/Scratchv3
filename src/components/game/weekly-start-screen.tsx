@@ -17,7 +17,7 @@ const RULES: { icon: LucideIcon; text: string }[] = [
   { icon: MousePointerClick, text: "Select players names to see their current season stats." },
   {
     icon: Star,
-    text: `Score over ${WEEKLY_SCORE_LINE} pays $1. First place wins $${WEEKLY_WIN_PAY} and ${WEEKLY_WIN_STARS} Daily Stars. Ties all collect.`,
+    text: `Score over ${WEEKLY_SCORE_LINE} pays $1. First place wins $${WEEKLY_WIN_PAY}, ${WEEKLY_WIN_STARS} Daily Stars, and +200 scratch points. Ties all collect.`,
   },
 ];
 
@@ -104,7 +104,11 @@ export function WeeklyStartScreen({
               <>
                 You scored <span className="font-display font-semibold tabular-nums">{meta.score?.toFixed(1)}</span>
                 {meta.awarded && meta.paid ? " · $1 banked" : ""}
-                {meta.awarded && meta.winner ? ` · 1st +$${WEEKLY_WIN_PAY} · ${WEEKLY_WIN_STARS} stars` : ""}.
+                {meta.awarded && meta.winner
+                  ? meta.season > 2026 || (meta.season === 2026 && meta.week >= 3)
+                    ? ` · 1st +$${WEEKLY_WIN_PAY} · ${WEEKLY_WIN_STARS} ★ · +200 scratch points`
+                    : ` · 1st +$${WEEKLY_WIN_PAY} · ${WEEKLY_WIN_STARS} stars`
+                  : ""}.
               </>
             ) : (
               <>Submitted. Waiting on kickoff{meta.score != null ? ` · ${meta.score.toFixed(1)}` : ""}.</>

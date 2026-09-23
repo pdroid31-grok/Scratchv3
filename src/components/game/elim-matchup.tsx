@@ -244,7 +244,9 @@ export function ElimMatchupScreen() {
               {mode === "weekly" && phase === "matchup" ? (
                 weekly?.awarded
                   ? weekly.winner
-                    ? `Final. ${weekly.paid ? "$1 banked" : "Under 100"} \u00b7 1st +$2 \u00b7 2 stars.`
+                    ? weekly.season > 2026 || (weekly.season === 2026 && weekly.week >= 3)
+                      ? `Final. ${weekly.paid ? "$1 banked" : "Under 100"} \u00b7 1st +$2 \u00b7 2 ★ \u00b7 +200 scratch points.`
+                      : `Final. ${weekly.paid ? "$1 banked" : "Under 100"} \u00b7 1st +$2 \u00b7 2 stars.`
                     : weekly.paid
                       ? "Final. $1 banked."
                       : "Final. Under 100."

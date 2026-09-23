@@ -8,6 +8,10 @@ import {
   scratchKey,
   scratchPercent,
   scratchTotalFromRuns,
+  DAILY_WIN_SCRATCH,
+  WEEKLY_WIN_SCRATCH,
+  dailyWinScratchKey,
+  weeklyWinScratchKey,
   SCRATCH_BANK_START,
   SCRATCH_NEED,
 } from "./scratch";
@@ -72,6 +76,13 @@ describe("scratch bank", () => {
     assert.deepEqual(starScratchRungsCrossed(40, 40), []);
     assert.deepEqual(starScratchRungsCrossed(17, 19), [18]);
     assert.deepEqual(starScratchRungsCrossed(99, 101), []);
+  });
+
+  it("adds win scratch points only as constants", () => {
+    assert.equal(DAILY_WIN_SCRATCH, 100);
+    assert.equal(WEEKLY_WIN_SCRATCH, 200);
+    assert.equal(dailyWinScratchKey("2026-09-24", "u1"), "win-scratch:daily:2026-09-24:u1");
+    assert.equal(weeklyWinScratchKey(2026, 3, "u1"), "win-scratch:weekly:2026-W3:u1");
   });
 
   it("mints only from post-cutoff scores", () => {

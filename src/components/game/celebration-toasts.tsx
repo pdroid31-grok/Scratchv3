@@ -30,14 +30,15 @@ function LineupRows({ picks }: { picks: ToastPick[] }) {
   );
 }
 
-function PayoutMark({ coins, stars }: { coins: number; stars: number }) {
+function PayoutMark({ coins, stars, scratchPoints }: { coins: number; stars: number; scratchPoints?: number }) {
   return (
-    <p className="flex shrink-0 items-center gap-2 font-display text-xl font-semibold tabular-nums leading-none tracking-wide text-fg sm:text-2xl">
+    <p className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 font-display text-xl font-semibold tabular-nums leading-none tracking-wide text-fg sm:text-2xl">
       <span>+${coins}</span>
       <span className="inline-flex items-center gap-1">
         +{stars}
         <Star className="size-[1.15em] shrink-0 text-fg" fill="currentColor" />
       </span>
+      {scratchPoints ? <span className="text-base sm:text-lg">+{scratchPoints} scratch points</span> : null}
     </p>
   );
 }
@@ -48,12 +49,14 @@ function WinFace({
   score,
   coins,
   stars,
+  scratchPoints,
 }: {
   name?: string;
   avatarId?: string;
   score: number;
   coins: number;
   stars: number;
+  scratchPoints?: number;
 }) {
   const look = avatarById(avatarId ?? "poor");
   return (
@@ -63,7 +66,7 @@ function WinFace({
         <p className="truncate font-display text-sm font-semibold uppercase tracking-wide text-fg">{name}</p>
         <p className="text-sm tabular-nums text-muted">{score.toFixed(1)}</p>
       </div>
-      <PayoutMark coins={coins} stars={stars} />
+      <PayoutMark coins={coins} stars={stars} scratchPoints={scratchPoints} />
     </div>
   );
 }
@@ -100,6 +103,7 @@ function ToastBody({ item }: { item: ToastItem }) {
           score={p.score ?? 0}
           coins={p.coins ?? 1}
           stars={p.stars ?? 1}
+          scratchPoints={p.scratchPoints}
         />
         <div className="mt-3">
           <LineupRows picks={p.picks ?? []} />
@@ -119,6 +123,7 @@ function ToastBody({ item }: { item: ToastItem }) {
           score={p.score ?? 0}
           coins={p.coins ?? 2}
           stars={p.stars ?? 2}
+          scratchPoints={p.scratchPoints}
         />
         <div className="mt-3">
           <LineupRows picks={p.picks ?? []} />

@@ -292,6 +292,7 @@ function NewsLine({ item, onPeek }: { item: NewsItem; onPeek: (look: LookPeek) =
         <span className="text-muted">won the</span>
         <span>{formatDay(item.day)} Daily</span>
         <span className="font-display tabular-nums">({item.score})</span>
+        {item.scratchPoints ? <span>+$1, +1 ★, +{item.scratchPoints} scratch points</span> : null}
       </p>
     );
   }
@@ -303,6 +304,7 @@ function NewsLine({ item, onPeek }: { item: NewsItem; onPeek: (look: LookPeek) =
         <span className="text-muted">won</span>
         <span>{week}</span>
         <span className="font-display tabular-nums">({item.score})</span>
+        {item.scratchPoints ? <span>+$2, +2 ★, +{item.scratchPoints} scratch points</span> : null}
       </p>
     );
   }

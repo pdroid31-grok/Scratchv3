@@ -210,6 +210,13 @@ async function settleYesterday(sql: Sql, today: string): Promise<void> {
       kind: "daily_win",
       sourceKey: dailyWinKey(yday, id),
     });
+    try {
+      const { grantWinScratchPoints } = await import("./scratch.server");
+      const { dailyWinScratchKey } = await import("./scratch");
+      await grantWinScratchPoints(sql, id, dailyWinScratchKey(yday, id));
+    } catch (err) {
+      console.error("[darkness] daily win scratch points failed", err);
+    }
   }
   await sql.query(
     `update darkness_daily_days
@@ -230,6 +237,7 @@ async function settleYesterday(sql: Sql, today: string): Promise<void> {
           faces: [{ name: actor.name, avatarId: actor.avatarId, userId: id }],
           day: yday,
           score: formatNewsScore(asNum(hit.score)),
+          scratchPoints: 100,
         },
       });
     }

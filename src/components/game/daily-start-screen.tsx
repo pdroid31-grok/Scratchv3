@@ -18,7 +18,7 @@ const RULES: { icon: LucideIcon; text: string }[] = [
   { icon: MousePointerClick, text: "Select players names to see their current season stats." },
   {
     icon: Star,
-    text: `Score over ${DAILY_SCORE_LINE} pays $1. Top score for the day wins a bonus $1 and Daily Star.`,
+    text: `Score over ${DAILY_SCORE_LINE} pays $1. Top score for the day wins a bonus $1, +1 Daily Star, and +100 scratch points.`,
   },
 ];
 
@@ -70,15 +70,15 @@ export function DailyStartScreen({ onClose, onSeeResults }: { onClose: () => voi
                 <line.icon className="size-4" strokeWidth={1.75} />
               </span>
               <p className="text-sm leading-relaxed text-fg">
-                {line.text.endsWith("Daily Star.") ? (
+                {line.text.includes("scratch points") ? (
                   <>
-                    Score over {DAILY_SCORE_LINE} pays $1. Top score for the day wins a bonus $1 and Daily Star
+                    Score over {DAILY_SCORE_LINE} pays $1. Top score for the day wins a bonus $1, +1 Daily Star
                     <Star
                       className="ml-1 inline size-3.5 align-[-2px] text-accent"
                       fill="currentColor"
                       aria-hidden
                     />
-                    .
+                    , and +100 scratch points.
                   </>
                 ) : (
                   line.text

@@ -18,6 +18,7 @@ export type NewsItem = {
   prizeId?: AvatarId;
   prizeLabel?: string;
   stars?: number;
+  scratchPoints?: number;
   day?: string;
   week?: string;
 };

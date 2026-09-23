@@ -7,6 +7,8 @@ import {
   prizeFromRoll,
   scratchFromTotal,
   scratchPercent,
+  DAILY_WIN_SCRATCH,
+  WEEKLY_WIN_SCRATCH,
   SCRATCH_BANK_START,
   SCRATCH_NEED,
   type ScratchCardView,
@@ -105,6 +107,27 @@ async function starScratchPointTotal(sql: Sql, userId: string): Promise<number> 
     [userId],
   );
   return asInt(rows[0]?.n) * STAR_SCRATCH_POINTS;
+}
+
+async function winScratchPointTotal(sql: Sql, userId: string): Promise<number> {
+  await ensureScratchFlags(sql);
+  const rows = await sql.query<{ daily_n: number | string; weekly_n: number | string }>(
+    `select count(*) filter (where split_part(key, ':', 2) = 'daily')::int as daily_n,
+            count(*) filter (where split_part(key, ':', 2) = 'weekly')::int as weekly_n
+       from darkness_scratch_flags
+      where split_part(key, ':', 1) = 'win-scratch'
+        and split_part(key, ':', 4) = $1`,
+    [userId],
+  );
+  return asInt(rows[0]?.daily_n) * DAILY_WIN_SCRATCH + asInt(rows[0]?.weekly_n) * WEEKLY_WIN_SCRATCH;
+}
+
+/** +100 / +200 on a new win award. Points only — does not mint a ticket. No historic backfill. */
+export async function grantWinScratchPoints(sql: Sql, userId: string, key: string): Promise<void> {
+  if (!userId || !key.startsWith("win-scratch:")) return;
+  if (await skipStarScratch(sql, userId)) return;
+  await ensureScratchFlags(sql);
+  await sql.query(`insert into darkness_scratch_flags (key) values ($1) on conflict (key) do nothing`, [key]);
 }
 
 async function skipStarScratch(sql: Sql, userId: string): Promise<boolean> {
@@ -276,7 +299,10 @@ async function notifyScratchReadyCatchup(sql: Sql, userId: string): Promise<void
 export async function syncScratchBank(sql: Sql, userId: string): Promise<ScratchState> {
   await ensureScratchTables(sql);
   await dropHistoricUnused(sql);
-  const total = (await dailyScoreTotal(sql, userId)) + (await starScratchPointTotal(sql, userId));
+  const total =
+    (await dailyScoreTotal(sql, userId)) +
+    (await starScratchPointTotal(sql, userId)) +
+    (await winScratchPointTotal(sql, userId));
   const earned = scratchFromTotal(total);
   await capPostCutoffUnused(sql, userId, earned.cards);
   const mintedRows = await sql.query<{ n: number | string }>(

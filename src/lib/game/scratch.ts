@@ -2,6 +2,18 @@ export const SCRATCH_NEED = 1000;
 export const SCRATCH_WIPE = 0.6;
 /** Daily `day` stamps (America/New_York) on or after this count toward the bank. */
 export const SCRATCH_BANK_START = "2026-09-15";
+/** New Daily 1st only. Points, not a card. */
+export const DAILY_WIN_SCRATCH = 100;
+/** New Weekly 1st only. Points, not a card. */
+export const WEEKLY_WIN_SCRATCH = 200;
+
+export function dailyWinScratchKey(day: string, userId: string): string {
+  return `win-scratch:daily:${day}:${userId}`;
+}
+
+export function weeklyWinScratchKey(season: number, week: number, userId: string): string {
+  return `win-scratch:weekly:${season}-W${week}:${userId}`;
+}
 
 export type ScratchPrizeKey = "nothing" | "coins1" | "coins2" | "coins3" | "star" | "combo" | "joker";
 

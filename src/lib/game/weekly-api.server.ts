@@ -382,6 +382,13 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
         kind: "weekly_win",
         sourceKey: weeklyWinKey(season, week, row.userId),
       });
+      try {
+        const { grantWinScratchPoints } = await import("./scratch.server");
+        const { weeklyWinScratchKey } = await import("./scratch");
+        await grantWinScratchPoints(sql, row.userId, weeklyWinScratchKey(season, week, row.userId));
+      } catch (err) {
+        console.error("[darkness] weekly win scratch points failed", err);
+      }
     }
     try {
       const { maybeGrantBullseye, maybeGrantHeavyHitter } = await import("./board-feats.server");
@@ -424,6 +431,7 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
           faces: [{ name: actor.name, avatarId: actor.avatarId, userId: row.userId }],
           week: `Week ${week}`,
           score: formatNewsScore(row.score),
+          scratchPoints: 200,
         },
       });
     }

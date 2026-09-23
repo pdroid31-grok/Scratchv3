@@ -13,6 +13,7 @@ type NewsPayload = {
   prizeId?: string;
   prizeLabel?: string;
   stars?: number;
+  scratchPoints?: number;
   day?: string;
   week?: string;
 };
@@ -220,6 +221,9 @@ function parseItem(
     prizeId: raw.prizeId ? clampAvatar(raw.prizeId) : undefined,
     prizeLabel: raw.prizeLabel,
     stars: Number.isFinite(Number(raw.stars)) ? Math.max(0, Math.floor(Number(raw.stars))) : undefined,
+    scratchPoints: Number.isFinite(Number(raw.scratchPoints))
+      ? Math.max(0, Math.floor(Number(raw.scratchPoints)))
+      : undefined,
     day: raw.day,
     week: raw.week,
   };

@@ -88,6 +88,7 @@ export async function recordDailyWinToast(
       picks: clipToastPicks(input.picks),
       coins: 1,
       stars: 1,
+      scratchPoints: 100,
     },
   });
   await recordStarJumpToasts(sql, input.userId, 1);
@@ -113,6 +114,7 @@ export async function recordWeeklyWinToast(
       picks: clipToastPicks(input.picks),
       coins: 2,
       stars: 2,
+      scratchPoints: 200,
     },
   });
   await recordStarJumpToasts(sql, input.userId, 2);
