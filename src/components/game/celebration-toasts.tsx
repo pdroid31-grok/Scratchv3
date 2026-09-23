@@ -81,7 +81,7 @@ function ToastBody({ item }: { item: ToastItem }) {
           Your scratch ticket is ready
         </p>
         <img
-          src="/scratch-ticket.jpg"
+          src="/scratch-ticket.jpg?v=2"
           alt=""
           className="mt-4 w-full rounded-lg object-cover shadow-[var(--shadow-border)]"
         />

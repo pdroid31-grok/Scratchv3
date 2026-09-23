@@ -246,7 +246,7 @@ function ScratchPlay({ card, onClose }: { card: ScratchCardView; onClose: () => 
           </button>
         </div>
         <div className="grid gap-3 p-4">
-          <img src="/scratch-ticket.jpg" alt="" className="w-full rounded-lg object-cover shadow-[var(--shadow-border)]" />
+          <img src="/scratch-ticket.jpg?v=2" alt="" className="w-full rounded-lg object-cover shadow-[var(--shadow-border)]" />
           <div className="relative overflow-hidden rounded-lg bg-bg p-4 shadow-[var(--shadow-border)]">
             <p className="mb-3 text-center text-xs uppercase tracking-[0.2em] text-muted">Prize</p>
             <div className="grid grid-cols-3 gap-2">
@@ -316,7 +316,7 @@ export function ScratchCard() {
         </div>
         <div className="relative mt-3">
           <img
-            src="/scratch-ticket.jpg"
+            src="/scratch-ticket.jpg?v=2"
             alt=""
             className="w-full rounded-lg object-cover shadow-[var(--shadow-border)]"
           />
