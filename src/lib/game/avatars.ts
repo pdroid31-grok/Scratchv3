@@ -95,6 +95,7 @@ export const AVATARS = [
   { id: "boxlunch", name: "Box Lunch", src: "/avatars/boxlunch.jpg?v=1" },
   { id: "doubledonut", name: "Double Donut", src: "/avatars/doubledonut.jpg?v=1" },
   { id: "lumpedup", name: "Lumped Up", src: "/avatars/lumpedup.jpg?v=1" },
+  { id: "negative", name: "Negative", src: "/avatars/negative.jpg?v=1" },
   { id: "football", name: "Football", src: "/avatars/football.jpg?v=1" },
   { id: "luchador", name: "Luchador", src: "/avatars/luchador.jpg?v=1" },
   { id: "tailgater", name: "Tailgater", src: "/avatars/tailgater.jpg?v=1" },
@@ -153,6 +154,7 @@ export const FREE_FALL_ID = "freefall" as const satisfies AvatarId;
 export const BOX_LUNCH_ID = "boxlunch" as const satisfies AvatarId;
 export const DOUBLE_DONUT_ID = "doubledonut" as const satisfies AvatarId;
 export const LUMPED_UP_ID = "lumpedup" as const satisfies AvatarId;
+export const NEGATIVE_ID = "negative" as const satisfies AvatarId;
 export const BANANA_SCORE_UNDER = 60;
 export const CROSSWORD_STREAK_NEED = 10;
 export const LOCKED_IN_STREAK_NEED = 100;
@@ -169,6 +171,7 @@ export const LUMPED_UP_UNDER = 100;
 export const LUMPED_UP_DAYS = 3;
 export const DOUBLE_DONUT_NEED = 2;
 export const DOUBLE_DONUT_FROM = "2026-09-23";
+export const NEGATIVE_FROM = "2026-09-23";
 const STAR_IDS = new Set<string>(STAR_UNLOCKS.map((row) => row.id));
 const FEAT_IDS = new Set<string>([
   CLUB_200_ID,
@@ -197,6 +200,7 @@ const FEAT_IDS = new Set<string>([
   BOX_LUNCH_ID,
   DOUBLE_DONUT_ID,
   LUMPED_UP_ID,
+  NEGATIVE_ID,
 ]);
 export const ACHIEVEMENT_UNLOCKS = [
   { id: CLUB_200_ID, how: "Score 200+ points in a single match." },
@@ -221,6 +225,7 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: BOX_LUNCH_ID, how: "Open a Mystery Box and a scratch ticket the same day." },
   { id: DOUBLE_DONUT_ID, how: "Start two or more players who score 0 in a Daily or Weekly Match." },
   { id: LUMPED_UP_ID, how: "Score under 100 in Daily three days in a row." },
+  { id: NEGATIVE_ID, how: "Start a player who finishes with negative points in a Daily Match." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];
 export const PRIZE_AVATARS = AVATARS.filter(
   (avatar) => avatar.id !== "poor" && avatar.id !== "golden" && !STAR_IDS.has(avatar.id) && !FEAT_IDS.has(avatar.id),
@@ -276,6 +281,10 @@ export function lostGapHit(prev: string, cur: string, from = FEAT_TRACK_FROM): b
 
 export function isExactZeroScore(score: number): boolean {
   return Number.isFinite(score) && Math.round(score * 10) / 10 === 0;
+}
+
+export function isNegativeScore(score: number): boolean {
+  return Number.isFinite(score) && Math.round(score * 10) / 10 < 0;
 }
 
 export function doubleDonutHit(zeroCount: number): boolean {

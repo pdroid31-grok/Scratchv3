@@ -21,12 +21,15 @@ import {
   BOX_LUNCH_ID,
   DOUBLE_DONUT_ID,
   LUMPED_UP_ID,
+  NEGATIVE_ID,
   EARLY_BIRD_NEED,
   NIGHT_OWL_NEED,
   FEAT_TRACK_FROM,
   DOUBLE_DONUT_FROM,
+  NEGATIVE_FROM,
   doubleDonutHit,
   isExactZeroScore,
+  isNegativeScore,
   lumpedUpHit,
   weeklyRealZeroCount,
   type AvatarId,
@@ -362,6 +365,51 @@ export function dailyLineupRealZeroCount(
     n += 1;
   }
   return n;
+}
+
+/** Real score under 0 on that Daily lineup. Bye, blank, hidden week, and a missing cell do not count. */
+export function dailyLineupHasNegative(
+  picks: readonly { id?: string; name?: string; team?: string }[],
+  year: number,
+  week: number,
+): boolean {
+  if (!Number.isFinite(year) || !Number.isFinite(week) || week < 1) return false;
+  if (hiddenWeeks(year).includes(week)) return false;
+  const seen = new Set<string>();
+  for (const pick of picks) {
+    const id = String(pick.id ?? "").trim();
+    const name = String(pick.name ?? "").trim();
+    const team = String(pick.team ?? "").trim();
+    if (!id || !name || seen.has(id)) continue;
+    seen.add(id);
+    if (team && teamBye(year, team as TeamId) === week) continue;
+    const cell = rawElimWeek(id, week);
+    if (cell != null && isNegativeScore(cell)) return true;
+  }
+  return false;
+}
+
+export async function maybeGrantNegative(sql: Sql, userId: string): Promise<void> {
+  try {
+    const rows = await sql.query<{ day: string; year: number | string; week: number | string; picks: unknown }>(
+      `select r.day::text as day, d.year, d.week, r.picks
+         from darkness_daily_runs r
+         join darkness_daily_days d on d.day = r.day
+        where r.user_id = $1
+          and r.status = 'done'
+          and r.day >= $2::date
+          and r.picks is not null`,
+      [userId, NEGATIVE_FROM],
+    );
+    for (const row of rows) {
+      const picks = Array.isArray(row.picks) ? (row.picks as { id?: string; name?: string; team?: string }[]) : [];
+      if (!dailyLineupHasNegative(picks, Number(row.year), Number(row.week))) continue;
+      await grantFeat(sql, userId, NEGATIVE_ID);
+      return;
+    }
+  } catch (err) {
+    console.error("[darkness] negative grant failed", err);
+  }
 }
 
 export async function maybeGrantDoubleDonutDaily(sql: Sql, userId: string): Promise<void> {

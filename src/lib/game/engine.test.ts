@@ -7,7 +7,7 @@ import { applyPrize, bagLegend, HALFTIME_BAG, prizeLabel, redactHalftime, type P
 import { clipDisplayName, hostedNightKey, nightKey, opponentKey, planHostedNightWrite, isBankCommish } from "./stats-shared";
 import { parseRankTab } from "./rank-tabs";
 import { hostedMatchView, historyLineScore } from "./hosted-match";
-import { clampAvatar, isUnlocked, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, walletBalance, PRIZE_AVATARS, WIN_PAY, BOX_COST, GOLDEN_COST, boxPoolOwnedCount, hitBananaScore, hitBoxAddict, justUnlockedBanana, justUnlockedScratchLook, BOX_ADDICT_POOL_NEED, BANANA_SCORE_UNDER, avatarById, hitHeavyHitterScore, skipHeavyHitterWeek, stampDayGap, lostGapHit, earlyBirdDayCount, nightOwlDayCount, comebackKidHit, freeFallHit, EARLY_BIRD_NEED, NIGHT_OWL_NEED, FEAT_TRACK_FROM, DOUBLE_DONUT_FROM, LOST_GAP_DAYS, HEAVY_HITTER_PPR, lumpedUpHit, weeklyRealZeroCount, doubleDonutHit, isExactZeroScore, lookSource } from "./avatars";
+import { clampAvatar, isUnlocked, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, walletBalance, PRIZE_AVATARS, WIN_PAY, BOX_COST, GOLDEN_COST, boxPoolOwnedCount, hitBananaScore, hitBoxAddict, justUnlockedBanana, justUnlockedScratchLook, BOX_ADDICT_POOL_NEED, BANANA_SCORE_UNDER, avatarById, hitHeavyHitterScore, skipHeavyHitterWeek, stampDayGap, lostGapHit, earlyBirdDayCount, nightOwlDayCount, comebackKidHit, freeFallHit, EARLY_BIRD_NEED, NIGHT_OWL_NEED, FEAT_TRACK_FROM, DOUBLE_DONUT_FROM, NEGATIVE_FROM, LOST_GAP_DAYS, HEAVY_HITTER_PPR, lumpedUpHit, weeklyRealZeroCount, doubleDonutHit, isExactZeroScore, isNegativeScore, lookSource } from "./avatars";
 import { PLAYERS } from "./players";
 import { ratingFromPpr } from "./ratings";
 import { emptyRoster, type Roster } from "./types";
@@ -977,6 +977,7 @@ describe("avatars", () => {
     assert.equal(lookSource("golden"), "From the Store");
     assert.equal(lookSource("dj"), "From Daily Unlock, 3 ★");
     assert.equal(lookSource("doubledonut"), "From Achievement: Start two or more players who score 0 in a Daily or Weekly Match.");
+    assert.equal(lookSource("negative"), "From Achievement: Start a player who finishes with negative points in a Daily Match.");
     assert.equal(lookSource("farmer"), "From the Mystery Box");
     assert.equal(lookSource("crypepe"), "From a scratch ticket");
     assert.equal(lookSource("joker"), "From a scratch ticket");
@@ -1004,7 +1005,7 @@ describe("avatars", () => {
     assert.equal(pickPrize(ownedAll), null);
     assert.equal(
       PRIZE_AVATARS.some((avatar) =>
-        ["club200", "peeping", "banana", "crossword", "thanos", "boxaddict", "commish", "jail", "8ball", "ghostpepe", "lockedin", "sniper", "silvermedal", "crypepe", "joker", "doubletrouble", "bullseye", "rainyday", "earlybird", "heavyhitter", "lost", "vegas", "nightowl", "comebackkid", "freefall", "boxlunch", "doubledonut", "lumpedup"].includes(avatar.id),
+        ["club200", "peeping", "banana", "crossword", "thanos", "boxaddict", "commish", "jail", "8ball", "ghostpepe", "lockedin", "sniper", "silvermedal", "crypepe", "joker", "doubletrouble", "bullseye", "rainyday", "earlybird", "heavyhitter", "lost", "vegas", "nightowl", "comebackkid", "freefall", "boxlunch", "doubledonut", "lumpedup", "negative"].includes(avatar.id),
       ),
       false,
     );
@@ -1054,6 +1055,7 @@ describe("avatars", () => {
   it("tracks Early Bird, Lost, and Heavy Hitter from native days only", () => {
     assert.equal(FEAT_TRACK_FROM, "2026-09-17");
     assert.equal(DOUBLE_DONUT_FROM, "2026-09-23");
+    assert.equal(NEGATIVE_FROM, "2026-09-23");
     assert.equal(EARLY_BIRD_NEED, 10);
     assert.equal(NIGHT_OWL_NEED, 10);
     assert.equal(LOST_GAP_DAYS, 10);
@@ -1064,6 +1066,11 @@ describe("avatars", () => {
     assert.equal(lostGapHit("2026-09-17", "2026-09-26"), false);
     assert.equal(isExactZeroScore(0), true);
     assert.equal(isExactZeroScore(0.04), true);
+    assert.equal(isNegativeScore(-0.1), true);
+    assert.equal(isNegativeScore(-1), true);
+    assert.equal(isNegativeScore(0), false);
+    assert.equal(isNegativeScore(0.04), false);
+    assert.equal(isNegativeScore(-0.04), false);
     assert.equal(isExactZeroScore(0.1), false);
     assert.equal(doubleDonutHit(1), false);
     assert.equal(doubleDonutHit(2), true);

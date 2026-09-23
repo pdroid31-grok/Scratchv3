@@ -19,7 +19,7 @@ import {
 } from "./daily";
 import { scoredWeek, type ElimPick } from "./elim";
 import { clipDisplayName, isAwardSkippedName, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
-import { clampAvatar, DOUBLE_DONUT_FROM, type AvatarId } from "./avatars";
+import { clampAvatar, DOUBLE_DONUT_FROM, NEGATIVE_FROM, type AvatarId } from "./avatars";
 
 type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
 
@@ -388,12 +388,13 @@ async function completeDailyRun(
     });
   }
   try {
-    const { maybeGrantBullseye, maybeGrantEarlyBird, maybeGrantNightOwl, maybeGrantLost, maybeGrantDoubleDonutDaily, maybeGrantLumpedUp } = await import("./board-feats.server");
+    const { maybeGrantBullseye, maybeGrantEarlyBird, maybeGrantNightOwl, maybeGrantLost, maybeGrantDoubleDonutDaily, maybeGrantLumpedUp, maybeGrantNegative } = await import("./board-feats.server");
     await maybeGrantBullseye(sql, userId, score);
     await maybeGrantEarlyBird(sql, userId);
     await maybeGrantNightOwl(sql, userId);
     await maybeGrantLost(sql, userId, day.day);
     if (day.day >= DOUBLE_DONUT_FROM) await maybeGrantDoubleDonutDaily(sql, userId);
+    if (day.day >= NEGATIVE_FROM) await maybeGrantNegative(sql, userId);
     if (day.day >= "2026-09-17") await maybeGrantLumpedUp(sql, userId);
   } catch (err) {
     console.error("[darkness] daily feat grant failed", err);
