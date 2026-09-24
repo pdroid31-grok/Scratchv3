@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
+import { BOX_COST } from "./avatars";
 import { clipDisplayName, hiddenBoardIdSql, hiddenBoardNameSql, isBankCommish, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
 
 type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
@@ -20,6 +21,7 @@ export type BankChange = {
   after: number;
   delta: number;
   at: string;
+  reason: string | null;
 };
 
 export type BankWatch = {
@@ -42,6 +44,37 @@ export async function ensureBankLog(sql: Sql): Promise<void> {
       created_at timestamptz not null default now()
     )`);
   await sql.query("create index if not exists darkness_bank_log_at_idx on darkness_bank_log (created_at desc)");
+  await sql.query("alter table darkness_bank_log add column if not exists reason text");
+}
+
+const PAYOUT_REASONS = new Set(["daily_win", "daily_score", "weekly_win", "weekly_score", "scratch"]);
+
+export async function bankChangeReason(
+  sql: Sql,
+  userId: string,
+  before: number,
+  after: number,
+  winsBefore: number,
+  winsAfter: number,
+): Promise<string | null> {
+  const delta = Math.floor(after) - Math.floor(before);
+  if (delta < 0 && Math.abs(delta) === BOX_COST) return "box";
+  try {
+    const recent = await sql.query<{ kind: string | null }>(
+      `select kind from darkness_payouts
+        where user_id = $1
+          and created_at > now() - interval '60 seconds'
+        order by created_at desc, id desc
+        limit 1`,
+      [userId],
+    );
+    const kind = recent[0]?.kind ?? "";
+    if (PAYOUT_REASONS.has(kind)) return kind;
+  } catch {
+    /* payouts table may not exist yet */
+  }
+  if (Math.floor(winsAfter) > Math.floor(winsBefore)) return "match";
+  return null;
 }
 
 export async function recordBankChange(
@@ -49,14 +82,26 @@ export async function recordBankChange(
   userId: string,
   before: number,
   after: number,
+  reason?: string | null,
 ): Promise<void> {
-  if (before === after) return;
+  const coinsBefore = Math.floor(before);
+  const coinsAfter = Math.floor(after);
+  if (coinsBefore === coinsAfter) return;
+  const label = reason && reason.trim() ? reason.trim() : null;
   try {
     await ensureBankLog(sql);
     await sql.query(
-      `insert into darkness_bank_log (user_id, coins_before, coins_after, delta)
-       values ($1, $2, $3, $4)`,
-      [userId, Math.floor(before), Math.floor(after), Math.floor(after) - Math.floor(before)],
+      `insert into darkness_bank_log (user_id, coins_before, coins_after, delta, reason)
+       select $1, $2, $3, $4, $5
+         from (select pg_advisory_xact_lock(hashtext('bank:' || $1::text))) locked
+        where not exists (
+          select 1 from darkness_bank_log
+           where user_id = $1
+             and coins_before = $2
+             and coins_after = $3
+             and created_at > now() - interval '10 seconds'
+        )`,
+      [userId, coinsBefore, coinsAfter, coinsAfter - coinsBefore, label],
     );
   } catch (err) {
     console.error("[darkness] bank log failed", err);
@@ -105,9 +150,10 @@ export async function loadBankWatch(sql: Sql): Promise<BankWatch> {
     coins_before: number | string;
     coins_after: number | string;
     delta: number | string;
+    reason: string | null;
     created_at: string | Date;
   }>(
-    `select l.id, l.user_id, l.coins_before, l.coins_after, l.delta, l.created_at,
+    `select l.id, l.user_id, l.coins_before, l.coins_after, l.delta, l.reason, l.created_at,
             coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), 'GM') as name
        from darkness_bank_log l
        left join player_profiles p on p.user_id = l.user_id
@@ -141,6 +187,7 @@ export async function loadBankWatch(sql: Sql): Promise<BankWatch> {
           after: asInt(row.coins_after),
           delta: asInt(row.delta),
           at: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
+          reason: row.reason && row.reason.trim() ? row.reason.trim() : null,
         },
       ];
     }),

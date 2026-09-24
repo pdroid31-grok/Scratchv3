@@ -195,10 +195,13 @@ async function settleSeededProfile(
   nextOwned = await grantSeedClub200(sql, userId, nextOwned);
   nextOwned = await grantEarnedFeats(sql, userId, nextOwned);
   const beforeCoins = asInt(row?.coins);
+  const beforeWins = asInt(row?.coin_wins);
+  const wins = asInt(winsRow[0]?.wins);
   if (coins !== beforeCoins) {
     await sql.query(`update player_profiles set coins = $1, updated_at = now() where user_id = $2`, [coins, userId]);
-    const { recordBankChange } = await import("../bank-watch");
-    await recordBankChange(sql, userId, beforeCoins, coins);
+    const { bankChangeReason, recordBankChange } = await import("../bank-watch");
+    const reason = await bankChangeReason(sql, userId, beforeCoins, coins, beforeWins, wins);
+    await recordBankChange(sql, userId, beforeCoins, coins, reason);
   }
   const avatarId = justUnlockedBanana(owned, nextOwned)
     ? BANANA_ID
@@ -346,8 +349,9 @@ export async function settleProfile(
       [coins, wins, credit, dailyStars, userId],
     );
     if (coins !== beforeCoins) {
-      const { recordBankChange } = await import("../bank-watch");
-      await recordBankChange(sql, userId, beforeCoins, coins);
+      const { bankChangeReason, recordBankChange } = await import("../bank-watch");
+      const reason = await bankChangeReason(sql, userId, beforeCoins, coins, asInt(row?.coin_wins), wins);
+      await recordBankChange(sql, userId, beforeCoins, coins, reason);
     }
   }
   avatarId = clampAvatar(avatarId, owned);

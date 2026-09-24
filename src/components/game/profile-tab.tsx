@@ -392,6 +392,9 @@ function BankWatchPanel() {
                     {row.name}
                   </span>
                   <span className="text-xs tabular-nums text-muted">{formatBankWhen(row.at)}</span>
+                  {bankReasonLabel(row.reason) ? (
+                    <span className="block text-xs text-muted">{bankReasonLabel(row.reason)}</span>
+                  ) : null}
                 </span>
                 <span className="shrink-0 text-right font-display text-sm font-semibold tabular-nums text-fg">
                   <span className={row.delta >= 0 ? "text-turf" : "text-muted"}>
@@ -408,6 +411,17 @@ function BankWatchPanel() {
       </div>
     </div>
   );
+}
+
+function bankReasonLabel(reason: string | null): string {
+  if (reason === "daily_win") return "Daily win";
+  if (reason === "daily_score") return "Daily score";
+  if (reason === "weekly_win") return "Weekly win";
+  if (reason === "weekly_score") return "Weekly over 100";
+  if (reason === "scratch") return "Scratch";
+  if (reason === "box") return "Mystery Box";
+  if (reason === "match") return "Match";
+  return "";
 }
 
 function formatBankWhen(iso: string): string {
