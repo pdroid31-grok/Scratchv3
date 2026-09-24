@@ -15,7 +15,9 @@ import { Route as RankingsRouteImport } from './routes/rankings'
 import { Route as RecapRouteImport } from './routes/recap'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ApiPayoutsRouteImport } from './routes/api/payouts'
+import { Route as ApiPlayStripsRouteImport } from './routes/api/play-strips'
 import { Route as ApiRankingsRouteImport } from './routes/api/rankings'
+import { Route as ApiCronPlayStripsRouteImport } from './routes/api/cron/play-strips'
 import { Route as PlayerIdRouteImport } from './routes/player/$id'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 
@@ -49,9 +51,19 @@ const ApiPayoutsRoute = ApiPayoutsRouteImport.update({
   path: '/api/payouts',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPlayStripsRoute = ApiPlayStripsRouteImport.update({
+  id: '/api/play-strips',
+  path: '/api/play-strips',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiRankingsRoute = ApiRankingsRouteImport.update({
   id: '/api/rankings',
   path: '/api/rankings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCronPlayStripsRoute = ApiCronPlayStripsRouteImport.update({
+  id: '/api/cron/play-strips',
+  path: '/api/cron/play-strips',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PlayerIdRoute = PlayerIdRouteImport.update({
@@ -72,9 +84,11 @@ export interface FileRoutesByFullPath {
   '/recap': typeof RecapRoute
   '/settings': typeof SettingsRoute
   '/api/payouts': typeof ApiPayoutsRoute
+  '/api/play-strips': typeof ApiPlayStripsRoute
   '/api/rankings': typeof ApiRankingsRoute
   '/player/$id': typeof PlayerIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cron/play-strips': typeof ApiCronPlayStripsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -83,9 +97,11 @@ export interface FileRoutesByTo {
   '/recap': typeof RecapRoute
   '/settings': typeof SettingsRoute
   '/api/payouts': typeof ApiPayoutsRoute
+  '/api/play-strips': typeof ApiPlayStripsRoute
   '/api/rankings': typeof ApiRankingsRoute
   '/player/$id': typeof PlayerIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cron/play-strips': typeof ApiCronPlayStripsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -95,9 +111,11 @@ export interface FileRoutesById {
   '/recap': typeof RecapRoute
   '/settings': typeof SettingsRoute
   '/api/payouts': typeof ApiPayoutsRoute
+  '/api/play-strips': typeof ApiPlayStripsRoute
   '/api/rankings': typeof ApiRankingsRoute
   '/player/$id': typeof PlayerIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cron/play-strips': typeof ApiCronPlayStripsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -108,7 +126,9 @@ export interface FileRouteTypes {
     | '/recap'
     | '/settings'
     | '/api/payouts'
+    | '/api/play-strips'
     | '/api/rankings'
+    | '/api/cron/play-strips'
     | '/player/$id'
     | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
@@ -119,7 +139,9 @@ export interface FileRouteTypes {
     | '/recap'
     | '/settings'
     | '/api/payouts'
+    | '/api/play-strips'
     | '/api/rankings'
+    | '/api/cron/play-strips'
     | '/player/$id'
     | '/api/auth/$'
   id:
@@ -130,7 +152,9 @@ export interface FileRouteTypes {
     | '/recap'
     | '/settings'
     | '/api/payouts'
+    | '/api/play-strips'
     | '/api/rankings'
+    | '/api/cron/play-strips'
     | '/player/$id'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
@@ -142,7 +166,9 @@ export interface RootRouteChildren {
   RecapRoute: typeof RecapRoute
   SettingsRoute: typeof SettingsRoute
   ApiPayoutsRoute: typeof ApiPayoutsRoute
+  ApiPlayStripsRoute: typeof ApiPlayStripsRoute
   ApiRankingsRoute: typeof ApiRankingsRoute
+  ApiCronPlayStripsRoute: typeof ApiCronPlayStripsRoute
   PlayerIdRoute: typeof PlayerIdRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
@@ -191,11 +217,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPayoutsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/play-strips': {
+      id: '/api/play-strips'
+      path: '/api/play-strips'
+      fullPath: '/api/play-strips'
+      preLoaderRoute: typeof ApiPlayStripsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/rankings': {
       id: '/api/rankings'
       path: '/api/rankings'
       fullPath: '/api/rankings'
       preLoaderRoute: typeof ApiRankingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/play-strips': {
+      id: '/api/cron/play-strips'
+      path: '/api/cron/play-strips'
+      fullPath: '/api/cron/play-strips'
+      preLoaderRoute: typeof ApiCronPlayStripsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/player/$id': {
@@ -222,7 +262,9 @@ const rootRouteChildren: RootRouteChildren = {
   RecapRoute: RecapRoute,
   SettingsRoute: SettingsRoute,
   ApiPayoutsRoute: ApiPayoutsRoute,
+  ApiPlayStripsRoute: ApiPlayStripsRoute,
   ApiRankingsRoute: ApiRankingsRoute,
+  ApiCronPlayStripsRoute: ApiCronPlayStripsRoute,
   PlayerIdRoute: PlayerIdRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }

@@ -3,15 +3,7 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import { avatarById } from "@/lib/game/avatars";
 import { dailyDayStamp } from "@/lib/game/daily";
-import {
-  getWeekly,
-  listSeasonBoard,
-  listWeeklyBoard,
-  type SeasonBoardRow,
-  type WeeklyBoard,
-  type WeeklyBoardRow,
-  type WeeklyMeta,
-} from "@/lib/game/weekly-api";
+import { getWeekly, type WeeklyMeta } from "@/lib/game/weekly-api";
 import {
   WEEKLY_STRIP_CACHE,
   readKeyedCache,
@@ -20,14 +12,16 @@ import {
   writeKeyedCache,
   writeWeeklyCur,
 } from "@/lib/game/play-strip-cache";
+import { fetchPlayStrips, type PlayFace } from "@/lib/game/play-public";
 import { useProfile } from "@/lib/game/profile-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 
 type WeeklyStripCache = {
   key: string;
   meta: WeeklyMeta | null;
-  board: WeeklyBoard | null;
-  season: SeasonBoardRow | null;
+  seasonLeader: PlayFace | null;
+  weekLeader: PlayFace | null;
+  weekLive: boolean;
 };
 
 function readThisWeekCache(): WeeklyStripCache | null {
@@ -42,8 +36,9 @@ export function PlayWeeklyStrip({ onOpen }: { onOpen?: () => void }) {
   const avatarId = useProfile((s) => s.avatarId);
   const displayName = useProfile((s) => s.displayName);
   const [meta, setMeta] = useState<WeeklyMeta | null>(null);
-  const [board, setBoard] = useState<WeeklyBoard | null>(null);
-  const [season, setSeason] = useState<SeasonBoardRow | null>(null);
+  const [seasonLeader, setSeasonLeader] = useState<PlayFace | null>(null);
+  const [weekLeader, setWeekLeader] = useState<PlayFace | null>(null);
+  const [weekLive, setWeekLive] = useState(false);
 
   useEffect(() => {
     void load();
@@ -53,37 +48,42 @@ export function PlayWeeklyStrip({ onOpen }: { onOpen?: () => void }) {
     const hit = readThisWeekCache();
     if (!hit) return;
     setMeta(hit.meta);
-    setBoard(hit.board);
-    setSeason(hit.season);
+    setSeasonLeader(hit.seasonLeader ?? null);
+    setWeekLeader(hit.weekLive ? (hit.weekLeader ?? null) : null);
+    setWeekLive(Boolean(hit.weekLive));
   }, []);
 
   useEffect(() => {
     let live = true;
     const pull = () => {
-      void Promise.all([
-        getWeekly({ data: {} }),
-        listWeeklyBoard({ data: { peek: true } }),
-        listSeasonBoard({ data: {} }),
-      ])
-        .then(([nextMeta, nextBoard, nextSeason]) => {
+      const day = dailyDayStamp();
+      void (async () => {
+        const strips = await fetchPlayStrips();
+        if (!live) return;
+        const fresh = strips && strips.etDay === day ? strips : null;
+        if (fresh) {
+          setSeasonLeader(fresh.seasonLeader);
+          setWeekLive(fresh.weekLive);
+          setWeekLeader(fresh.weekLive ? fresh.weekLeader : null);
+        }
+        try {
+          const nextMeta = await getWeekly({ data: {} });
           if (!live) return;
-          const nextLeader = nextSeason.rows[0] ?? null;
           setMeta(nextMeta);
-          setBoard(nextBoard);
-          setSeason(nextLeader);
-          const key = weeklyStripKey(nextMeta.season, nextMeta.week);
-          const day = dailyDayStamp();
+          const key = weeklyStripKey(fresh?.season ?? nextMeta.season, fresh?.week ?? nextMeta.week);
+          const prev = readThisWeekCache();
           writeKeyedCache(WEEKLY_STRIP_CACHE, {
             key,
             meta: nextMeta,
-            board: nextBoard,
-            season: nextLeader,
+            seasonLeader: fresh ? fresh.seasonLeader : (prev?.seasonLeader ?? null),
+            weekLeader: fresh ? (fresh.weekLive ? fresh.weekLeader : null) : (prev?.weekLeader ?? null),
+            weekLive: fresh ? fresh.weekLive : Boolean(prev?.weekLive),
           });
           writeWeeklyCur(key, day);
-        })
-        .catch(() => {
+        } catch {
           /* keep same-key cache; do not wipe this week's faces */
-        });
+        }
+      })();
     };
     pull();
     const id = window.setInterval(pull, 30_000);
@@ -93,14 +93,11 @@ export function PlayWeeklyStrip({ onOpen }: { onOpen?: () => void }) {
     };
   }, [user?.id]);
 
-  const live = Boolean(meta?.live || board?.live);
+  const live = weekLive;
   const lockedIn = meta?.status === "done";
-  const mineRow = user ? board?.rows.find((row) => row.id === user.id) : undefined;
-  const mineScore = live ? (mineRow?.score ?? 0) : 0;
+  const mineScore = live ? (meta?.score ?? 0) : 0;
   const name = displayName.trim() || user?.displayName?.trim() || "GM";
   const mine = avatarById(avatarId);
-  const lineups = board?.rows.filter((row) => row.hasPicks) ?? [];
-  const weekLeader = live ? (lineups[0] ?? null) : null;
 
   let mineLabel = "Submit lineup";
   if (lockedIn) mineLabel = mineScore.toFixed(1);
@@ -124,13 +121,13 @@ export function PlayWeeklyStrip({ onOpen }: { onOpen?: () => void }) {
           </>
         ) : null}
       </div>
-      <SeasonZone row={season} />
+      <SeasonZone row={seasonLeader} />
       <WeekLeaderZone live={live} row={weekLeader} />
     </button>
   );
 }
 
-function SeasonZone({ row }: { row: SeasonBoardRow | null }) {
+function SeasonZone({ row }: { row: PlayFace | null }) {
   return (
     <div className="flex min-w-0 items-center justify-center gap-1.5">
       {row ? (
@@ -157,7 +154,7 @@ function SeasonZone({ row }: { row: SeasonBoardRow | null }) {
   );
 }
 
-function WeekLeaderZone({ live, row }: { live: boolean; row: WeeklyBoardRow | null }) {
+function WeekLeaderZone({ live, row }: { live: boolean; row: PlayFace | null }) {
   return (
     <div className="flex min-w-0 items-center justify-end gap-1.5">
       {live && row ? (

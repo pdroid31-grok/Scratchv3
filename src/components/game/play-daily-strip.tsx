@@ -2,17 +2,18 @@
 
 import { useEffect, useLayoutEffect, useState } from "react";
 import { avatarById } from "@/lib/game/avatars";
-import { dailyDayStamp, dailyYesterday } from "@/lib/game/daily";
-import { getDaily, listDailyBoard, type DailyBoard, type DailyBoardRow, type DailyMeta } from "@/lib/game/daily-api";
+import { dailyDayStamp } from "@/lib/game/daily";
+import { getDaily, type DailyMeta } from "@/lib/game/daily-api";
 import { DAILY_STRIP_CACHE, readKeyedCache, writeKeyedCache } from "@/lib/game/play-strip-cache";
+import { fetchPlayStrips, type PlayFace } from "@/lib/game/play-public";
 import { useProfile } from "@/lib/game/profile-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 
 type DailyStripCache = {
   key: string;
   meta: DailyMeta | null;
-  todayBoard: DailyBoard | null;
-  yestBoard: DailyBoard | null;
+  yesterdayWinner: PlayFace | null;
+  todayLeader: PlayFace | null;
 };
 
 function readTodayDailyCache(): DailyStripCache | null {
@@ -25,8 +26,8 @@ export function PlayDailyStrip({ onOpen }: { onOpen?: () => void }) {
   const avatarId = useProfile((s) => s.avatarId);
   const displayName = useProfile((s) => s.displayName);
   const [meta, setMeta] = useState<DailyMeta | null>(null);
-  const [todayBoard, setTodayBoard] = useState<DailyBoard | null>(null);
-  const [yestBoard, setYestBoard] = useState<DailyBoard | null>(null);
+  const [yesterdayWinner, setYesterdayWinner] = useState<PlayFace | null>(null);
+  const [todayLeader, setTodayLeader] = useState<PlayFace | null>(null);
 
   useEffect(() => {
     void load();
@@ -36,35 +37,37 @@ export function PlayDailyStrip({ onOpen }: { onOpen?: () => void }) {
     const hit = readTodayDailyCache();
     if (!hit) return;
     setMeta(hit.meta);
-    setTodayBoard(hit.todayBoard);
-    setYestBoard(hit.yestBoard);
+    setYesterdayWinner(hit.yesterdayWinner ?? null);
+    setTodayLeader(hit.todayLeader ?? null);
   }, []);
 
   useEffect(() => {
     let live = true;
-    const day = dailyDayStamp();
-    const yest = dailyYesterday(day);
     const pull = () => {
-      void Promise.all([
-        getDaily({ data: {} }),
-        listDailyBoard({ data: { day } }),
-        listDailyBoard({ data: { day: yest } }),
-      ])
-        .then(([nextMeta, nextToday, nextYest]) => {
+      const day = dailyDayStamp();
+      void (async () => {
+        const strips = await fetchPlayStrips();
+        if (!live) return;
+        if (strips && strips.etDay === day) {
+          setYesterdayWinner(strips.yesterdayWinner);
+          setTodayLeader(strips.todayLeader);
+        }
+        try {
+          const nextMeta = await getDaily({ data: {} });
           if (!live) return;
           setMeta(nextMeta);
-          setTodayBoard(nextToday);
-          setYestBoard(nextYest);
+          const kept = strips && strips.etDay === day ? strips : null;
+          const prev = readTodayDailyCache();
           writeKeyedCache(DAILY_STRIP_CACHE, {
             key: day,
             meta: nextMeta,
-            todayBoard: nextToday,
-            yestBoard: nextYest,
+            yesterdayWinner: kept ? kept.yesterdayWinner : (prev?.yesterdayWinner ?? null),
+            todayLeader: kept ? kept.todayLeader : (prev?.todayLeader ?? null),
           });
-        })
-        .catch(() => {
+        } catch {
           /* keep same-key cache; do not wipe today's faces */
-        });
+        }
+      })();
     };
     pull();
     const id = window.setInterval(pull, 30_000);
@@ -77,9 +80,8 @@ export function PlayDailyStrip({ onOpen }: { onOpen?: () => void }) {
   const mineDone = meta?.status === "done" && meta.score != null;
   const name = displayName.trim() || user?.displayName?.trim() || "GM";
   const mine = avatarById(avatarId);
-  const leader = todayBoard?.rows[0] ?? null;
-  const yest =
-    yestBoard?.rows.find((row) => row.winner || row.id === yestBoard.winnerId) ?? yestBoard?.rows[0] ?? null;
+  const leader = todayLeader;
+  const yest = yesterdayWinner;
 
   return (
     <button
@@ -115,7 +117,7 @@ function PersonZone({
   align = "center",
 }: {
   label: string;
-  row: DailyBoardRow | null;
+  row: PlayFace | null;
   empty: string;
   align?: "center" | "right";
 }) {
