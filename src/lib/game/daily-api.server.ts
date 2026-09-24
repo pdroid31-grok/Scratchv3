@@ -538,6 +538,11 @@ export async function lockDailyHandler({ context, data }: { context: { userId: s
       return { ...metaFrom(day, "playing", run), week: 0, score: 0 };
     }
     const next = await completeDailyRun(sql, day, context.userId, picks);
+    if (runStatus(next) === "done") {
+      void import("./play-public.server")
+        .then(({ refreshPlayStripsIfDue }) => refreshPlayStripsIfDue())
+        .catch((err) => console.error("[darkness] play strips after lock failed", err));
+    }
     return { ...metaFrom(day, runStatus(next), next), week: day.week, score: asNum(next?.score) };
 }
 

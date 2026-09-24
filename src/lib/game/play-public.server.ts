@@ -74,9 +74,24 @@ export async function computePlayStrips(): Promise<PlayStrips> {
   };
 }
 
-async function readToday(sql: Sql, day: string, season: number, week: number): Promise<PlayStrips | null> {
-  const rows = await sql.query<{ season: number | string; week: number | string; payload: unknown }>(
-    `select season, week, payload from darkness_play_public where et_day = $1::date limit 1`,
+const STRIP_FRESH_MS = 60_000;
+
+async function readToday(
+  sql: Sql,
+  day: string,
+  season: number,
+  week: number,
+): Promise<{ strips: PlayStrips; updatedMs: number } | null> {
+  const rows = await sql.query<{
+    season: number | string;
+    week: number | string;
+    payload: unknown;
+    updated_ms: number | string;
+  }>(
+    `select season, week, payload, (extract(epoch from updated_at) * 1000)::bigint as updated_ms
+       from darkness_play_public
+      where et_day = $1::date
+      limit 1`,
     [day],
   );
   const row = rows[0];
@@ -90,7 +105,9 @@ async function readToday(sql: Sql, day: string, season: number, week: number): P
       return null;
     }
   }
-  return asStrips(payload, day, season, week);
+  const strips = asStrips(payload, day, season, week);
+  if (!strips) return null;
+  return { strips, updatedMs: Number(row.updated_ms) || 0 };
 }
 
 async function writeToday(sql: Sql, strips: PlayStrips): Promise<void> {
@@ -106,30 +123,33 @@ async function writeToday(sql: Sql, strips: PlayStrips): Promise<void> {
   );
 }
 
-/** Return today's row only. A missing or stale week is computed, never yesterday's row. */
+/** Return today's row. Recompute when it is missing, older than 60s, or still null while someone is on today's board. */
 export async function readOrBuildPlayStrips(): Promise<PlayStrips> {
   const sql = await getSql();
   await ensurePlayPublic(sql);
   const day = dailyDayStamp();
   const clock = await nflClock();
   const hit = await readToday(sql, day, clock.season, clock.week);
-  if (hit) return hit;
+  const age = hit ? Date.now() - hit.updatedMs : Number.POSITIVE_INFINITY;
+  const fresh = Boolean(hit && age < STRIP_FRESH_MS);
+  if (fresh && hit?.strips.todayLeader) return hit.strips;
+  if (fresh && hit && !hit.strips.todayLeader) {
+    const today = await listDailyBoardHandler({ data: { day } });
+    if (!face(today.rows[0] ?? null)) return hit.strips;
+  }
   const strips = await computePlayStrips();
   if (strips.etDay !== day) return strips;
   await writeToday(sql, strips);
   return strips;
 }
 
-/** Cron: if today's row already matches this NFL week, do nothing. */
+/** Cron: rewrite today's public faces every run. */
 export async function refreshPlayStripsIfDue(): Promise<{ wrote: boolean }> {
   const sql = await getSql();
   await ensurePlayPublic(sql);
   const day = dailyDayStamp();
-  const clock = await nflClock();
-  const hit = await readToday(sql, day, clock.season, clock.week);
-  if (hit) return { wrote: false };
   const strips = await computePlayStrips();
-  if (strips.etDay !== day || strips.season !== clock.season || strips.week !== clock.week) return { wrote: false };
+  if (strips.etDay !== day) return { wrote: false };
   await writeToday(sql, strips);
   return { wrote: true };
 }
