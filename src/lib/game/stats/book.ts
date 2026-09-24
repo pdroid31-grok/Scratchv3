@@ -95,20 +95,38 @@ export async function getMyStatsHandler({ context }: { context: { userId: string
     const seeded = await loadCareerBook(sql, context.userId);
 
     if (!row || asInt(row.games) === 0) {
+      const daily = await loadDailyMarks(sql, context.userId);
       if (seeded) {
+        const elimination = withDailyElim(seeded.elimination, daily);
+        const total = totalRecord(seeded.total, row, elimination);
         return withScratchBook(sql, context.userId, {
           ...emptyBook(),
           ...seeded,
-          games: seeded.total.games,
-          wins: seeded.total.wins,
-          losses: seeded.total.losses,
-          ties: seeded.total.ties,
-          highest: seeded.total.highest,
-          lowest: seeded.total.lowest,
+          games: total.games,
+          wins: total.wins,
+          losses: total.losses,
+          ties: total.ties,
+          highest: total.highest,
+          lowest: total.lowest,
+          total,
+          elimination,
+          auction: seeded.auction,
           ...settled,
         });
       }
-      return withScratchBook(sql, context.userId, { ...emptyBook(), ...settled });
+      const elimination = withDailyElim(emptySlice(), daily);
+      const total = totalRecord(null, row, elimination);
+      if (total.highest == null && total.lowest == null) {
+        return withScratchBook(sql, context.userId, { ...emptyBook(), ...settled });
+      }
+      return withScratchBook(sql, context.userId, {
+        ...emptyBook(),
+        highest: total.highest,
+        lowest: total.lowest,
+        total,
+        elimination,
+        ...settled,
+      });
     }
 
     const byKind = await sql.query<TotalsRow & { kind: string | null }>(
@@ -170,20 +188,21 @@ export async function getMyStatsHandler({ context }: { context: { userId: string
       kindOpps.filter((row) => (kind === "elimination" ? row.kind === "elimination" : row.kind !== "elimination")).slice(0, 10).map(mapOpp);
     const listed = opponents.map(mapOpp);
     const mergedAuction = seeded ? addSlices(seeded.auction, auction) : auction;
-    const mergedElim = seeded ? addSlices(seeded.elimination, elimination) : elimination;
-    const merged = kindSlices(mergedAuction, mergedElim);
+    const daily = await loadDailyMarks(sql, context.userId);
+    const mergedElim = withDailyElim(seeded ? addSlices(seeded.elimination, elimination) : elimination, daily);
+    const total = totalRecord(seeded?.total ?? null, row, mergedElim);
 
     return withScratchBook(sql, context.userId, {
-      games: merged.total.games,
-      wins: merged.total.wins,
-      losses: merged.total.losses,
-      ties: merged.total.ties,
-      highest: merged.total.highest,
-      lowest: merged.total.lowest,
+      games: total.games,
+      wins: total.wins,
+      losses: total.losses,
+      ties: total.ties,
+      highest: total.highest,
+      lowest: total.lowest,
       opponents: listed,
-      total: merged.total,
-      auction: merged.auction,
-      elimination: merged.elimination,
+      total,
+      auction: mergedAuction,
+      elimination: mergedElim,
       opponentsBy: {
         total: listed,
         auction: take("auction"),
@@ -256,6 +275,68 @@ function kindSlices(auction: BookSlice, elimination: BookSlice): {
     auction,
     elimination,
     total: { ...combined, highest: elimination.highest, lowest: elimination.lowest },
+  };
+}
+
+type DailyMarks = { high: number | null; low: number | null };
+
+function tenthScore(value: number | string | null | undefined): number | null {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  const tenth = Math.round(n * 10) / 10;
+  if (tenth === 0) return null;
+  return tenth;
+}
+
+async function loadDailyMarks(
+  sql: { query: <T>(text: string, params?: unknown[]) => Promise<T[]> },
+  userId: string,
+): Promise<DailyMarks> {
+  try {
+    const rows = await sql.query<{ score: number | string | null }>(
+      `select score
+         from darkness_daily_runs
+        where user_id = $1
+          and status = 'done'
+          and score is not null
+          and score <> 0`,
+      [userId],
+    );
+    const scores = rows.flatMap((row) => {
+      const score = tenthScore(row.score);
+      return score == null ? [] : [score];
+    });
+    if (!scores.length) return { high: null, low: null };
+    return { high: Math.max(...scores), low: Math.min(...scores) };
+  } catch {
+    return { high: null, low: null };
+  }
+}
+
+function foldMark(current: number | null, extra: number | null, pick: "max" | "min"): number | null {
+  if (extra == null) return current;
+  if (current == null) return extra;
+  return pick === "max" ? Math.max(current, extra) : Math.min(current, extra);
+}
+
+function withDailyElim(elim: BookSlice, daily: DailyMarks): BookSlice {
+  return {
+    ...elim,
+    highest: foldMark(elim.highest, daily.high, "max"),
+    lowest: foldMark(elim.lowest, daily.low, "min"),
+  };
+}
+
+/** Rankings Total: career_book.total plus every hosted night. High/low stay elim + Daily. */
+function totalRecord(seed: BookSlice | null, nights: TotalsRow | undefined, elim: BookSlice): BookSlice {
+  const base = seed ?? emptySlice();
+  return {
+    games: base.games + asInt(nights?.games),
+    wins: base.wins + asInt(nights?.wins),
+    losses: base.losses + asInt(nights?.losses),
+    ties: base.ties + asInt(nights?.ties),
+    highest: elim.highest,
+    lowest: elim.lowest,
   };
 }
 
@@ -403,7 +484,7 @@ export async function getPublicProfileHandler({ data }: { data: { userId: string
        group by coalesce(kind, 'auction')`,
       [data.userId],
     );
-    const { auction, elimination, total } = kindSlices(
+    const { auction, elimination } = kindSlices(
       toSlice(byKind.find((slice) => slice.kind !== "elimination")),
       toSlice(byKind.find((slice) => slice.kind === "elimination")),
     );
@@ -421,26 +502,23 @@ export async function getPublicProfileHandler({ data }: { data: { userId: string
       dailyStars,
     };
     const seeded = await loadCareerBook(sql, data.userId);
-    if (seeded) {
-      const mergedAuction = addSlices(seeded.auction, auction);
-      const mergedElim = addSlices(seeded.elimination, elimination);
-      const merged = kindSlices(mergedAuction, mergedElim);
-      return { ...book, ...merged };
-    }
-    if (total.games === 0) {
-      const fallback = toSlice(row);
+    const daily = await loadDailyMarks(sql, data.userId);
+    const mergedAuction = seeded ? addSlices(seeded.auction, auction) : auction;
+    const mergedElim = withDailyElim(seeded ? addSlices(seeded.elimination, elimination) : elimination, daily);
+    const totalRecordSlice = totalRecord(seeded?.total ?? null, row, mergedElim);
+    if (!seeded && totalRecordSlice.games === 0 && totalRecordSlice.highest == null && totalRecordSlice.lowest == null) {
       return {
         ...book,
-        total: fallback.games ? fallback : emptySlice(),
-        auction: fallback.games ? fallback : emptySlice(),
+        total: emptySlice(),
+        auction: emptySlice(),
         elimination: emptySlice(),
       };
     }
     return {
       ...book,
-      total,
-      auction,
-      elimination,
+      total: totalRecordSlice,
+      auction: mergedAuction,
+      elimination: mergedElim,
     };
 }
 
