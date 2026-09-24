@@ -344,30 +344,175 @@ export async function weeklyProjections(season: number, week: number): Promise<W
   );
 }
 
-export async function weeklyLiveStats(season: number, week: number): Promise<Record<string, number>> {
-  try {
-    const raw = await getJson<unknown>(`https://api.sleeper.app/v1/stats/nfl/regular/${season}/${week}`, 30_000);
-    const out: Record<string, number> = {};
-    if (Array.isArray(raw)) {
-      for (const row of raw) {
-        if (!row || typeof row !== "object") continue;
-        const id = String((row as { player_id?: string }).player_id || "");
-        const pts = Number((row as { pts_ppr?: number; stats?: { pts_ppr?: number } }).pts_ppr
-          ?? (row as { stats?: { pts_ppr?: number } }).stats?.pts_ppr);
-        if (id && Number.isFinite(pts)) out[id] = Math.round(pts * 10) / 10;
-      }
-      return out;
+type StatsSql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
+
+const LIVE_STATS_TTL_MS = 60_000;
+
+async function ensureSleeperWeekStats(sql: StatsSql): Promise<void> {
+  await sql.query(`
+    create table if not exists darkness_sleeper_week_stats (
+      season integer not null,
+      week integer not null,
+      payload jsonb not null,
+      fetched_at timestamptz not null default now(),
+      primary key (season, week)
+    )`);
+}
+
+function statsMap(payload: unknown): Record<string, number> {
+  let value = payload;
+  if (typeof value === "string") {
+    try {
+      value = JSON.parse(value) as unknown;
+    } catch {
+      return {};
     }
-    if (raw && typeof raw === "object") {
-      for (const [id, row] of Object.entries(raw as Record<string, { pts_ppr?: number }>)) {
-        const pts = Number(row?.pts_ppr);
-        if (Number.isFinite(pts)) out[id] = Math.round(pts * 10) / 10;
-      }
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const out: Record<string, number> = {};
+  for (const [id, pts] of Object.entries(value as Record<string, unknown>)) {
+    const n = Number(pts);
+    if (id && Number.isFinite(n)) out[id] = n;
+  }
+  return out;
+}
+
+function statsHaveKeys(stats: Record<string, number>): boolean {
+  return Object.keys(stats).length > 0;
+}
+
+async function fetchSleeperWeekStats(season: number, week: number): Promise<Record<string, number>> {
+  const raw = await getJson<unknown>(`https://api.sleeper.app/v1/stats/nfl/regular/${season}/${week}`, 0);
+  const out: Record<string, number> = {};
+  if (Array.isArray(raw)) {
+    for (const row of raw) {
+      if (!row || typeof row !== "object") continue;
+      const id = String((row as { player_id?: string }).player_id || "");
+      const pts = Number((row as { pts_ppr?: number; stats?: { pts_ppr?: number } }).pts_ppr
+        ?? (row as { stats?: { pts_ppr?: number } }).stats?.pts_ppr);
+      if (id && Number.isFinite(pts)) out[id] = Math.round(pts * 10) / 10;
     }
     return out;
-  } catch {
-    return {};
   }
+  if (raw && typeof raw === "object") {
+    for (const [id, row] of Object.entries(raw as Record<string, { pts_ppr?: number }>)) {
+      const pts = Number(row?.pts_ppr);
+      if (Number.isFinite(pts)) out[id] = Math.round(pts * 10) / 10;
+    }
+  }
+  return out;
+}
+
+/** When the week finished (slate end). 0 if we cannot tell. */
+async function sleeperWeekFinish(sql: StatsSql, season: number, week: number): Promise<{ finished: boolean; at: number }> {
+  let finished = false;
+  try {
+    const clock = await nflClock();
+    if (season < clock.season) finished = true;
+    if (season === clock.season && week < clock.week) finished = true;
+  } catch {
+    /* clock miss — awarded / window can still finish the week */
+  }
+  try {
+    const rows = await sql.query<{ awarded: boolean }>(
+      `select awarded from darkness_weekly_weeks where season = $1 and week = $2 limit 1`,
+      [season, week],
+    );
+    if (rows[0]?.awarded) finished = true;
+  } catch {
+    /* weeks table may not exist yet */
+  }
+  let at = 0;
+  try {
+    const window = await weekWindow(season, week);
+    if (window.done) finished = true;
+    if (Number.isFinite(window.endAt) && window.endAt > 0) at = window.endAt;
+  } catch {
+    /* schedule miss */
+  }
+  return { finished, at };
+}
+
+function snapshotBeforeFinish(fetchedMs: number, finishAt: number): boolean {
+  return finishAt > 0 && fetchedMs < finishAt;
+}
+
+async function readSleeperWeekSnapshot(
+  sql: StatsSql,
+  season: number,
+  week: number,
+): Promise<{ stats: Record<string, number>; fetchedMs: number; found: boolean }> {
+  const rows = await sql.query<{ payload: unknown; fetched_ms: number | string }>(
+    `select payload, (extract(epoch from fetched_at) * 1000)::bigint as fetched_ms
+       from darkness_sleeper_week_stats
+      where season = $1 and week = $2`,
+    [season, week],
+  );
+  const row = rows[0];
+  if (!row) return { stats: {}, fetchedMs: 0, found: false };
+  return { stats: statsMap(row.payload), fetchedMs: Number(row.fetched_ms) || 0, found: true };
+}
+
+async function writeSleeperWeekSnapshot(
+  sql: StatsSql,
+  season: number,
+  week: number,
+  stats: Record<string, number>,
+  fetchedAtMs: number | null,
+): Promise<void> {
+  await sql.query(
+    `insert into darkness_sleeper_week_stats (season, week, payload, fetched_at)
+     values ($1, $2, $3::jsonb, coalesce($4::timestamptz, now()))
+     on conflict (season, week) do update
+       set payload = excluded.payload,
+           fetched_at = excluded.fetched_at
+     where (select count(*) from jsonb_object_keys(darkness_sleeper_week_stats.payload)) = 0
+        or (select count(*) from jsonb_object_keys(excluded.payload)) > 0`,
+    [season, week, JSON.stringify(stats), fetchedAtMs == null ? null : new Date(fetchedAtMs).toISOString()],
+  );
+}
+
+export async function weeklyLiveStats(season: number, week: number): Promise<Record<string, number>> {
+  let sql: StatsSql | null = null;
+  try {
+    const { getSql } = await import("@/lib/db");
+    sql = await getSql();
+    await ensureSleeperWeekStats(sql);
+  } catch {
+    sql = null;
+  }
+  if (!sql) {
+    try {
+      return await fetchSleeperWeekStats(season, week);
+    } catch {
+      return {};
+    }
+  }
+  let snap = { stats: {} as Record<string, number>, fetchedMs: 0, found: false };
+  try {
+    snap = await readSleeperWeekSnapshot(sql, season, week);
+  } catch {
+    snap = { stats: {}, fetchedMs: 0, found: false };
+  }
+  const finish = await sleeperWeekFinish(sql, season, week);
+  const beforeFinish = snapshotBeforeFinish(snap.fetchedMs, finish.at);
+  const frozen = finish.finished && statsHaveKeys(snap.stats) && !beforeFinish;
+  if (frozen) return snap.stats;
+  if (!finish.finished && snap.found && Date.now() - snap.fetchedMs < LIVE_STATS_TTL_MS) return snap.stats;
+  let fresh: Record<string, number> = {};
+  try {
+    fresh = await fetchSleeperWeekStats(season, week);
+  } catch {
+    return snap.stats;
+  }
+  if (!statsHaveKeys(fresh)) return statsHaveKeys(snap.stats) ? snap.stats : fresh;
+  const stamp = finish.finished ? Math.max(Date.now(), finish.at || 0) : null;
+  try {
+    await writeSleeperWeekSnapshot(sql, season, week, fresh, stamp);
+  } catch {
+    /* scoring still uses the fetch */
+  }
+  return fresh;
 }
 
 export function playersFromPack(pack: WeeklyPackedBoard, _week: number): Record<ElimPos, ElimPlayer[]> {
