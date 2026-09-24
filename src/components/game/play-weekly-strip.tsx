@@ -181,6 +181,7 @@ function WeekLeaderZone({ live, row, lockAt }: { live: boolean; row: PlayFace | 
     const id = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(id);
   }, [showLive, kick]);
+  const counting = !showLive && kick != null;
   const subtitle = showLive
     ? "None"
     : kick == null
@@ -205,7 +206,7 @@ function WeekLeaderZone({ live, row, lockAt }: { live: boolean; row: PlayFace | 
           <span className="block font-display text-[9px] font-semibold uppercase tracking-wide text-muted">
             Week Leader
           </span>
-          <span className="block whitespace-nowrap text-[10px] tabular-nums text-muted">{subtitle}</span>
+          <span className={`block whitespace-nowrap text-[10px] tabular-nums ${counting ? "text-fg" : "text-muted"}`}>{subtitle}</span>
         </span>
       )}
     </div>
