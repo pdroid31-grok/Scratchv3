@@ -121,7 +121,7 @@ async function settleYesterdaySafe(sql: Sql, today: string): Promise<void> {
   }
 }
 
-async function importLegacyThenSettle(sql: Sql, today: string): Promise<void> {
+export async function importLegacyThenSettle(sql: Sql, today: string): Promise<void> {
   try {
     const { importLegacyHistory } = await import("./legacy-import.server");
     await importLegacyHistory(sql);
@@ -545,7 +545,11 @@ export async function listDailyBoardHandler({ data }: { data: { day: string } })
     const sql = await getSql();
     await ensureDailyTables(sql);
     const today = dailyDayStamp();
-    await importLegacyThenSettle(sql, today);
+    const yday = dailyYesterday(today);
+    if (isDailyDay(yday)) {
+      const prior = await loadDay(sql, yday);
+      if (prior && !prior.awarded) await settleYesterdaySafe(sql, today);
+    }
     if (data.day === today) await ensureToday(sql, today);
     const day = await loadDay(sql, data.day);
     if (!day) {

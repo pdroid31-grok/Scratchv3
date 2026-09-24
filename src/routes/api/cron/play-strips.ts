@@ -19,6 +19,14 @@ export const Route = createFileRoute("/api/cron/play-strips")({
         if (!cronAuthorized(request)) return new Response(null, { status: 401 });
         const { refreshPlayStripsIfDue } = await import("@/lib/game/play-public.server");
         const result = await refreshPlayStripsIfDue();
+        try {
+          const { getSql } = await import("@/lib/db");
+          const { dailyDayStamp } = await import("@/lib/game/daily");
+          const { importLegacyThenSettle } = await import("@/lib/game/daily-api.server");
+          await importLegacyThenSettle(await getSql(), dailyDayStamp());
+        } catch (err) {
+          console.error("[darkness] daily settle failed", err);
+        }
         return Response.json(result, { headers: { "cache-control": "no-store" } });
       },
     },
