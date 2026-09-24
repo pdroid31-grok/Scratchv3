@@ -36,7 +36,6 @@ import {
   type EarlyBirdRow,
 } from "./avatars";
 import { clipGm, isAwardSkippedName, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
-import { isCommishSettingsUser } from "./commish-types";
 import { dailyDayStamp, dailyYesterday } from "./daily";
 import { teamBye } from "./elim-byes";
 import { hiddenWeeks } from "./elim-data";
@@ -49,7 +48,7 @@ export const RAINY_DAY_FROM = "2026-09-19";
 type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
 
 function skipWho(userId: string, name?: string | null): boolean {
-  if (isHiddenBoardId(userId) || isCommishSettingsUser(userId)) return true;
+  if (isHiddenBoardId(userId)) return true;
   if (isHiddenBoardName(name) || isAwardSkippedName(name)) return true;
   return false;
 }
@@ -334,6 +333,42 @@ export async function maybeGrantBoxLunch(sql: Sql, userId: string, at = Date.now
   } catch (err) {
     console.error("[darkness] box lunch grant failed", err);
   }
+}
+
+const PAT_BOX_LUNCH_ID = "Sth5J7JYgRUEnwGxVWFVh3foFcPf9Erh";
+const PAT_BOX_LUNCH_FLAG = "boxlunch-pat-v1";
+
+/** One check. Same ET day must have box news and a scratched card. Does not invent either. */
+export async function grantPatBoxLunchOnce(sql: Sql): Promise<void> {
+  await sql.query(`
+    create table if not exists darkness_feat_flags (
+      key text primary key,
+      created_at timestamptz not null default now()
+    )`);
+  const already = await sql.query<{ key: string }>(
+    `select key from darkness_feat_flags where key = $1`,
+    [PAT_BOX_LUNCH_FLAG],
+  );
+  if (already[0]) return;
+  const hit = await sql.query<{ ok: number | string }>(
+    `select 1 as ok
+       from darkness_news n
+      where n.kind = 'box'
+        and n.source_key like $1
+        and to_char(n.created_at at time zone 'America/New_York', 'YYYY-MM-DD') >= $2
+        and exists (
+          select 1
+            from darkness_scratch_cards c
+           where c.user_id = $3
+             and c.scratched_at is not null
+             and to_char(c.scratched_at at time zone 'America/New_York', 'YYYY-MM-DD')
+               = to_char(n.created_at at time zone 'America/New_York', 'YYYY-MM-DD')
+        )
+      limit 1`,
+    [`box:${PAT_BOX_LUNCH_ID}:%`, FEAT_TRACK_FROM, PAT_BOX_LUNCH_ID],
+  );
+  if (hit[0]) await grantFeat(sql, PAT_BOX_LUNCH_ID, BOX_LUNCH_ID);
+  await sql.query(`insert into darkness_feat_flags (key) values ($1) on conflict do nothing`, [PAT_BOX_LUNCH_FLAG]);
 }
 
 function rawElimWeek(id: string, week: number): number | null {
