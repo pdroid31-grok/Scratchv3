@@ -413,10 +413,17 @@ export async function claimScratchCard(sql: Sql, userId: string, cardId: number)
   let grantedAvatar: "crypepe" | "joker" | null = null;
   if (inserted[0]) {
     if (amount > 0) {
+      const prior = await sql.query<{ coins: number | string | null }>(
+        `select coins from player_profiles where user_id = $1`,
+        [userId],
+      );
+      const before = Math.max(0, Math.floor(Number(prior[0]?.coins) || 0));
       await sql.query(`update player_profiles set coins = coins + $1, updated_at = now() where user_id = $2`, [
         amount,
         userId,
       ]);
+      const { recordBankChange } = await import("./bank-watch");
+      await recordBankChange(sql, userId, before, before + amount, "scratch");
     }
     const avatar = prize.avatar;
     if (avatar) {

@@ -37,6 +37,8 @@ export async function openMysteryBoxHandler({ context }: { context: { userId: st
        where user_id = $2`,
       [JSON.stringify(owned), context.userId],
     );
+    const { recordBankChange } = await import("../bank-watch");
+    await recordBankChange(sql, context.userId, settled.coins, settled.coins - BOX_COST, "box");
     const next = await settleProfile(sql, context.userId);
     try {
       const { recordNewsSafe, newsActor } = await import("../news.server");
