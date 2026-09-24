@@ -122,7 +122,7 @@ export function PlayWeeklyStrip({ onOpen }: { onOpen?: () => void }) {
         ) : null}
       </div>
       <SeasonZone row={seasonLeader} />
-      <WeekLeaderZone live={live} row={weekLeader} />
+      <WeekLeaderZone live={live} row={weekLeader} lockAt={meta?.lockAt} />
     </button>
   );
 }
@@ -154,10 +154,41 @@ function SeasonZone({ row }: { row: PlayFace | null }) {
   );
 }
 
-function WeekLeaderZone({ live, row }: { live: boolean; row: PlayFace | null }) {
+function lockMs(value: unknown): number | null {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return n;
+}
+
+function formatKickoffLeft(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const days = Math.floor(total / 86_400);
+  const hours = Math.floor((total % 86_400) / 3_600);
+  const mins = Math.floor((total % 3_600) / 60);
+  const secs = total % 60;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  if (days >= 1) return `${days}d ${pad(hours)}h ${pad(mins)}m`;
+  return `${pad(hours)}:${pad(mins)}:${pad(secs)}`;
+}
+
+function WeekLeaderZone({ live, row, lockAt }: { live: boolean; row: PlayFace | null; lockAt?: number }) {
+  const kick = lockMs(lockAt);
+  const [now, setNow] = useState(() => Date.now());
+  const kicked = kick != null && now >= kick;
+  const showLive = live || kicked;
+  useEffect(() => {
+    if (showLive || kick == null) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [showLive, kick]);
+  const subtitle = showLive
+    ? "None"
+    : kick == null
+      ? "Waiting for Kickoff"
+      : `${formatKickoffLeft(kick - now)} Until Kickoff`;
   return (
     <div className="flex min-w-0 items-center justify-end gap-1.5">
-      {live && row ? (
+      {showLive && row ? (
         <>
           <span className="min-w-0 text-right">
             <span className="block truncate font-display text-[9px] font-semibold uppercase tracking-wide text-muted">
@@ -174,7 +205,7 @@ function WeekLeaderZone({ live, row }: { live: boolean; row: PlayFace | null }) 
           <span className="block font-display text-[9px] font-semibold uppercase tracking-wide text-muted">
             Week Leader
           </span>
-          <span className="block text-[10px] text-muted">{live ? "None" : "Waiting for Kickoff"}</span>
+          <span className="block whitespace-nowrap text-[10px] tabular-nums text-muted">{subtitle}</span>
         </span>
       )}
     </div>
