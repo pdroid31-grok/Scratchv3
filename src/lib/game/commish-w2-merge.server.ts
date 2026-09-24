@@ -48,64 +48,49 @@ export async function mergeCommishW2Once(sql: Sql): Promise<void> {
   await sql.query(`delete from darkness_weekly_flags where key = $1`, [COMMISH_W2_MERGE_KEY]);
   HIDDEN_BOARD_IDS.add(COMMISH_W2_DONOR_ID);
 
-  const donorRuns = await sql.query<{ user_id: string; status: string; picks: unknown }>(
-    `select user_id, status, picks
+  const donorRuns = await sql.query<{ status: string; picks: unknown }>(
+    `select status, picks
        from darkness_weekly_runs
       where season = $1 and week = $2 and user_id = $3
       limit 1`,
     [SEASON, WEEK, COMMISH_W2_DONOR_ID],
   );
   const donor = donorRuns[0];
-  const picks = donor?.picks ?? null;
-  const copied = Boolean(donor && donor.status === "done" && picks != null);
-  const n = copied ? pickCount(picks) : 0;
-
-  if (copied) {
-    const payload = typeof picks === "string" ? picks : JSON.stringify(picks);
-    await sql.query(
-      `insert into darkness_weekly_runs (season, week, user_id, status, score, payout_score, payout_win, picks, finished_at)
-       values ($1, $2, $3, 'done', null, false, false, $4::jsonb, now())
-       on conflict (season, week, user_id) do update
-         set status = 'done',
-             score = case
-               when darkness_weekly_runs.score is not null then darkness_weekly_runs.score
-               else null
-             end,
-             payout_score = false,
-             payout_win = false,
-             picks = excluded.picks,
-             finished_at = now()`,
-      [SEASON, WEEK, COMMISH_SURVIVOR_ID, payload],
-    );
-  }
-
-  const mail = await sql.query<{ has_email: boolean }>(
-    `select (email is not null and btrim(email) <> '') as has_email from "user" where id = $1`,
-    [COMMISH_W2_DONOR_ID],
+  const commishRuns = await sql.query<{ picks: unknown }>(
+    `select picks
+       from darkness_weekly_runs
+      where season = $1 and week = $2 and user_id = $3
+      limit 1`,
+    [SEASON, WEEK, COMMISH_SURVIVOR_ID],
   );
-  if (mail[0]?.has_email) {
-    await sql.query(
-      `update "user"
-          set email = $1,
-              "updatedAt" = now()
-        where id = $2
-          and email is not null
-          and btrim(email) <> ''
-          and email not like 'merged+%@users.invalid'`,
-      [`merged+${COMMISH_W2_DONOR_ID}@users.invalid`, COMMISH_W2_DONOR_ID],
-    );
+  const commish = commishRuns[0];
+  const missing = !commish || pickCount(commish.picks) === 0;
+  const donorPicks = donor?.status === "done" ? donor.picks : null;
+  const canCopy = missing && pickCount(donorPicks) > 0;
+  let copied = false;
+  let n = commish ? pickCount(commish.picks) : 0;
+
+  if (canCopy && donorPicks != null) {
+    const payload = typeof donorPicks === "string" ? donorPicks : JSON.stringify(donorPicks);
+    if (!commish) {
+      await sql.query(
+        `insert into darkness_weekly_runs (season, week, user_id, status, score, payout_score, payout_win, picks, finished_at)
+         values ($1, $2, $3, 'done', null, false, false, $4::jsonb, now())
+         on conflict (season, week, user_id) do nothing`,
+        [SEASON, WEEK, COMMISH_SURVIVOR_ID, payload],
+      );
+    } else {
+      await sql.query(
+        `update darkness_weekly_runs
+            set picks = $4::jsonb
+          where season = $1 and week = $2 and user_id = $3
+            and (picks is null or jsonb_typeof(picks) <> 'array' or jsonb_array_length(picks) = 0)`,
+        [SEASON, WEEK, COMMISH_SURVIVOR_ID, payload],
+      );
+    }
+    copied = true;
+    n = pickCount(donorPicks);
   }
-  await sql.query(
-    `update account
-        set "userId" = $1
-      where "userId" = $2
-        and "providerId" in ('google', 'credential')
-        and not exists (
-          select 1 from account a2
-           where a2."userId" = $1 and a2."providerId" = account."providerId"
-        )`,
-    [COMMISH_SURVIVOR_ID, COMMISH_W2_DONOR_ID],
-  );
 
   await sql.query(`insert into darkness_weekly_flags (key) values ($1) on conflict do nothing`, [COMMISH_W2_RUN_KEY]);
   console.log(
