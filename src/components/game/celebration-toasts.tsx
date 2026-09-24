@@ -71,6 +71,29 @@ function WinFace({
   );
 }
 
+const SCRATCH_READY_WAIT_MS = 15_000;
+
+function scratchReadyStamp(sourceKey: string): number {
+  const key = `darkness-scratch-ready-at:${sourceKey}`;
+  try {
+    const saved = Number(sessionStorage.getItem(key));
+    if (Number.isFinite(saved) && saved > 0) return saved;
+    const now = Date.now();
+    sessionStorage.setItem(key, String(now));
+    return now;
+  } catch {
+    return Date.now();
+  }
+}
+
+function clearScratchReadyStamp(sourceKey: string) {
+  try {
+    sessionStorage.removeItem(`darkness-scratch-ready-at:${sourceKey}`);
+  } catch {
+    /* ignore */
+  }
+}
+
 function featHow(id?: string): string {
   return ACHIEVEMENT_UNLOCKS.find((row) => row.id === id)?.how ?? "";
 }
@@ -199,10 +222,29 @@ export function CelebrationToasts() {
   }, [user, isPending]);
 
   const item = queue[0];
+  const waitingOnScratch = item?.kind === "scratch_ready";
+  const [scratchVisible, setScratchVisible] = useState(false);
+
+  useEffect(() => {
+    if (!waitingOnScratch || !item) {
+      setScratchVisible(false);
+      return;
+    }
+    const started = scratchReadyStamp(item.sourceKey);
+    const wait = SCRATCH_READY_WAIT_MS - (Date.now() - started);
+    if (wait <= 0) {
+      setScratchVisible(true);
+      return;
+    }
+    setScratchVisible(false);
+    const id = window.setTimeout(() => setScratchVisible(true), wait);
+    return () => window.clearTimeout(id);
+  }, [waitingOnScratch, item?.sourceKey]);
 
   function dismiss() {
     if (!item) return;
     const key = item.sourceKey;
+    if (item.kind === "scratch_ready") clearScratchReadyStamp(key);
     setQueue((rows) => rows.filter((row) => row.sourceKey !== key));
     void seenToast({ data: { sourceKey: key } }).catch(() => undefined);
   }
@@ -216,7 +258,7 @@ export function CelebrationToasts() {
     return () => window.removeEventListener("keydown", onKey);
   }, [item]);
 
-  if (!user || !item) return null;
+  if (!user || !item || (waitingOnScratch && !scratchVisible)) return null;
 
   function goScratch() {
     try {
