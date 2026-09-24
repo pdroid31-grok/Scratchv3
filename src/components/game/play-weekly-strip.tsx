@@ -121,19 +121,18 @@ export function PlayWeeklyStrip({ onOpen }: { onOpen?: () => void }) {
           </>
         ) : null}
       </div>
-      <SeasonZone row={seasonLeader} />
       <WeekLeaderZone live={live} row={weekLeader} lockAt={meta?.lockAt} />
+      <SeasonZone row={seasonLeader} />
     </button>
   );
 }
 
 function SeasonZone({ row }: { row: PlayFace | null }) {
   return (
-    <div className="flex min-w-0 items-center justify-center gap-1.5">
+    <div className="flex min-w-0 items-center justify-end gap-1.5">
       {row ? (
         <>
-          <img src={avatarById(row.avatarId).src} alt="" className="size-7 shrink-0 rounded-md object-cover" />
-          <span className="min-w-0">
+          <span className="min-w-0 text-right">
             <span className="block truncate font-display text-[9px] font-semibold uppercase tracking-wide text-muted">
               Season Leader
             </span>
@@ -141,9 +140,10 @@ function SeasonZone({ row }: { row: PlayFace | null }) {
               {row.name} <span className="tabular-nums text-muted">{row.score.toFixed(1)}</span>
             </span>
           </span>
+          <img src={avatarById(row.avatarId).src} alt="" className="size-7 shrink-0 rounded-md object-cover" />
         </>
       ) : (
-        <span className="min-w-0 text-center">
+        <span className="min-w-0 text-right">
           <span className="block font-display text-[9px] font-semibold uppercase tracking-wide text-muted">
             Season Leader
           </span>
@@ -187,10 +187,11 @@ function WeekLeaderZone({ live, row, lockAt }: { live: boolean; row: PlayFace | 
       ? "Waiting for Kickoff"
       : `${formatKickoffLeft(kick - now)} Until Kickoff`;
   return (
-    <div className="flex min-w-0 items-center justify-end gap-1.5">
+    <div className="flex min-w-0 items-center justify-center gap-1.5">
       {showLive && row ? (
         <>
-          <span className="min-w-0 text-right">
+          <img src={avatarById(row.avatarId).src} alt="" className="size-7 shrink-0 rounded-md object-cover" />
+          <span className="min-w-0">
             <span className="block truncate font-display text-[9px] font-semibold uppercase tracking-wide text-muted">
               Week Leader
             </span>
@@ -198,10 +199,9 @@ function WeekLeaderZone({ live, row, lockAt }: { live: boolean; row: PlayFace | 
               {row.name} <span className="tabular-nums text-muted">{row.score.toFixed(1)}</span>
             </span>
           </span>
-          <img src={avatarById(row.avatarId).src} alt="" className="size-7 shrink-0 rounded-md object-cover" />
         </>
       ) : (
-        <span className="min-w-0 text-right">
+        <span className="min-w-0 text-center">
           <span className="block font-display text-[9px] font-semibold uppercase tracking-wide text-muted">
             Week Leader
           </span>
