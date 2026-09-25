@@ -216,7 +216,7 @@ function parseItem(
     event_at: eventAt,
     created_at: created,
     kind,
-    faces: raw.faces.map((face) => newsFace(face.name, face.avatarId)),
+    faces: raw.faces.map((face) => newsFace(face.name, face.avatarId, face.userId)),
     score: raw.score,
     prizeId: raw.prizeId ? clampAvatar(raw.prizeId) : undefined,
     prizeLabel: raw.prizeLabel,
@@ -268,7 +268,7 @@ async function loadActors(
 
 function pushUnique(out: (NewsItem & { created_at: number })[], seen: Set<string>, key: string, item: (NewsItem & { created_at: number }) | null): void {
   if (!item || seen.has(key)) return;
-  if (item.faces.some((face) => newsHidden(undefined, face.name))) return;
+  if (item.faces.some((face) => newsHidden(face.userId, face.name))) return;
   seen.add(key);
   out.push(item);
 }
@@ -348,7 +348,7 @@ async function backfillWindow(sql: Sql, startDay: string, startEt: string): Prom
       event_at: at,
       created_at: at,
       kind: "scratch",
-      faces: [newsFace(actor.name, actor.avatarId)],
+      faces: [newsFace(actor.name, actor.avatarId, row.user_id)],
       prizeId: prize.avatar ?? undefined,
       prizeLabel: prize.label,
     });
@@ -402,7 +402,7 @@ async function backfillWindow(sql: Sql, startDay: string, startEt: string): Prom
       event_at: eventAt,
       created_at: asTime(row.finished_at),
       kind: "daily_win",
-      faces: [newsFace(actor.name, actor.avatarId)],
+      faces: [newsFace(actor.name, actor.avatarId, row.user_id)],
       day,
       score,
     });
@@ -446,7 +446,7 @@ async function backfillWindow(sql: Sql, startDay: string, startEt: string): Prom
       event_at: eventAt,
       created_at: created,
       kind: "weekly_win",
-      faces: [newsFace(actor.name, actor.avatarId)],
+      faces: [newsFace(actor.name, actor.avatarId, row.user_id)],
       week: `Week ${row.week}`,
       score: formatNewsScore(Number(row.score)),
     });

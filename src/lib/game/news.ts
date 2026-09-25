@@ -6,6 +6,7 @@ export type NewsKind = "match" | "box" | "scratch" | "daily_win" | "weekly_win" 
 export type NewsFace = {
   name: string;
   avatarId: AvatarId;
+  userId?: string;
 };
 
 export type NewsItem = {
@@ -84,8 +85,11 @@ export function formatNewsScore(n: number): string {
   return Number.isInteger(v) ? String(v) : (Math.round(v * 10) / 10).toFixed(1);
 }
 
-export function newsFace(name: string, avatarId?: string | null): NewsFace {
-  return { name: name.trim() || "GM", avatarId: clampAvatar(avatarId ?? "poor") };
+export function newsFace(name: string, avatarId?: string | null, userId?: string | null): NewsFace {
+  const face: NewsFace = { name: name.trim() || "GM", avatarId: clampAvatar(avatarId ?? "poor") };
+  const id = String(userId ?? "").trim();
+  if (id) face.userId = id;
+  return face;
 }
 
 /** Start of the feed window: midnight ET, 7 ET calendar days including today. */

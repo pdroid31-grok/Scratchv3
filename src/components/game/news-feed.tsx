@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, X } from "lucide-react";
 import { ACHIEVEMENT_UNLOCKS, avatarById, starNeed } from "@/lib/game/avatars";
 import { formatNewsTime, type NewsFace, type NewsItem } from "@/lib/game/news";
 import { listNews, markNewsSeen, peekNewsUnseen } from "@/lib/game/news-api";
+import { isHiddenBoardId, isHiddenBoardName } from "@/lib/game/stats-shared";
 
 type LookPeek = { src: string; name: string };
 
@@ -174,6 +176,8 @@ function NewsLookPeek({ look, onClose }: { look: LookPeek; onClose: () => void }
 
 function Face({ face, onPeek }: { face: NewsFace; onPeek: (look: LookPeek) => void }) {
   const av = avatarById(face.avatarId);
+  const id = face.userId?.trim() ?? "";
+  const linked = Boolean(id) && !isHiddenBoardId(id) && !isHiddenBoardName(face.name);
   return (
     <span className="inline-flex min-w-0 items-center gap-1.5">
       <button
@@ -188,7 +192,13 @@ function Face({ face, onPeek }: { face: NewsFace; onPeek: (look: LookPeek) => vo
       >
         <img src={av.src} alt="" className="size-7 rounded-md object-cover" />
       </button>
-      <span className="truncate font-medium text-fg">{face.name}</span>
+      {linked ? (
+        <Link to="/player/$id" params={{ id }} className="min-w-0 truncate font-medium text-fg hover:underline">
+          {face.name}
+        </Link>
+      ) : (
+        <span className="truncate font-medium text-fg">{face.name}</span>
+      )}
     </span>
   );
 }
