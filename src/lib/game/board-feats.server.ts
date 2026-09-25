@@ -25,10 +25,17 @@ import {
   FLASH_ID,
   THRIFTY_ID,
   IRON_BOOT_ID,
+  OVERHEAD_ID,
+  MIRROR_ID,
   IRON_BOOT_POINTS,
   featWeekFromW3,
   hitFlashTotal,
   thriftyHit,
+  OVERHEAD_FROM,
+  MIRROR_FROM,
+  lineupSignature,
+  overheadPassed,
+  mirrorUserIds,
   EARLY_BIRD_NEED,
   NIGHT_OWL_NEED,
   FEAT_TRACK_FROM,
@@ -347,6 +354,83 @@ export async function maybeGrantFlashWeek(
     for (const row of hit) await grantFeat(sql, row.userId, FLASH_ID);
   } catch (err) {
     console.error("[darkness] flash grant failed", err);
+  }
+}
+
+type DailyContestRow = {
+  user_id: string;
+  name: string | null;
+  score: number | string | null;
+  picks: unknown;
+  finished_at: unknown;
+  started_at: unknown;
+};
+
+function visibleContest(rows: DailyContestRow[]): DailyContestRow[] {
+  return rows.filter(
+    (row) => !skipBoardRow(row.user_id, row.name) && !skipBoardRow(row.user_id, clipGm(row.name ?? "")),
+  );
+}
+
+function asPicks(raw: unknown): { slot?: string; id?: string }[] {
+  return Array.isArray(raw) ? (raw as { slot?: string; id?: string }[]) : [];
+}
+
+/** Overhead + Mirror for one Daily day. Hidden rows are not in the set. */
+export async function maybeGrantDailyContestFeats(sql: Sql, day: string): Promise<void> {
+  try {
+    if (!day || (day < OVERHEAD_FROM && day < MIRROR_FROM)) return;
+    const rows = await sql.query<DailyContestRow>(
+      `select r.user_id, r.score, r.picks, r.finished_at, r.started_at,
+              coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name
+         from darkness_daily_runs r
+         left join player_profiles p on p.user_id = r.user_id
+         left join "user" u on u.id = r.user_id
+        where r.day = $1::date and r.status = 'done' and r.score is not null`,
+      [day],
+    );
+    const visible = visibleContest(rows);
+    if (day >= OVERHEAD_FROM) {
+      const scored = visible.map((row) => ({
+        userId: row.user_id,
+        score: Number(row.score),
+        at: asTime(row.finished_at) || asTime(row.started_at),
+      }));
+      for (const row of scored) {
+        if (overheadPassed(scored, row.userId)) await grantFeat(sql, row.userId, OVERHEAD_ID);
+      }
+    }
+    if (day >= MIRROR_FROM) {
+      const signed = visible.map((row) => ({
+        userId: row.user_id,
+        signature: lineupSignature(asPicks(row.picks)),
+      }));
+      for (const userId of mirrorUserIds(signed)) await grantFeat(sql, userId, MIRROR_ID);
+    }
+  } catch (err) {
+    console.error("[darkness] daily contest feats failed", err);
+  }
+}
+
+/** Mirror for one Weekly week. Locks from earlier in that week still count. Weeks before 2026-W3 do not. */
+export async function maybeGrantMirrorWeek(sql: Sql, season: number, week: number): Promise<void> {
+  try {
+    if (dailyDayStamp() < MIRROR_FROM || !featWeekFromW3(season, week)) return;
+    const rows = await sql.query<{ user_id: string; name: string | null; picks: unknown }>(
+      `select r.user_id, r.picks,
+              coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name
+         from darkness_weekly_runs r
+         left join player_profiles p on p.user_id = r.user_id
+         left join "user" u on u.id = r.user_id
+        where r.season = $1 and r.week = $2 and r.status = 'done'`,
+      [season, week],
+    );
+    const signed = rows
+      .filter((row) => !skipBoardRow(row.user_id, row.name) && !skipBoardRow(row.user_id, clipGm(row.name ?? "")))
+      .map((row) => ({ userId: row.user_id, signature: lineupSignature(asPicks(row.picks)) }));
+    for (const userId of mirrorUserIds(signed)) await grantFeat(sql, userId, MIRROR_ID);
+  } catch (err) {
+    console.error("[darkness] mirror grant failed", err);
   }
 }
 

@@ -338,6 +338,12 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
     } catch (err) {
       console.error("[darkness] double donut weekly failed", err);
     }
+    try {
+      const { maybeGrantMirrorWeek } = await import("./board-feats.server");
+      await maybeGrantMirrorWeek(sql, season, week);
+    } catch (err) {
+      console.error("[darkness] mirror grant failed", err);
+    }
     return;
   }
   const window = await weekWindow(season, week);
@@ -404,13 +410,14 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
     [season, week],
   );
   try {
-    const { maybeGrantFlashWeek } = await import("./board-feats.server");
+    const { maybeGrantFlashWeek, maybeGrantMirrorWeek } = await import("./board-feats.server");
     await maybeGrantFlashWeek(
       sql,
       season,
       week,
       scored.filter((row) => !row.skip).map((row) => ({ userId: row.userId, score: row.score })),
     );
+    await maybeGrantMirrorWeek(sql, season, week);
   } catch (err) {
     console.error("[darkness] flash grant failed", err);
   }
@@ -769,12 +776,13 @@ export async function lockWeeklyHandler({ context, data }: { context: { userId: 
       [week.season, week.week, context.userId, JSON.stringify(snap)],
     );
     try {
-      const { maybeGrantThrifty } = await import("./board-feats.server");
+      const { maybeGrantThrifty, maybeGrantMirrorWeek } = await import("./board-feats.server");
       await maybeGrantThrifty(
         sql,
         context.userId,
         snap.map((pick) => pick.cost),
       );
+      await maybeGrantMirrorWeek(sql, week.season, week.week);
     } catch (err) {
       console.error("[darkness] thrifty grant failed", err);
     }
@@ -898,13 +906,16 @@ export async function listWeeklyBoardHandler({ data }: { data: { season: number;
       .sort((a, b) => rankWeeklyBoard(a, b, week.awarded || window.live));
     if (window.live) {
       void import("./board-feats.server")
-        .then(({ maybeGrantFlashWeek }) =>
-          maybeGrantFlashWeek(
-            sql,
-            season,
-            weekNo,
-            ranked.map((row) => ({ userId: row.id, score: row.score })),
-          ),
+        .then(({ maybeGrantFlashWeek, maybeGrantMirrorWeek }) =>
+          Promise.all([
+            maybeGrantFlashWeek(
+              sql,
+              season,
+              weekNo,
+              ranked.map((row) => ({ userId: row.id, score: row.score })),
+            ),
+            maybeGrantMirrorWeek(sql, season, weekNo),
+          ]),
         )
         .catch((err) => console.error("[darkness] flash live failed", err));
     }

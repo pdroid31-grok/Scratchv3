@@ -129,6 +129,12 @@ export async function importLegacyThenSettle(sql: Sql, today: string): Promise<v
     console.error("[darkness] legacy daily import failed", err);
   }
   await settleYesterdaySafe(sql, today);
+  try {
+    const { maybeGrantDailyContestFeats } = await import("./board-feats.server");
+    await maybeGrantDailyContestFeats(sql, today);
+  } catch (err) {
+    console.error("[darkness] daily contest feats failed", err);
+  }
 }
 
 async function settleYesterday(sql: Sql, today: string): Promise<void> {
@@ -151,8 +157,9 @@ async function settleYesterday(sql: Sql, today: string): Promise<void> {
       /* payouts table may not exist yet */
     }
     try {
-      const { maybeGrantComebackPair } = await import("./board-feats.server");
+      const { maybeGrantComebackPair, maybeGrantDailyContestFeats } = await import("./board-feats.server");
       await maybeGrantComebackPair(sql, yday);
+      await maybeGrantDailyContestFeats(sql, yday);
     } catch (err) {
       console.error("[darkness] comeback pair failed", err);
     }
@@ -176,8 +183,9 @@ async function settleYesterday(sql: Sql, today: string): Promise<void> {
       await syncDailyStarsFromPayouts(sql, row.user_id);
     }
     try {
-      const { maybeGrantComebackPair } = await import("./board-feats.server");
+      const { maybeGrantComebackPair, maybeGrantDailyContestFeats } = await import("./board-feats.server");
       await maybeGrantComebackPair(sql, yday);
+      await maybeGrantDailyContestFeats(sql, yday);
     } catch (err) {
       console.error("[darkness] comeback pair failed", err);
     }
@@ -262,9 +270,10 @@ async function settleYesterday(sql: Sql, today: string): Promise<void> {
     console.error("[darkness] double trouble daily failed", err);
   }
   try {
-    const { maybeGrantRainyDay, maybeGrantComebackPair } = await import("./board-feats.server");
+    const { maybeGrantRainyDay, maybeGrantComebackPair, maybeGrantDailyContestFeats } = await import("./board-feats.server");
     await maybeGrantRainyDay(sql, yday);
     await maybeGrantComebackPair(sql, yday);
+    await maybeGrantDailyContestFeats(sql, yday);
   } catch (err) {
     console.error("[darkness] rainy day failed", err);
   }
@@ -405,6 +414,8 @@ async function completeDailyRun(
     if (day.day >= NEGATIVE_FROM) await maybeGrantNegative(sql, userId);
     if (day.day >= "2026-09-17") await maybeGrantLumpedUp(sql, userId);
     await maybeGrantThrifty(sql, userId, picks.map((pick) => pick.player.cost));
+    const { maybeGrantDailyContestFeats } = await import("./board-feats.server");
+    await maybeGrantDailyContestFeats(sql, day.day);
   } catch (err) {
     console.error("[darkness] daily feat grant failed", err);
   }
@@ -560,6 +571,13 @@ export async function listDailyBoardHandler({ data }: { data: { day: string } })
     const day = await loadDay(sql, data.day);
     if (!day) {
       return { day: data.day, year: 0, week: null, awarded: false, winnerId: null, rows: [] };
+    }
+    try {
+      const { maybeGrantDailyContestFeats } = await import("./board-feats.server");
+      await maybeGrantDailyContestFeats(sql, day.day);
+      if (day.day !== today) await maybeGrantDailyContestFeats(sql, today);
+    } catch (err) {
+      console.error("[darkness] daily contest feats failed", err);
     }
     const rows = await sql.query<{
       id: string;

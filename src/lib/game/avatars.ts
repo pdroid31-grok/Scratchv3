@@ -99,6 +99,8 @@ export const AVATARS = [
   { id: "flash", name: "Flash", src: "/avatars/flash.jpg?v=1" },
   { id: "thrifty", name: "Thrifty", src: "/avatars/thrifty.jpg?v=1" },
   { id: "ironboot", name: "Iron Boot", src: "/avatars/ironboot.jpg?v=1" },
+  { id: "overhead", name: "Overhead", src: "/avatars/overhead.jpg?v=1" },
+  { id: "mirror", name: "Mirror", src: "/avatars/mirror.jpg?v=1" },
   { id: "football", name: "Football", src: "/avatars/football.jpg?v=1" },
   { id: "luchador", name: "Luchador", src: "/avatars/luchador.jpg?v=1" },
   { id: "tailgater", name: "Tailgater", src: "/avatars/tailgater.jpg?v=1" },
@@ -161,6 +163,8 @@ export const NEGATIVE_ID = "negative" as const satisfies AvatarId;
 export const FLASH_ID = "flash" as const satisfies AvatarId;
 export const THRIFTY_ID = "thrifty" as const satisfies AvatarId;
 export const IRON_BOOT_ID = "ironboot" as const satisfies AvatarId;
+export const OVERHEAD_ID = "overhead" as const satisfies AvatarId;
+export const MIRROR_ID = "mirror" as const satisfies AvatarId;
 export const BANANA_SCORE_UNDER = 60;
 export const CROSSWORD_STREAK_NEED = 10;
 export const LOCKED_IN_STREAK_NEED = 100;
@@ -183,6 +187,9 @@ export const THRIFTY_NEED = 5;
 export const IRON_BOOT_POINTS = 40;
 export const FLASH_FROM_SEASON = 2026;
 export const FLASH_FROM_WEEK = 3;
+export const OVERHEAD_FROM = "2026-09-25";
+export const MIRROR_FROM = "2026-09-25";
+export const OVERHEAD_SCORE = 150;
 const STAR_IDS = new Set<string>(STAR_UNLOCKS.map((row) => row.id));
 const FEAT_IDS = new Set<string>([
   CLUB_200_ID,
@@ -215,6 +222,8 @@ const FEAT_IDS = new Set<string>([
   FLASH_ID,
   THRIFTY_ID,
   IRON_BOOT_ID,
+  OVERHEAD_ID,
+  MIRROR_ID,
 ]);
 export const ACHIEVEMENT_UNLOCKS = [
   { id: CLUB_200_ID, how: "Score 200+ points in a single match." },
@@ -243,6 +252,8 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: FLASH_ID, how: "First to 100.0 in a live Weekly (ties share)." },
   { id: THRIFTY_ID, how: "Start 5 or more $1 players in one Daily or Weekly lineup." },
   { id: IRON_BOOT_ID, how: "Defense + Kicker score 40+ combined in one Weekly." },
+  { id: OVERHEAD_ID, how: "Score 150+ in Daily, then get passed." },
+  { id: MIRROR_ID, how: "Post the same lineup as another player." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];
 export const PRIZE_AVATARS = AVATARS.filter(
   (avatar) => avatar.id !== "poor" && avatar.id !== "golden" && !STAR_IDS.has(avatar.id) && !FEAT_IDS.has(avatar.id),
@@ -298,6 +309,56 @@ export function thriftyHit(costs: readonly number[]): boolean {
   let n = 0;
   for (const cost of costs) if (cost === 1) n += 1;
   return n >= THRIFTY_NEED;
+}
+
+const LINEUP_SLOTS = ["QB", "RB1", "RB2", "WR1", "WR2", "TE", "K", "D"] as const;
+
+/** Same player id in each of the 8 slots. Array order does not matter. */
+export function lineupSignature(picks: readonly { slot?: string; id?: string }[] | null | undefined): string | null {
+  if (!picks) return null;
+  const by = new Map<string, string>();
+  for (const row of picks) {
+    const slot = String(row?.slot ?? "").trim();
+    const id = String(row?.id ?? "").trim();
+    if (!slot || !id || by.has(slot)) continue;
+    by.set(slot, id);
+  }
+  if (LINEUP_SLOTS.some((slot) => !by.get(slot))) return null;
+  return LINEUP_SLOTS.map((slot) => `${slot}=${by.get(slot)}`).join("|");
+}
+
+export function overheadTenths(score: number): number {
+  return Math.round(Number(score) * 10) / 10;
+}
+
+export type OverheadRow = { userId: string; score: number; at: number };
+
+/** 150.0+ and a later visible score strictly higher. A higher score already locked blocks it. Ties do not pass. */
+export function overheadPassed(rows: readonly OverheadRow[], userId: string): boolean {
+  const me = rows.find((row) => row.userId === userId);
+  if (!me || !(me.at > 0)) return false;
+  const mine = overheadTenths(me.score);
+  if (!(mine >= OVERHEAD_SCORE)) return false;
+  const alreadyPassed = rows.some(
+    (row) => row.userId !== userId && row.at > 0 && row.at <= me.at && overheadTenths(row.score) > mine,
+  );
+  if (alreadyPassed) return false;
+  return rows.some((row) => row.userId !== userId && row.at > me.at && overheadTenths(row.score) > mine);
+}
+
+export function mirrorUserIds(rows: readonly { userId: string; signature: string | null }[]): string[] {
+  const buckets = new Map<string, string[]>();
+  for (const row of rows) {
+    if (!row.signature) continue;
+    const list = buckets.get(row.signature) ?? [];
+    if (!list.includes(row.userId)) list.push(row.userId);
+    buckets.set(row.signature, list);
+  }
+  const ids: string[] = [];
+  for (const list of buckets.values()) {
+    if (list.length >= 2) ids.push(...list);
+  }
+  return ids;
 }
 
 export function stampDayGap(from: string, to: string): number {

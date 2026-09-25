@@ -7,7 +7,7 @@ import { applyPrize, bagLegend, HALFTIME_BAG, prizeLabel, redactHalftime, type P
 import { clipDisplayName, hostedNightKey, nightKey, opponentKey, planHostedNightWrite, isBankCommish } from "./stats-shared";
 import { parseRankTab } from "./rank-tabs";
 import { hostedMatchView, historyLineScore } from "./hosted-match";
-import { clampAvatar, isUnlocked, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, walletBalance, PRIZE_AVATARS, WIN_PAY, BOX_COST, GOLDEN_COST, boxPoolOwnedCount, hitBananaScore, hitBoxAddict, justUnlockedBanana, justUnlockedScratchLook, BOX_ADDICT_POOL_NEED, BANANA_SCORE_UNDER, avatarById, hitHeavyHitterScore, skipHeavyHitterWeek, stampDayGap, lostGapHit, earlyBirdDayCount, nightOwlDayCount, comebackKidHit, freeFallHit, EARLY_BIRD_NEED, NIGHT_OWL_NEED, FEAT_TRACK_FROM, DOUBLE_DONUT_FROM, NEGATIVE_FROM, FEAT_SCRATCH_POINTS, THRIFTY_NEED, IRON_BOOT_POINTS, featWeekFromW3, hitFlashTotal, thriftyHit, LOST_GAP_DAYS, HEAVY_HITTER_PPR, lumpedUpHit, weeklyRealZeroCount, doubleDonutHit, isExactZeroScore, isNegativeScore, lookSource } from "./avatars";
+import { clampAvatar, isUnlocked, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, walletBalance, PRIZE_AVATARS, WIN_PAY, BOX_COST, GOLDEN_COST, boxPoolOwnedCount, hitBananaScore, hitBoxAddict, justUnlockedBanana, justUnlockedScratchLook, BOX_ADDICT_POOL_NEED, BANANA_SCORE_UNDER, avatarById, hitHeavyHitterScore, skipHeavyHitterWeek, stampDayGap, lostGapHit, earlyBirdDayCount, nightOwlDayCount, comebackKidHit, freeFallHit, EARLY_BIRD_NEED, NIGHT_OWL_NEED, FEAT_TRACK_FROM, DOUBLE_DONUT_FROM, NEGATIVE_FROM, FEAT_SCRATCH_POINTS, THRIFTY_NEED, IRON_BOOT_POINTS, featWeekFromW3, hitFlashTotal, thriftyHit, OVERHEAD_FROM, MIRROR_FROM, OVERHEAD_SCORE, lineupSignature, overheadPassed, mirrorUserIds, LOST_GAP_DAYS, HEAVY_HITTER_PPR, lumpedUpHit, weeklyRealZeroCount, doubleDonutHit, isExactZeroScore, isNegativeScore, lookSource } from "./avatars";
 import { PLAYERS } from "./players";
 import { ratingFromPpr } from "./ratings";
 import { emptyRoster, type Roster } from "./types";
@@ -1070,6 +1070,47 @@ describe("avatars", () => {
     assert.equal(hitFlashTotal(100.04), true);
     assert.equal(thriftyHit([1, 1, 1, 1, 2]), false);
     assert.equal(thriftyHit([1, 1, 1, 1, 1]), true);
+    assert.equal(OVERHEAD_FROM, "2026-09-25");
+    assert.equal(MIRROR_FROM, "2026-09-25");
+    assert.equal(OVERHEAD_SCORE, 150);
+    const early = { userId: "a", score: 150, at: 1 };
+    const later = { userId: "b", score: 150.1, at: 2 };
+    assert.equal(overheadPassed([early, later], "a"), true);
+    assert.equal(overheadPassed([early, later], "b"), false);
+    assert.equal(overheadPassed([{ userId: "a", score: 149.9, at: 1 }, later], "a"), false);
+    assert.equal(
+      overheadPassed(
+        [
+          { userId: "b", score: 160, at: 1 },
+          { userId: "a", score: 150, at: 2 },
+          { userId: "c", score: 170, at: 3 },
+        ],
+        "a",
+      ),
+      false,
+    );
+    assert.equal(overheadPassed([early, { userId: "b", score: 150, at: 2 }], "a"), false);
+    const slots = [
+      { slot: "D", id: "d" },
+      { slot: "QB", id: "q" },
+      { slot: "RB2", id: "r2" },
+      { slot: "RB1", id: "r1" },
+      { slot: "WR1", id: "w1" },
+      { slot: "TE", id: "t" },
+      { slot: "K", id: "k" },
+      { slot: "WR2", id: "w2" },
+    ];
+    const flipped = [...slots].reverse();
+    assert.equal(lineupSignature(slots), lineupSignature(flipped));
+    assert.equal(lineupSignature(slots.slice(0, 7)), null);
+    assert.deepEqual(
+      mirrorUserIds([
+        { userId: "a", signature: "same" },
+        { userId: "b", signature: "same" },
+        { userId: "c", signature: "other" },
+      ]),
+      ["a", "b"],
+    );
     assert.equal(stampDayGap("2026-09-17", "2026-09-27"), 10);
     assert.equal(lostGapHit("2026-09-17", "2026-09-27"), true);
     assert.equal(lostGapHit("2026-09-16", "2026-09-27"), false);
