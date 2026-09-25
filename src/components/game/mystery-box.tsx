@@ -61,6 +61,7 @@ export const MysteryBox = forwardRef<
   }
 
   function playClip() {
+    if (rollingRef.current) return;
     rollingRef.current = true;
     finished.current = false;
     startedAt.current = typeof performance !== "undefined" ? performance.now() : Date.now();
@@ -122,12 +123,15 @@ export const MysteryBox = forwardRef<
   }, []);
 
   useEffect(() => {
-    if (!spinning || !prize) return;
-    playClip();
+    if (!spinning || !prize || finished.current) return;
+    if (!rollingRef.current) playClip();
     const clip = prefersReduced() ? REDUCED_MS : CLIP_MS;
-    const showOnChest = window.setTimeout(() => setReveal(true), clip);
-    const showCard = window.setTimeout(finish, clip + HOLD_MS);
-    const failsafe = window.setTimeout(finish, clip + HOLD_MS + 1200);
+    const now = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const elapsed = startedAt.current ? Math.max(0, now - startedAt.current) : 0;
+    const remain = Math.max(0, clip - elapsed);
+    const showOnChest = window.setTimeout(() => setReveal(true), remain);
+    const showCard = window.setTimeout(finish, remain + HOLD_MS);
+    const failsafe = window.setTimeout(finish, remain + HOLD_MS + 1200);
     return () => {
       window.clearTimeout(showOnChest);
       window.clearTimeout(showCard);
