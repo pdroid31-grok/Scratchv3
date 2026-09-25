@@ -396,7 +396,7 @@ async function completeDailyRun(
     });
   }
   try {
-    const { maybeGrantBullseye, maybeGrantEarlyBird, maybeGrantNightOwl, maybeGrantLost, maybeGrantDoubleDonutDaily, maybeGrantLumpedUp, maybeGrantNegative } = await import("./board-feats.server");
+    const { maybeGrantBullseye, maybeGrantEarlyBird, maybeGrantNightOwl, maybeGrantLost, maybeGrantDoubleDonutDaily, maybeGrantLumpedUp, maybeGrantNegative, maybeGrantThrifty } = await import("./board-feats.server");
     await maybeGrantBullseye(sql, userId, score);
     await maybeGrantEarlyBird(sql, userId);
     await maybeGrantNightOwl(sql, userId);
@@ -404,6 +404,7 @@ async function completeDailyRun(
     if (day.day >= DOUBLE_DONUT_FROM) await maybeGrantDoubleDonutDaily(sql, userId);
     if (day.day >= NEGATIVE_FROM) await maybeGrantNegative(sql, userId);
     if (day.day >= "2026-09-17") await maybeGrantLumpedUp(sql, userId);
+    await maybeGrantThrifty(sql, userId, picks.map((pick) => pick.player.cost));
   } catch (err) {
     console.error("[darkness] daily feat grant failed", err);
   }

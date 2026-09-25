@@ -96,6 +96,9 @@ export const AVATARS = [
   { id: "doubledonut", name: "Double Donut", src: "/avatars/doubledonut.jpg?v=1" },
   { id: "lumpedup", name: "Lumped Up", src: "/avatars/lumpedup.jpg?v=1" },
   { id: "negative", name: "Negative", src: "/avatars/negative.jpg?v=1" },
+  { id: "flash", name: "Flash", src: "/avatars/flash.jpg?v=1" },
+  { id: "thrifty", name: "Thrifty", src: "/avatars/thrifty.jpg?v=1" },
+  { id: "ironboot", name: "Iron Boot", src: "/avatars/ironboot.jpg?v=1" },
   { id: "football", name: "Football", src: "/avatars/football.jpg?v=1" },
   { id: "luchador", name: "Luchador", src: "/avatars/luchador.jpg?v=1" },
   { id: "tailgater", name: "Tailgater", src: "/avatars/tailgater.jpg?v=1" },
@@ -155,6 +158,9 @@ export const BOX_LUNCH_ID = "boxlunch" as const satisfies AvatarId;
 export const DOUBLE_DONUT_ID = "doubledonut" as const satisfies AvatarId;
 export const LUMPED_UP_ID = "lumpedup" as const satisfies AvatarId;
 export const NEGATIVE_ID = "negative" as const satisfies AvatarId;
+export const FLASH_ID = "flash" as const satisfies AvatarId;
+export const THRIFTY_ID = "thrifty" as const satisfies AvatarId;
+export const IRON_BOOT_ID = "ironboot" as const satisfies AvatarId;
 export const BANANA_SCORE_UNDER = 60;
 export const CROSSWORD_STREAK_NEED = 10;
 export const LOCKED_IN_STREAK_NEED = 100;
@@ -172,6 +178,11 @@ export const LUMPED_UP_DAYS = 3;
 export const DOUBLE_DONUT_NEED = 2;
 export const DOUBLE_DONUT_FROM = "2026-09-23";
 export const NEGATIVE_FROM = "2026-09-23";
+export const FEAT_SCRATCH_POINTS = 50;
+export const THRIFTY_NEED = 5;
+export const IRON_BOOT_POINTS = 40;
+export const FLASH_FROM_SEASON = 2026;
+export const FLASH_FROM_WEEK = 3;
 const STAR_IDS = new Set<string>(STAR_UNLOCKS.map((row) => row.id));
 const FEAT_IDS = new Set<string>([
   CLUB_200_ID,
@@ -201,6 +212,9 @@ const FEAT_IDS = new Set<string>([
   DOUBLE_DONUT_ID,
   LUMPED_UP_ID,
   NEGATIVE_ID,
+  FLASH_ID,
+  THRIFTY_ID,
+  IRON_BOOT_ID,
 ]);
 export const ACHIEVEMENT_UNLOCKS = [
   { id: CLUB_200_ID, how: "Score 200+ points in a single match." },
@@ -226,6 +240,9 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: DOUBLE_DONUT_ID, how: "Start two or more players who score 0 in a Daily or Weekly Match." },
   { id: LUMPED_UP_ID, how: "Score under 100 in Daily three days in a row." },
   { id: NEGATIVE_ID, how: "Start a player who finishes with negative points in a Daily Match." },
+  { id: FLASH_ID, how: "First to 100.0 in a live Weekly (ties share)." },
+  { id: THRIFTY_ID, how: "Start 5 or more $1 players in one Daily or Weekly lineup." },
+  { id: IRON_BOOT_ID, how: "Defense + Kicker score 40+ combined in one Weekly." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];
 export const PRIZE_AVATARS = AVATARS.filter(
   (avatar) => avatar.id !== "poor" && avatar.id !== "golden" && !STAR_IDS.has(avatar.id) && !FEAT_IDS.has(avatar.id),
@@ -265,6 +282,22 @@ export function hitHeavyHitterScore(score: number): boolean {
 
 export function skipHeavyHitterWeek(season: number, week: number): boolean {
   return season === 2026 && week === 1;
+}
+
+/** 2026 week 3 and later. Week 1 and week 2 never qualify. */
+export function featWeekFromW3(season: number, week: number): boolean {
+  return season > FLASH_FROM_SEASON || (season === FLASH_FROM_SEASON && week >= FLASH_FROM_WEEK);
+}
+
+/** Lineup total at one decimal. Floor times roster size is not a score. */
+export function hitFlashTotal(score: number): boolean {
+  return Number.isFinite(score) && Math.round(score * 10) / 10 >= 100;
+}
+
+export function thriftyHit(costs: readonly number[]): boolean {
+  let n = 0;
+  for (const cost of costs) if (cost === 1) n += 1;
+  return n >= THRIFTY_NEED;
 }
 
 export function stampDayGap(from: string, to: string): number {

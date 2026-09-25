@@ -22,6 +22,13 @@ import {
   DOUBLE_DONUT_ID,
   LUMPED_UP_ID,
   NEGATIVE_ID,
+  FLASH_ID,
+  THRIFTY_ID,
+  IRON_BOOT_ID,
+  IRON_BOOT_POINTS,
+  featWeekFromW3,
+  hitFlashTotal,
+  thriftyHit,
   EARLY_BIRD_NEED,
   NIGHT_OWL_NEED,
   FEAT_TRACK_FROM,
@@ -84,8 +91,18 @@ async function grantFeat(sql: Sql, userId: string, featId: AvatarId): Promise<vo
     JSON.stringify(next),
     userId,
   ]);
-  const { recordLookUnlockNews } = await import("./news.server");
-  await recordLookUnlockNews(sql, userId, featId, "feats");
+  try {
+    const { recordLookUnlockNews } = await import("./news.server");
+    await recordLookUnlockNews(sql, userId, featId, "feats");
+  } catch (err) {
+    console.error("[darkness] feat unlock news failed", err);
+  }
+  try {
+    const { grantFeatScratchPoints } = await import("./scratch.server");
+    await grantFeatScratchPoints(sql, userId, featId);
+  } catch (err) {
+    console.error("[darkness] feat scratch points failed", err);
+  }
 }
 
 export async function maybeGrantBullseye(sql: Sql, userId: string, score: number): Promise<void> {
@@ -243,6 +260,93 @@ export async function maybeGrantHeavyHitter(
     await grantFeat(sql, userId, HEAVY_HITTER_ID);
   } catch (err) {
     console.error("[darkness] heavy hitter grant failed", err);
+  }
+}
+
+export async function maybeGrantThrifty(sql: Sql, userId: string, costs: readonly number[]): Promise<void> {
+  try {
+    if (!thriftyHit(costs)) return;
+    await grantFeat(sql, userId, THRIFTY_ID);
+  } catch (err) {
+    console.error("[darkness] thrifty grant failed", err);
+  }
+}
+
+type BootPick = { slot?: string; sid?: string; team?: string; vs?: string };
+
+function bootCell(
+  pick: BootPick | undefined,
+  season: number,
+  week: number,
+  live: Record<string, number>,
+): number | null {
+  if (!pick) return null;
+  if (String(pick.vs ?? "").trim().toUpperCase() === "BYE") return null;
+  const team = String(pick.team ?? "").trim().toUpperCase();
+  if (team && teamBye(season, team as TeamId) === week) return null;
+  const sid = String(pick.sid ?? "").trim();
+  if (!sid || !Object.prototype.hasOwnProperty.call(live, sid)) return null;
+  const score = Number(live[sid]);
+  return Number.isFinite(score) ? score : null;
+}
+
+export async function maybeGrantIronBoot(
+  sql: Sql,
+  userId: string,
+  season: number,
+  week: number,
+  picks: BootPick[],
+  live: Record<string, number>,
+): Promise<void> {
+  try {
+    if (!featWeekFromW3(season, week)) return;
+    const defense = bootCell(
+      picks.find((row) => row.slot === "D"),
+      season,
+      week,
+      live,
+    );
+    const kicker = bootCell(
+      picks.find((row) => row.slot === "K"),
+      season,
+      week,
+      live,
+    );
+    if (defense == null || kicker == null) return;
+    if (Math.round((defense + kicker) * 10) / 10 < IRON_BOOT_POINTS) return;
+    await grantFeat(sql, userId, IRON_BOOT_ID);
+  } catch (err) {
+    console.error("[darkness] iron boot grant failed", err);
+  }
+}
+
+/** First live pass at 100.0 locks the week. Later crossings do not grant. */
+export async function maybeGrantFlashWeek(
+  sql: Sql,
+  season: number,
+  week: number,
+  rows: { userId: string; score: number }[],
+): Promise<void> {
+  try {
+    if (!featWeekFromW3(season, week)) return;
+    await sql.query(`
+      create table if not exists darkness_weekly_flags (
+        key text primary key,
+        created_at timestamptz not null default now()
+      )`);
+    const key = `flash-week:${season}-W${week}`;
+    const already = await sql.query<{ key: string }>(`select key from darkness_weekly_flags where key = $1`, [key]);
+    if (already[0]) return;
+    const hit = rows.filter((row) => row.userId && !isHiddenBoardId(row.userId) && hitFlashTotal(row.score));
+    if (!hit.length) return;
+    const inserted = await sql.query<{ key: string }>(
+      `insert into darkness_weekly_flags (key) values ($1) on conflict (key) do nothing returning key`,
+      [key],
+    );
+    if (!inserted[0]) return;
+    for (const row of hit) await grantFeat(sql, row.userId, FLASH_ID);
+  } catch (err) {
+    console.error("[darkness] flash grant failed", err);
   }
 }
 

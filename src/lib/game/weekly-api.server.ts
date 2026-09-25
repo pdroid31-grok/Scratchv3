@@ -391,9 +391,10 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
       }
     }
     try {
-      const { maybeGrantBullseye, maybeGrantHeavyHitter } = await import("./board-feats.server");
+      const { maybeGrantBullseye, maybeGrantHeavyHitter, maybeGrantIronBoot } = await import("./board-feats.server");
       await maybeGrantBullseye(sql, row.userId, row.score);
       await maybeGrantHeavyHitter(sql, row.userId, season, week, row.picks);
+      await maybeGrantIronBoot(sql, row.userId, season, week, row.picks, live);
     } catch (err) {
       console.error("[darkness] weekly feat grant failed", err);
     }
@@ -402,6 +403,17 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
     `update darkness_weekly_weeks set awarded = true where season = $1 and week = $2 and awarded = false`,
     [season, week],
   );
+  try {
+    const { maybeGrantFlashWeek } = await import("./board-feats.server");
+    await maybeGrantFlashWeek(
+      sql,
+      season,
+      week,
+      scored.filter((row) => !row.skip).map((row) => ({ userId: row.userId, score: row.score })),
+    );
+  } catch (err) {
+    console.error("[darkness] flash grant failed", err);
+  }
   try {
     await grantWeeklyDoubleDonuts(sql, season, week);
   } catch (err) {
@@ -756,6 +768,16 @@ export async function lockWeeklyHandler({ context, data }: { context: { userId: 
         where season = $1 and week = $2 and user_id = $3 and status = 'playing'`,
       [week.season, week.week, context.userId, JSON.stringify(snap)],
     );
+    try {
+      const { maybeGrantThrifty } = await import("./board-feats.server");
+      await maybeGrantThrifty(
+        sql,
+        context.userId,
+        snap.map((pick) => pick.cost),
+      );
+    } catch (err) {
+      console.error("[darkness] thrifty grant failed", err);
+    }
     const next = await loadRun(sql, week.season, week.week, context.userId);
     return {
       ...metaFrom(week, runStatus(next, false), next, window.live),
@@ -852,8 +874,13 @@ export async function listWeeklyBoardHandler({ data }: { data: { season: number;
         const name = clipDisplayName(row.name ?? "") || "GM";
         if (window.live) {
           void import("./board-feats.server")
-            .then(({ maybeGrantHeavyHitter }) => maybeGrantHeavyHitter(sql, row.user_id, season, weekNo, picks))
-            .catch((err) => console.error("[darkness] heavy hitter live failed", err));
+            .then(({ maybeGrantHeavyHitter, maybeGrantIronBoot }) =>
+              Promise.all([
+                maybeGrantHeavyHitter(sql, row.user_id, season, weekNo, picks),
+                maybeGrantIronBoot(sql, row.user_id, season, weekNo, picks, live),
+              ]),
+            )
+            .catch((err) => console.error("[darkness] weekly live feat failed", err));
         }
         if (isHiddenBoardId(row.user_id) || isHiddenBoardName(name) || isHiddenBoardName(row.name)) return null;
         return {
@@ -869,6 +896,18 @@ export async function listWeeklyBoardHandler({ data }: { data: { season: number;
       })
       .filter((row): row is NonNullable<typeof row> => Boolean(row))
       .sort((a, b) => rankWeeklyBoard(a, b, week.awarded || window.live));
+    if (window.live) {
+      void import("./board-feats.server")
+        .then(({ maybeGrantFlashWeek }) =>
+          maybeGrantFlashWeek(
+            sql,
+            season,
+            weekNo,
+            ranked.map((row) => ({ userId: row.id, score: row.score })),
+          ),
+        )
+        .catch((err) => console.error("[darkness] flash live failed", err));
+    }
     if (await weekFinishedOwn(Boolean(week.awarded), season, weekNo, clock, window)) {
       const seasonRuns = await loadSeasonDoneRuns(sql, season);
       const floorScore = weekFloorMin(ranked);

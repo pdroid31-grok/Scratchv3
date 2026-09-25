@@ -7,7 +7,7 @@ import { applyPrize, bagLegend, HALFTIME_BAG, prizeLabel, redactHalftime, type P
 import { clipDisplayName, hostedNightKey, nightKey, opponentKey, planHostedNightWrite, isBankCommish } from "./stats-shared";
 import { parseRankTab } from "./rank-tabs";
 import { hostedMatchView, historyLineScore } from "./hosted-match";
-import { clampAvatar, isUnlocked, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, walletBalance, PRIZE_AVATARS, WIN_PAY, BOX_COST, GOLDEN_COST, boxPoolOwnedCount, hitBananaScore, hitBoxAddict, justUnlockedBanana, justUnlockedScratchLook, BOX_ADDICT_POOL_NEED, BANANA_SCORE_UNDER, avatarById, hitHeavyHitterScore, skipHeavyHitterWeek, stampDayGap, lostGapHit, earlyBirdDayCount, nightOwlDayCount, comebackKidHit, freeFallHit, EARLY_BIRD_NEED, NIGHT_OWL_NEED, FEAT_TRACK_FROM, DOUBLE_DONUT_FROM, NEGATIVE_FROM, LOST_GAP_DAYS, HEAVY_HITTER_PPR, lumpedUpHit, weeklyRealZeroCount, doubleDonutHit, isExactZeroScore, isNegativeScore, lookSource } from "./avatars";
+import { clampAvatar, isUnlocked, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, walletBalance, PRIZE_AVATARS, WIN_PAY, BOX_COST, GOLDEN_COST, boxPoolOwnedCount, hitBananaScore, hitBoxAddict, justUnlockedBanana, justUnlockedScratchLook, BOX_ADDICT_POOL_NEED, BANANA_SCORE_UNDER, avatarById, hitHeavyHitterScore, skipHeavyHitterWeek, stampDayGap, lostGapHit, earlyBirdDayCount, nightOwlDayCount, comebackKidHit, freeFallHit, EARLY_BIRD_NEED, NIGHT_OWL_NEED, FEAT_TRACK_FROM, DOUBLE_DONUT_FROM, NEGATIVE_FROM, FEAT_SCRATCH_POINTS, THRIFTY_NEED, IRON_BOOT_POINTS, featWeekFromW3, hitFlashTotal, thriftyHit, LOST_GAP_DAYS, HEAVY_HITTER_PPR, lumpedUpHit, weeklyRealZeroCount, doubleDonutHit, isExactZeroScore, isNegativeScore, lookSource } from "./avatars";
 import { PLAYERS } from "./players";
 import { ratingFromPpr } from "./ratings";
 import { emptyRoster, type Roster } from "./types";
@@ -1060,6 +1060,16 @@ describe("avatars", () => {
     assert.equal(NIGHT_OWL_NEED, 10);
     assert.equal(LOST_GAP_DAYS, 10);
     assert.equal(HEAVY_HITTER_PPR, 50);
+    assert.equal(FEAT_SCRATCH_POINTS, 50);
+    assert.equal(THRIFTY_NEED, 5);
+    assert.equal(IRON_BOOT_POINTS, 40);
+    assert.equal(featWeekFromW3(2026, 2), false);
+    assert.equal(featWeekFromW3(2026, 3), true);
+    assert.equal(hitFlashTotal(99.9), false);
+    assert.equal(hitFlashTotal(100), true);
+    assert.equal(hitFlashTotal(100.04), true);
+    assert.equal(thriftyHit([1, 1, 1, 1, 2]), false);
+    assert.equal(thriftyHit([1, 1, 1, 1, 1]), true);
     assert.equal(stampDayGap("2026-09-17", "2026-09-27"), 10);
     assert.equal(lostGapHit("2026-09-17", "2026-09-27"), true);
     assert.equal(lostGapHit("2026-09-16", "2026-09-27"), false);

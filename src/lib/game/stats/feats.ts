@@ -262,7 +262,13 @@ export async function announceFeatUnlocks(
   if (!ids.length) return;
   try {
     const { recordLookUnlockNews } = await import("../news.server");
+    const { grantFeatScratchPoints } = await import("../scratch.server");
     for (const id of ids) {
+      try {
+        await grantFeatScratchPoints(sql, userId, id);
+      } catch (err) {
+        console.error("[darkness] feat scratch points failed", err);
+      }
       await recordLookUnlockNews(sql, userId, id, "feats");
     }
   } catch (err) {
