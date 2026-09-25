@@ -64,7 +64,6 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
           <div>
             <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-turf">Store</p>
             <h2 className="mt-1 font-display text-2xl font-semibold uppercase tracking-wide text-fg">Achievements</h2>
-            <p className="mt-1 text-sm text-muted">Earn these looks. Equip them in the closet.</p>
             <p className="mt-1 text-sm text-muted">All obtained Achievements award +50 scratch points.</p>
           </div>
           <button
