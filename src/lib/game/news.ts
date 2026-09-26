@@ -56,9 +56,14 @@ export function etOnDay(day: string, hour: number, minute = 0): number {
   return ms;
 }
 
-/** daily_win event_at: noon ET on that calendar day. Same stamp for every daily_win. */
+function nextCalendarDay(day: string): string {
+  const [y, m, d] = day.split("-").map(Number);
+  return new Date(Date.UTC(y!, (m ?? 1) - 1, (d ?? 1) + 1)).toISOString().slice(0, 10);
+}
+
+/** daily_win event_at: midnight ET when that contest day closes. Same stamp for every daily_win. */
 export function dailyWinEventAt(day: string): number {
-  return etOnDay(day, 12, 0);
+  return etOnDay(nextCalendarDay(day), 0, 0);
 }
 
 export function weeklyWinEventAt(endAt?: number, lockAt?: number, createdAt?: number): number {
