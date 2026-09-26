@@ -497,6 +497,12 @@ export async function claimScratchCard(sql: Sql, userId: string, cardId: number)
     } catch (err) {
       console.error("[darkness] box lunch scratch failed", err);
     }
+    try {
+      const { maybeGrantThreeLeaf } = await import("./board-feats.server");
+      await maybeGrantThreeLeaf(sql, userId);
+    } catch (err) {
+      console.error("[darkness] three leaf scratch failed", err);
+    }
   }
   const book = await sql.query<{
     coins: number | string | null;

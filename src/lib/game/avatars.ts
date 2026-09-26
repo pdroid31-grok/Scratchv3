@@ -102,6 +102,7 @@ export const AVATARS = [
   { id: "overhead", name: "Overhead", src: "/avatars/overhead.jpg?v=1" },
   { id: "mirror", name: "Mirror", src: "/avatars/mirror.jpg?v=1" },
   { id: "twin", name: "Twin", src: "/avatars/twin.jpg?v=1" },
+  { id: "threeleafclover", name: "3 Leaf Clover", src: "/avatars/threeleafclover.jpg?v=1" },
   { id: "football", name: "Football", src: "/avatars/football.jpg?v=1" },
   { id: "luchador", name: "Luchador", src: "/avatars/luchador.jpg?v=1" },
   { id: "tailgater", name: "Tailgater", src: "/avatars/tailgater.jpg?v=1" },
@@ -167,6 +168,8 @@ export const IRON_BOOT_ID = "ironboot" as const satisfies AvatarId;
 export const OVERHEAD_ID = "overhead" as const satisfies AvatarId;
 export const MIRROR_ID = "mirror" as const satisfies AvatarId;
 export const TWIN_ID = "twin" as const satisfies AvatarId;
+export const THREE_LEAF_ID = "threeleafclover" as const satisfies AvatarId;
+export const THREE_LEAF_NEED = 3;
 export const BANANA_SCORE_UNDER = 60;
 export const CROSSWORD_STREAK_NEED = 10;
 export const LOCKED_IN_STREAK_NEED = 100;
@@ -228,6 +231,7 @@ const FEAT_IDS = new Set<string>([
   OVERHEAD_ID,
   MIRROR_ID,
   TWIN_ID,
+  THREE_LEAF_ID,
 ]);
 export const ACHIEVEMENT_UNLOCKS = [
   { id: CLUB_200_ID, how: "Score 200+ points in a single match." },
@@ -259,6 +263,7 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: OVERHEAD_ID, how: "Score 150+ in Daily, then get passed." },
   { id: MIRROR_ID, how: "Post the same lineup as another player." },
   { id: TWIN_ID, how: "Same score as another player with a different lineup." },
+  { id: THREE_LEAF_ID, how: "Scratch three different results." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];
 export const PRIZE_AVATARS = AVATARS.filter(
   (avatar) => avatar.id !== "poor" && avatar.id !== "golden" && !STAR_IDS.has(avatar.id) && !FEAT_IDS.has(avatar.id),
@@ -286,6 +291,16 @@ export function hitBoxAddict(owned: readonly string[]): boolean {
 /** Daily Match score (not weekly, not private). Under 60 unlocks Trash Can. */
 export function hitBananaScore(score: number): boolean {
   return Number.isFinite(score) && score < BANANA_SCORE_UNDER;
+}
+
+/** Distinct scratch prize keys. Two of the same result still count as one. */
+export function threeLeafHit(prizes: readonly string[]): boolean {
+  const seen = new Set<string>();
+  for (const prize of prizes) {
+    const key = String(prize ?? "").trim();
+    if (key) seen.add(key);
+  }
+  return seen.size >= THREE_LEAF_NEED;
 }
 
 export function hitBullseyeScore(score: number): boolean {

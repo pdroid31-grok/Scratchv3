@@ -28,6 +28,7 @@ import {
   OVERHEAD_ID,
   MIRROR_ID,
   TWIN_ID,
+  THREE_LEAF_ID,
   IRON_BOOT_POINTS,
   featWeekFromW3,
   hitFlashTotal,
@@ -39,6 +40,7 @@ import {
   mirrorUserIds,
   TWIN_FROM,
   twinUserIds,
+  threeLeafHit,
   EARLY_BIRD_NEED,
   NIGHT_OWL_NEED,
   FEAT_TRACK_FROM,
@@ -492,6 +494,21 @@ export async function maybeGrantVegas(sql: Sql, userId: string): Promise<void> {
     await grantFeat(sql, userId, VEGAS_ID);
   } catch (err) {
     console.error("[darkness] vegas grant failed", err);
+  }
+}
+
+export async function maybeGrantThreeLeaf(sql: Sql, userId: string): Promise<void> {
+  try {
+    const rows = await sql.query<{ prize: string | null }>(
+      `select distinct prize
+         from darkness_scratch_cards
+        where user_id = $1 and scratched_at is not null`,
+      [userId],
+    );
+    if (!threeLeafHit(rows.map((row) => String(row.prize ?? "")))) return;
+    await grantFeat(sql, userId, THREE_LEAF_ID);
+  } catch (err) {
+    console.error("[darkness] three leaf grant failed", err);
   }
 }
 
