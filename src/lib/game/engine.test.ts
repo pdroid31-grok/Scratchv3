@@ -7,7 +7,7 @@ import { applyPrize, bagLegend, HALFTIME_BAG, prizeLabel, redactHalftime, type P
 import { clipDisplayName, hostedNightKey, nightKey, opponentKey, planHostedNightWrite, isBankCommish } from "./stats-shared";
 import { parseRankTab } from "./rank-tabs";
 import { hostedMatchView, historyLineScore } from "./hosted-match";
-import { clampAvatar, isUnlocked, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, walletBalance, PRIZE_AVATARS, WIN_PAY, BOX_COST, GOLDEN_COST, boxPoolOwnedCount, hitBananaScore, hitBoxAddict, justUnlockedBanana, justUnlockedScratchLook, BOX_ADDICT_POOL_NEED, BANANA_SCORE_UNDER, avatarById, hitHeavyHitterScore, skipHeavyHitterWeek, stampDayGap, lostGapHit, earlyBirdDayCount, nightOwlDayCount, comebackKidHit, freeFallHit, EARLY_BIRD_NEED, NIGHT_OWL_NEED, FEAT_TRACK_FROM, DOUBLE_DONUT_FROM, NEGATIVE_FROM, FEAT_SCRATCH_POINTS, THRIFTY_NEED, IRON_BOOT_POINTS, featWeekFromW3, hitFlashTotal, thriftyHit, OVERHEAD_FROM, MIRROR_FROM, OVERHEAD_SCORE, lineupSignature, overheadPassed, mirrorUserIds, TWIN_FROM, twinUserIds, threeLeafHit, THREE_LEAF_NEED, huntersToGrant, LOST_GAP_DAYS, HEAVY_HITTER_PPR, lumpedUpHit, weeklyRealZeroCount, doubleDonutHit, isExactZeroScore, isNegativeScore, lookSource } from "./avatars";
+import { clampAvatar, isUnlocked, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, walletBalance, PRIZE_AVATARS, WIN_PAY, BOX_COST, GOLDEN_COST, boxPoolOwnedCount, hitBananaScore, hitBoxAddict, justUnlockedBanana, justUnlockedScratchLook, BOX_ADDICT_POOL_NEED, BANANA_SCORE_UNDER, avatarById, hitHeavyHitterScore, skipHeavyHitterWeek, stampDayGap, lostGapHit, earlyBirdDayCount, nightOwlDayCount, comebackKidHit, freeFallHit, EARLY_BIRD_NEED, NIGHT_OWL_NEED, FEAT_TRACK_FROM, DOUBLE_DONUT_FROM, NEGATIVE_FROM, FEAT_SCRATCH_POINTS, THRIFTY_NEED, IRON_BOOT_POINTS, featWeekFromW3, hitFlashTotal, thriftyHit, OVERHEAD_FROM, MIRROR_FROM, OVERHEAD_SCORE, lineupSignature, overheadPassed, mirrorUserIds, TWIN_FROM, twinUserIds, threeLeafHit, THREE_LEAF_NEED, huntersToGrant, LOST_GAP_DAYS, HEAVY_HITTER_PPR, lumpedUpHit, weeklyRealZeroCount, doubleDonutHit, isExactZeroScore, isNegativeScore, lookSource, threeHeadedHit, tripleDonutHit, pennyHit, blueStreakHit, coldStreakHit } from "./avatars";
 import { PLAYERS } from "./players";
 import { ratingFromPpr } from "./ratings";
 import { emptyRoster, type Roster } from "./types";
@@ -1005,7 +1005,7 @@ describe("avatars", () => {
     assert.equal(pickPrize(ownedAll), null);
     assert.equal(
       PRIZE_AVATARS.some((avatar) =>
-        ["club200", "peeping", "banana", "crossword", "thanos", "boxaddict", "commish", "jail", "8ball", "ghostpepe", "lockedin", "sniper", "silvermedal", "crypepe", "joker", "doubletrouble", "bullseye", "rainyday", "earlybird", "heavyhitter", "lost", "vegas", "nightowl", "comebackkid", "freefall", "boxlunch", "doubledonut", "lumpedup", "negative"].includes(avatar.id),
+        ["club200", "peeping", "banana", "crossword", "thanos", "boxaddict", "commish", "jail", "8ball", "ghostpepe", "lockedin", "sniper", "silvermedal", "crypepe", "joker", "doubletrouble", "bullseye", "rainyday", "earlybird", "heavyhitter", "lost", "vegas", "nightowl", "comebackkid", "freefall", "boxlunch", "doubledonut", "lumpedup", "negative", "threeheaded", "tripledonut", "penny", "bluestreak", "coldstreak"].includes(avatar.id),
       ),
       false,
     );
@@ -1259,5 +1259,53 @@ describe("avatars", () => {
     assert.equal(pickPrize(["poor"], "come") === "comebackkid", false);
     assert.equal(pickPrize(["poor"], "fall") === "freefall", false);
     assert.equal(pickPrize(["poor"], "lunch") === "boxlunch", false);
+    assert.equal(threeHeadedHit(["KC", "KC", "BUF"]), false);
+    assert.equal(threeHeadedHit(["kc", " KC ", "Kc"]), true);
+    assert.equal(threeHeadedHit(["BYE", "BYE", "BYE"]), false);
+    assert.equal(threeHeadedHit(["", "KC", "KC"]), false);
+    assert.equal(threeHeadedHit(["KC", "BUF", "KC", "BUF", "KC"]), true);
+    assert.equal(tripleDonutHit(2), false);
+    assert.equal(tripleDonutHit(3), true);
+    assert.equal(pennyHit([]), false);
+    assert.equal(pennyHit([1, 1, 1, 1, 1, 1, 1, 1]), true);
+    assert.equal(pennyHit([1, 1, 2]), false);
+    assert.equal(pennyHit([1, Number.NaN]), false);
+    assert.equal(blueStreakHit(3), false);
+    assert.equal(blueStreakHit(4), true);
+    function nextDay(day: string): string {
+      const [y, m, d] = day.split("-").map(Number);
+      return new Date(Date.UTC(y!, (m ?? 1) - 1, (d ?? 1) + 1)).toISOString().slice(0, 10);
+    }
+    function coldDays(start: string, n: number, wins: ReadonlySet<number> = new Set()): { day: string; won: boolean }[] {
+      const rows: { day: string; won: boolean }[] = [];
+      let day = start;
+      for (let i = 0; i < n; i += 1) {
+        rows.push({ day, won: wins.has(i) });
+        day = nextDay(day);
+      }
+      return rows;
+    }
+    assert.equal(coldStreakHit(coldDays("2026-09-20", 14)), false);
+    assert.equal(coldStreakHit(coldDays("2026-09-20", 15)), true);
+    assert.equal(coldStreakHit(coldDays("2026-09-05", 15)), false);
+    assert.equal(coldStreakHit(coldDays("2026-09-20", 16, new Set([15]))), true);
+    assert.equal(coldStreakHit(coldDays("2026-09-20", 29, new Set([14]))), false);
+    assert.equal(coldStreakHit([...coldDays("2026-09-20", 10), ...coldDays("2026-10-01", 5)]), true);
+    assert.equal(coldStreakHit([...coldDays("2026-09-20", 10), ...coldDays("2026-10-01", 4)]), false);
+    assert.equal(avatarById("threeheaded").name, "3 Headed");
+    assert.equal(avatarById("tripledonut").name, "Triple Donut");
+    assert.equal(avatarById("penny").name, "Penny");
+    assert.equal(avatarById("bluestreak").name, "Blue Streak");
+    assert.equal(avatarById("coldstreak").name, "Cold Streak");
+    assert.equal(lookSource("threeheaded"), "From Achievement: Start 3 players from the same NFL team in a Daily or Weekly Match.");
+    assert.equal(lookSource("tripledonut"), "From Achievement: Start three or more players who score 0 in a Daily or Weekly Match.");
+    assert.equal(lookSource("penny"), "From Achievement: Lock a Daily lineup where every player costs $1.");
+    assert.equal(lookSource("bluestreak"), "From Achievement: Start 4 or more players who score in the blue in one Daily.");
+    assert.equal(lookSource("coldstreak"), "From Achievement: Finish 15 Daily Matches in a row with no Daily win.");
+    assert.equal(pickPrize(["poor"], "hydra") === "threeheaded", false);
+    assert.equal(pickPrize(["poor"], "tdonut") === "tripledonut", false);
+    assert.equal(pickPrize(["poor"], "cent") === "penny", false);
+    assert.equal(pickPrize(["poor"], "streak") === "bluestreak", false);
+    assert.equal(pickPrize(["poor"], "frost") === "coldstreak", false);
   });
 });

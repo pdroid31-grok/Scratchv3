@@ -19,7 +19,7 @@ import {
 } from "./daily";
 import { scoredWeek, type ElimPick } from "./elim";
 import { clipDisplayName, isAwardSkippedName, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
-import { clampAvatar, DOUBLE_DONUT_FROM, NEGATIVE_FROM, type AvatarId } from "./avatars";
+import { clampAvatar, BLUE_STREAK_FROM, DOUBLE_DONUT_FROM, NEGATIVE_FROM, PENNY_FROM, THREE_HEADED_FROM, TRIPLE_DONUT_FROM, type AvatarId } from "./avatars";
 
 type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
 
@@ -130,9 +130,10 @@ export async function importLegacyThenSettle(sql: Sql, today: string): Promise<v
   }
   await settleYesterdaySafe(sql, today);
   try {
-    const { maybeGrantDailyContestFeats, maybeGrantTwinDay } = await import("./board-feats.server");
+    const { maybeGrantDailyContestFeats, maybeGrantTwinDay, grantRosterFeatsOnce } = await import("./board-feats.server");
     await maybeGrantDailyContestFeats(sql, today);
     await maybeGrantTwinDay(sql, today);
+    await grantRosterFeatsOnce(sql);
   } catch (err) {
     console.error("[darkness] daily contest feats failed", err);
   }
@@ -418,6 +419,12 @@ async function completeDailyRun(
     if (day.day >= NEGATIVE_FROM) await maybeGrantNegative(sql, userId);
     if (day.day >= "2026-09-17") await maybeGrantLumpedUp(sql, userId);
     await maybeGrantThrifty(sql, userId, picks.map((pick) => pick.player.cost));
+    const { maybeGrantThreeHeaded, maybeGrantTripleDonutDaily, maybeGrantPenny, maybeGrantBlueStreak, maybeGrantColdStreak } = await import("./board-feats.server");
+    if (day.day >= THREE_HEADED_FROM) await maybeGrantThreeHeaded(sql, userId, snap.map((pick) => pick.team));
+    if (day.day >= TRIPLE_DONUT_FROM) await maybeGrantTripleDonutDaily(sql, userId);
+    if (day.day >= PENNY_FROM) await maybeGrantPenny(sql, userId);
+    if (day.day >= BLUE_STREAK_FROM) await maybeGrantBlueStreak(sql, userId);
+    await maybeGrantColdStreak(sql, userId);
     const { maybeGrantDailyContestFeats, maybeGrantTwinDay } = await import("./board-feats.server");
     await maybeGrantDailyContestFeats(sql, day.day);
     await maybeGrantTwinDay(sql, day.day);

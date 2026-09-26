@@ -52,13 +52,29 @@ import {
   isNegativeScore,
   lumpedUpHit,
   weeklyRealZeroCount,
+  THREE_HEADED_ID,
+  TRIPLE_DONUT_ID,
+  PENNY_ID,
+  BLUE_STREAK_ID,
+  COLD_STREAK_ID,
+  THREE_HEADED_FROM,
+  TRIPLE_DONUT_FROM,
+  PENNY_FROM,
+  BLUE_STREAK_FROM,
+  COLD_STREAK_FROM,
+  threeHeadedHit,
+  tripleDonutHit,
+  pennyHit,
+  blueStreakHit,
+  coldStreakHit,
   type AvatarId,
   type EarlyBirdRow,
 } from "./avatars";
 import { clipGm, isAwardSkippedName, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
+import { isCommishSettingsUser } from "./commish-types";
 import { dailyDayStamp, dailyYesterday } from "./daily";
 import { teamBye } from "./elim-byes";
-import { hiddenWeeks } from "./elim-data";
+import { hiddenWeeks, isElimSlot, slotPos, weekScoreTone } from "./elim-data";
 import { ELIM_WEEKS } from "./elim-weeks";
 import { ELIM_LEGACY_WEEKS } from "./elim-legacy-weeks";
 import type { TeamId } from "./types";
@@ -880,5 +896,226 @@ export async function maybeGrantLumpedUp(sql: Sql, userId: string): Promise<void
     await grantFeat(sql, userId, LUMPED_UP_ID);
   } catch (err) {
     console.error("[darkness] lumped up grant failed", err);
+  }
+}
+
+function ceoBlocked(userId: string): boolean {
+  return isCommishSettingsUser(userId);
+}
+
+type LinePick = { id?: string; name?: string; team?: string; slot?: string; cost?: number };
+
+/** Blue band on the contest week only. Bye, blank, and a missing cell do not count. */
+export function dailyBestToneCount(
+  picks: readonly LinePick[],
+  year: number,
+  week: number,
+): number {
+  if (!Number.isFinite(year) || !Number.isFinite(week) || week < 1) return 0;
+  if (hiddenWeeks(year).includes(week)) return 0;
+  let n = 0;
+  const seen = new Set<string>();
+  for (const pick of picks) {
+    const id = String(pick.id ?? "").trim();
+    const name = String(pick.name ?? "").trim();
+    const slot = String(pick.slot ?? "");
+    if (!id || !name || !isElimSlot(slot) || seen.has(id)) continue;
+    const team = String(pick.team ?? "").trim();
+    if (team && teamBye(year, team as TeamId) === week) continue;
+    const cell = rawElimWeek(id, week);
+    if (cell == null) continue;
+    if (weekScoreTone(slotPos(slot), cell, false) !== "best") continue;
+    seen.add(id);
+    n += 1;
+  }
+  return n;
+}
+
+export async function maybeGrantThreeHeaded(sql: Sql, userId: string, teams: readonly string[]): Promise<void> {
+  try {
+    if (ceoBlocked(userId) || !threeHeadedHit(teams)) return;
+    await grantFeat(sql, userId, THREE_HEADED_ID);
+  } catch (err) {
+    console.error("[darkness] three headed grant failed", err);
+  }
+}
+
+export async function maybeGrantTripleDonutDaily(sql: Sql, userId: string): Promise<void> {
+  try {
+    if (ceoBlocked(userId)) return;
+    const rows = await sql.query<{ year: number | string; week: number | string; picks: unknown }>(
+      `select d.year, d.week, r.picks
+         from darkness_daily_runs r
+         join darkness_daily_days d on d.day = r.day
+        where r.user_id = $1
+          and r.status = 'done'
+          and r.day >= $2::date
+          and r.picks is not null`,
+      [userId, TRIPLE_DONUT_FROM],
+    );
+    for (const row of rows) {
+      const picks = Array.isArray(row.picks) ? (row.picks as LinePick[]) : [];
+      if (!tripleDonutHit(dailyLineupRealZeroCount(picks, Number(row.year), Number(row.week)))) continue;
+      await grantFeat(sql, userId, TRIPLE_DONUT_ID);
+      return;
+    }
+  } catch (err) {
+    console.error("[darkness] triple donut daily failed", err);
+  }
+}
+
+export async function maybeGrantTripleDonutWeekly(
+  sql: Sql,
+  userId: string,
+  picks: unknown,
+  live: Readonly<Record<string, number>>,
+  awardDay: string,
+  weekDone: boolean,
+  finalTeams: ReadonlySet<string>,
+): Promise<void> {
+  try {
+    if (ceoBlocked(userId) || !weekDone) return;
+    if (!awardDay || awardDay < TRIPLE_DONUT_FROM) return;
+    const rows = Array.isArray(picks) ? (picks as { id?: string; sid?: string; name?: string; team?: string; vs?: string }[]) : [];
+    if (!tripleDonutHit(weeklyRealZeroCount(rows, live, finalTeams))) return;
+    await grantFeat(sql, userId, TRIPLE_DONUT_ID);
+  } catch (err) {
+    console.error("[darkness] triple donut weekly failed", err);
+  }
+}
+
+export async function maybeGrantPenny(sql: Sql, userId: string): Promise<void> {
+  try {
+    if (ceoBlocked(userId)) return;
+    const rows = await sql.query<{ picks: unknown }>(
+      `select r.picks
+         from darkness_daily_runs r
+        where r.user_id = $1
+          and r.status = 'done'
+          and r.day >= $2::date
+          and r.picks is not null`,
+      [userId, PENNY_FROM],
+    );
+    for (const row of rows) {
+      const picks = Array.isArray(row.picks) ? (row.picks as LinePick[]) : [];
+      const costs = picks.flatMap((pick) => {
+        const id = String(pick.id ?? "").trim();
+        if (!id) return [];
+        return [Number(pick.cost)];
+      });
+      if (!pennyHit(costs)) continue;
+      await grantFeat(sql, userId, PENNY_ID);
+      return;
+    }
+  } catch (err) {
+    console.error("[darkness] penny grant failed", err);
+  }
+}
+
+export async function maybeGrantBlueStreak(sql: Sql, userId: string): Promise<void> {
+  try {
+    if (ceoBlocked(userId)) return;
+    const rows = await sql.query<{ year: number | string; week: number | string; picks: unknown }>(
+      `select d.year, d.week, r.picks
+         from darkness_daily_runs r
+         join darkness_daily_days d on d.day = r.day
+        where r.user_id = $1
+          and r.status = 'done'
+          and r.day >= $2::date
+          and r.picks is not null`,
+      [userId, BLUE_STREAK_FROM],
+    );
+    for (const row of rows) {
+      const picks = Array.isArray(row.picks) ? (row.picks as LinePick[]) : [];
+      if (!blueStreakHit(dailyBestToneCount(picks, Number(row.year), Number(row.week)))) continue;
+      await grantFeat(sql, userId, BLUE_STREAK_ID);
+      return;
+    }
+  } catch (err) {
+    console.error("[darkness] blue streak grant failed", err);
+  }
+}
+
+export async function maybeGrantColdStreak(sql: Sql, userId: string): Promise<void> {
+  try {
+    if (ceoBlocked(userId)) return;
+    const rows = await sql.query<{ day: string; payout_win: boolean | null }>(
+      `select r.day::text as day, r.payout_win
+         from darkness_daily_runs r
+        where r.user_id = $1
+          and r.status = 'done'
+          and r.day >= $2::date`,
+      [userId, COLD_STREAK_FROM],
+    );
+    const played = rows.map((row) => ({ day: String(row.day).slice(0, 10), won: Boolean(row.payout_win) }));
+    if (!coldStreakHit(played)) return;
+    await grantFeat(sql, userId, COLD_STREAK_ID);
+  } catch (err) {
+    console.error("[darkness] cold streak grant failed", err);
+  }
+}
+
+const ROSTER_FEATS_FLAG = "roster-feats-2026-09-26";
+
+/** One pass over locks already inside the from-dates. Later locks still grant on their own. */
+export async function grantRosterFeatsOnce(sql: Sql): Promise<void> {
+  await sql.query(`
+    create table if not exists darkness_feat_flags (
+      key text primary key,
+      created_at timestamptz not null default now()
+    )`);
+  const already = await sql.query<{ key: string }>(
+    `select key from darkness_feat_flags where key = $1`,
+    [ROSTER_FEATS_FLAG],
+  );
+  if (already[0]) return;
+  const daily = await sql.query<{ user_id: string }>(
+    `select distinct r.user_id
+       from darkness_daily_runs r
+      where r.status = 'done'
+        and r.day >= $1::date`,
+    [COLD_STREAK_FROM],
+  );
+  for (const row of daily) {
+    if (ceoBlocked(row.user_id)) continue;
+    await maybeGrantColdStreak(sql, row.user_id);
+    await maybeGrantThreeHeadedFromDaily(sql, row.user_id);
+    await maybeGrantTripleDonutDaily(sql, row.user_id);
+    await maybeGrantPenny(sql, row.user_id);
+    await maybeGrantBlueStreak(sql, row.user_id);
+  }
+  const weekly = await sql.query<{ user_id: string; picks: unknown }>(
+    `select user_id, picks
+       from darkness_weekly_runs
+      where status = 'done'
+        and picks is not null
+        and finished_at >= timestamptz '2026-09-26 00:00:00 America/New_York'`,
+  );
+  for (const row of weekly) {
+    const picks = Array.isArray(row.picks) ? (row.picks as LinePick[]) : [];
+    await maybeGrantThreeHeaded(
+      sql,
+      row.user_id,
+      picks.map((pick) => String(pick.team ?? "")),
+    );
+  }
+  await sql.query(`insert into darkness_feat_flags (key) values ($1) on conflict do nothing`, [ROSTER_FEATS_FLAG]);
+}
+
+async function maybeGrantThreeHeadedFromDaily(sql: Sql, userId: string): Promise<void> {
+  const rows = await sql.query<{ picks: unknown }>(
+    `select r.picks
+       from darkness_daily_runs r
+      where r.user_id = $1
+        and r.status = 'done'
+        and r.day >= $2::date
+        and r.picks is not null`,
+    [userId, THREE_HEADED_FROM],
+  );
+  for (const row of rows) {
+    const picks = Array.isArray(row.picks) ? (row.picks as LinePick[]) : [];
+    if (!threeHeadedHit(picks.map((pick) => String(pick.team ?? "")))) continue;
+    await maybeGrantThreeHeaded(sql, userId, picks.map((pick) => String(pick.team ?? "")));
+    return;
   }
 }

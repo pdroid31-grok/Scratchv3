@@ -316,6 +316,37 @@ async function grantWeeklyDoubleDonuts(sql: Sql, season: number, week: number): 
   await sql.query(`insert into darkness_weekly_flags (key) values ($1) on conflict (key) do nothing`, [key]);
 }
 
+async function grantWeeklyTripleDonuts(sql: Sql, season: number, week: number): Promise<void> {
+  await sql.query(`
+    create table if not exists darkness_weekly_flags (
+      key text primary key,
+      created_at timestamptz not null default now()
+    )`);
+  const key = `triple-donut:${season}-W${week}`;
+  const already = await sql.query<{ key: string }>(`select key from darkness_weekly_flags where key = $1`, [key]);
+  if (already[0]) return;
+  const window = await weekWindow(season, week);
+  if (!isWeekSlateFinal(window.games)) return;
+  const { weeklyAwardEtDay } = await import("./double-trouble.server");
+  const awardDay = weeklyAwardEtDay(window.games, window.endAt);
+  const { TRIPLE_DONUT_FROM } = await import("./avatars");
+  if (!awardDay || awardDay < TRIPLE_DONUT_FROM) {
+    await sql.query(`insert into darkness_weekly_flags (key) values ($1) on conflict (key) do nothing`, [key]);
+    return;
+  }
+  const live = await weeklyLiveStats(season, week);
+  const finals = finalSlateTeams(window.games);
+  const runs = await sql.query<{ user_id: string; picks: unknown }>(
+    `select user_id, picks from darkness_weekly_runs where season = $1 and week = $2 and status = 'done'`,
+    [season, week],
+  );
+  const { maybeGrantTripleDonutWeekly } = await import("./board-feats.server");
+  for (const row of runs) {
+    await maybeGrantTripleDonutWeekly(sql, row.user_id, row.picks, live, awardDay, true, finals);
+  }
+  await sql.query(`insert into darkness_weekly_flags (key) values ($1) on conflict (key) do nothing`, [key]);
+}
+
 async function settleWeek(sql: Sql, season: number, week: number): Promise<void> {
   const day = await loadWeek(sql, season, week);
   if (!day) return;
@@ -335,6 +366,7 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
     }
     try {
       await grantWeeklyDoubleDonuts(sql, season, week);
+      await grantWeeklyTripleDonuts(sql, season, week);
     } catch (err) {
       console.error("[darkness] double donut weekly failed", err);
     }
@@ -435,8 +467,9 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
   }
   try {
     await grantWeeklyDoubleDonuts(sql, season, week);
+    await grantWeeklyTripleDonuts(sql, season, week);
   } catch (err) {
-    console.error("[darkness] double donut weekly failed", err);
+    console.error("[darkness] donut weekly failed", err);
   }
   try {
     const { grantDoubleTroubleAfterWeekly } = await import("./double-trouble.server");
@@ -788,11 +821,16 @@ export async function lockWeeklyHandler({ context, data }: { context: { userId: 
       [week.season, week.week, context.userId, JSON.stringify(snap)],
     );
     try {
-      const { maybeGrantThrifty, maybeGrantMirrorWeek } = await import("./board-feats.server");
+      const { maybeGrantThrifty, maybeGrantMirrorWeek, maybeGrantThreeHeaded } = await import("./board-feats.server");
       await maybeGrantThrifty(
         sql,
         context.userId,
         snap.map((pick) => pick.cost),
+      );
+      await maybeGrantThreeHeaded(
+        sql,
+        context.userId,
+        snap.map((pick) => pick.team),
       );
       await maybeGrantMirrorWeek(sql, week.season, week.week);
     } catch (err) {

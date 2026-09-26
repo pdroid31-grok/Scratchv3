@@ -113,6 +113,11 @@ export const AVATARS = [
   { id: "advancedhunter", name: "Advanced Hunter", src: "/avatars/advancedhunter.jpg?v=1" },
   { id: "megahunter", name: "Mega Hunter", src: "/avatars/megahunter.jpg?v=1" },
   { id: "alienhunter", name: "Alien Hunter", src: "/avatars/alienhunter.jpg?v=1" },
+  { id: "threeheaded", name: "3 Headed", src: "/avatars/threeheaded.jpg?v=1" },
+  { id: "tripledonut", name: "Triple Donut", src: "/avatars/tripledonut.jpg?v=1" },
+  { id: "penny", name: "Penny", src: "/avatars/penny.jpg?v=1" },
+  { id: "bluestreak", name: "Blue Streak", src: "/avatars/bluestreak.jpg?v=1" },
+  { id: "coldstreak", name: "Cold Streak", src: "/avatars/coldstreak.jpg?v=1" },
   { id: "football", name: "Football", src: "/avatars/football.jpg?v=1" },
   { id: "luchador", name: "Luchador", src: "/avatars/luchador.jpg?v=1" },
   { id: "tailgater", name: "Tailgater", src: "/avatars/tailgater.jpg?v=1" },
@@ -186,6 +191,11 @@ export const BIG_HUNTER_ID = "bighunter" as const satisfies AvatarId;
 export const ADVANCED_HUNTER_ID = "advancedhunter" as const satisfies AvatarId;
 export const MEGA_HUNTER_ID = "megahunter" as const satisfies AvatarId;
 export const ALIEN_HUNTER_ID = "alienhunter" as const satisfies AvatarId;
+export const THREE_HEADED_ID = "threeheaded" as const satisfies AvatarId;
+export const TRIPLE_DONUT_ID = "tripledonut" as const satisfies AvatarId;
+export const PENNY_ID = "penny" as const satisfies AvatarId;
+export const BLUE_STREAK_ID = "bluestreak" as const satisfies AvatarId;
+export const COLD_STREAK_ID = "coldstreak" as const satisfies AvatarId;
 export const BANANA_SCORE_UNDER = 60;
 export const CROSSWORD_STREAK_NEED = 10;
 export const LOCKED_IN_STREAK_NEED = 100;
@@ -212,6 +222,15 @@ export const OVERHEAD_FROM = "2026-09-25";
 export const MIRROR_FROM = "2026-09-25";
 export const OVERHEAD_SCORE = 150;
 export const TWIN_FROM = "2026-09-26";
+export const THREE_HEADED_FROM = "2026-09-26";
+export const TRIPLE_DONUT_FROM = "2026-09-26";
+export const PENNY_FROM = "2026-09-26";
+export const BLUE_STREAK_FROM = "2026-09-26";
+export const COLD_STREAK_FROM = "2026-09-20";
+export const THREE_HEADED_NEED = 3;
+export const TRIPLE_DONUT_NEED = 3;
+export const BLUE_STREAK_NEED = 4;
+export const COLD_STREAK_NEED = 15;
 const STAR_IDS = new Set<string>(STAR_UNLOCKS.map((row) => row.id));
 const FEAT_IDS = new Set<string>([
   CLUB_200_ID,
@@ -254,6 +273,11 @@ const FEAT_IDS = new Set<string>([
   ADVANCED_HUNTER_ID,
   MEGA_HUNTER_ID,
   ALIEN_HUNTER_ID,
+  THREE_HEADED_ID,
+  TRIPLE_DONUT_ID,
+  PENNY_ID,
+  BLUE_STREAK_ID,
+  COLD_STREAK_ID,
 ]);
 export const ACHIEVEMENT_UNLOCKS = [
   { id: CLUB_200_ID, how: "Score 200+ points in a single match." },
@@ -292,6 +316,11 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: ADVANCED_HUNTER_ID, how: "Own 20 Achievements." },
   { id: MEGA_HUNTER_ID, how: "Own 25 Achievements." },
   { id: ALIEN_HUNTER_ID, how: "Own 30 Achievements." },
+  { id: THREE_HEADED_ID, how: "Start 3 players from the same NFL team in a Daily or Weekly Match." },
+  { id: TRIPLE_DONUT_ID, how: "Start three or more players who score 0 in a Daily or Weekly Match." },
+  { id: PENNY_ID, how: "Lock a Daily lineup where every player costs $1." },
+  { id: BLUE_STREAK_ID, how: "Start 4 or more players who score in the blue in one Daily." },
+  { id: COLD_STREAK_ID, how: "Finish 15 Daily Matches in a row with no Daily win." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];
 export const PRIZE_AVATARS = AVATARS.filter(
   (avatar) => avatar.id !== "poor" && avatar.id !== "golden" && !STAR_IDS.has(avatar.id) && !FEAT_IDS.has(avatar.id),
@@ -482,6 +511,56 @@ export function isNegativeScore(score: number): boolean {
 
 export function doubleDonutHit(zeroCount: number): boolean {
   return zeroCount >= DOUBLE_DONUT_NEED;
+}
+
+export function tripleDonutHit(zeroCount: number): boolean {
+  return zeroCount >= TRIPLE_DONUT_NEED;
+}
+
+/** Three picks share one NFL team. Blank teams do not count. */
+export function threeHeadedHit(teams: readonly string[]): boolean {
+  const counts = new Map<string, number>();
+  for (const raw of teams) {
+    const team = String(raw).trim().toUpperCase();
+    if (!team || team === "BYE") continue;
+    const n = (counts.get(team) ?? 0) + 1;
+    if (n >= THREE_HEADED_NEED) return true;
+    counts.set(team, n);
+  }
+  return false;
+}
+
+/** Every filled slot is $1. An empty lineup does not count. */
+export function pennyHit(costs: readonly number[]): boolean {
+  if (!costs.length) return false;
+  return costs.every((cost) => cost === 1);
+}
+
+export function blueStreakHit(bestCount: number): boolean {
+  return bestCount >= BLUE_STREAK_NEED;
+}
+
+/** Done Daily runs since `from`. A win resets to 0. A missed day does not. */
+export function coldStreakHit(
+  rows: readonly { day: string; won: boolean }[],
+  from = COLD_STREAK_FROM,
+): boolean {
+  const won = new Map<string, boolean>();
+  for (const row of rows) {
+    const day = String(row.day).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || day < from) continue;
+    won.set(day, Boolean(won.get(day)) || Boolean(row.won));
+  }
+  let run = 0;
+  for (const day of [...won.keys()].sort()) {
+    if (won.get(day)) {
+      run = 0;
+      continue;
+    }
+    run += 1;
+    if (run >= COLD_STREAK_NEED) return true;
+  }
+  return false;
 }
 
 function nextStamp(day: string): string {
