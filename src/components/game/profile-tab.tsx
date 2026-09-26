@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { Settings, Star, X } from "lucide-react";
+import { Gavel, Settings, Star, X } from "lucide-react";
 import { CLOSET_AVATARS, SHIRT_AVATARS, avatarById, isShirtAvatar, isUnlocked, lookSource, ownsAvatar, remainingToUnlock, type AvatarId } from "@/lib/game/avatars";
 import { useProfile } from "@/lib/game/profile-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -63,15 +63,26 @@ export function ProfileTab() {
       ) : (
         <>
           <section className="relative rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
-            <button
-              type="button"
-              className="absolute right-4 top-4 inline-flex items-center gap-1.5 font-display text-xs font-semibold uppercase tracking-wider text-muted hover:text-fg sm:right-5 sm:top-5"
-              onClick={() => setPlayerSettings(true)}
-            >
-              Settings
-              <Settings className="size-4" aria-hidden />
-            </button>
-            <div className="flex items-center gap-4 pr-24">
+            <div className="absolute right-4 top-4 flex flex-col items-end gap-1.5 sm:right-5 sm:top-5">
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 font-display text-xs font-semibold uppercase tracking-wider text-muted hover:text-fg"
+                onClick={() => setPlayerSettings(true)}
+              >
+                Settings
+                <Settings className="size-4" aria-hidden />
+              </button>
+              {isCommishSettingsUser(user.id) ? (
+                <Link
+                  to="/settings"
+                  className="inline-flex items-center gap-1.5 font-display text-xs font-semibold uppercase tracking-wider text-muted hover:text-fg"
+                >
+                  Dev settings
+                  <Gavel className="size-4" aria-hidden />
+                </Link>
+              ) : null}
+            </div>
+            <div className={cn("flex items-center gap-4", isCommishSettingsUser(user.id) ? "pr-36" : "pr-24")}>
               <AvatarPeek
                 src={selected.src}
                 alt={selected.name}
@@ -93,14 +104,6 @@ export function ProfileTab() {
                       <Star className="size-5 text-accent" fill="currentColor" />
                       {dailyStars}
                     </span>
-                    {isCommishSettingsUser(user.id) ? (
-                      <Link
-                        to="/settings"
-                        className="font-display text-xs font-semibold uppercase tracking-wider text-muted hover:text-fg"
-                      >
-                        Settings
-                      </Link>
-                    ) : null}
                   </span>
                 </h2>
                 <p className="mt-1 text-sm text-muted">
