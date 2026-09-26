@@ -15,6 +15,8 @@ const newsLinkClass =
 
 const newsArrowClass = "size-7 shrink-0 sm:size-8";
 
+const HIDE_UNLOCKS_KEY = "news-hide-unlocks";
+
 export function NewsStrip({ onOpen }: { onOpen: () => void }) {
   const [extra, setExtra] = useState(0);
 
@@ -60,8 +62,17 @@ export function NewsStrip({ onOpen }: { onOpen: () => void }) {
 export function NewsFeed({ onPlay }: { onPlay: () => void }) {
   const [rows, setRows] = useState<NewsItem[] | null>(null);
   const [peek, setPeek] = useState<LookPeek | null>(null);
+  const [hideUnlocks, setHideUnlocks] = useState(false);
   const startX = useRef<number | null>(null);
   const startY = useRef<number | null>(null);
+
+  useEffect(() => {
+    try {
+      setHideUnlocks(localStorage.getItem(HIDE_UNLOCKS_KEY) === "1");
+    } catch {
+      /* private mode */
+    }
+  }, []);
 
   useEffect(() => {
     if (!peek) return;
@@ -113,10 +124,33 @@ export function NewsFeed({ onPlay }: { onPlay: () => void }) {
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      <button type="button" className={newsLinkClass} onClick={onPlay}>
-        <ArrowLeft className={newsArrowClass} strokeWidth={2.5} aria-hidden />
-        <span className="leading-none">Play Matches</span>
-      </button>
+      <div className="mt-4 flex items-center gap-3">
+        <button
+          type="button"
+          className="inline-flex min-w-0 flex-1 items-center gap-2 whitespace-nowrap font-display text-xl font-semibold uppercase leading-none tracking-wide text-muted hover:text-fg sm:text-2xl"
+          onClick={onPlay}
+        >
+          <ArrowLeft className={newsArrowClass} strokeWidth={2.5} aria-hidden />
+          <span className="leading-none">Play Matches</span>
+        </button>
+        <label className="inline-flex shrink-0 items-center gap-2 text-sm font-medium text-fg">
+          <input
+            type="checkbox"
+            className="size-4 accent-fg"
+            checked={hideUnlocks}
+            onChange={(event) => {
+              const next = event.target.checked;
+              setHideUnlocks(next);
+              try {
+                localStorage.setItem(HIDE_UNLOCKS_KEY, next ? "1" : "0");
+              } catch {
+                /* private mode */
+              }
+            }}
+          />
+          Hide unlocks
+        </label>
+      </div>
       <section className="mt-3 overflow-x-hidden rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)]">
       {rows == null ? (
         <div className="mt-4 h-40 animate-pulse rounded-lg bg-bg" />
@@ -129,7 +163,7 @@ export function NewsFeed({ onPlay }: { onPlay: () => void }) {
               <p className="font-display text-[10px] font-semibold uppercase tracking-wider text-muted">
                 {formatNewsTime(row.at)}
               </p>
-              <NewsLine item={row} onPeek={setPeek} />
+              <NewsLine item={row} onPeek={setPeek} hideUnlocks={hideUnlocks} />
             </li>
           ))}
         </ol>
@@ -207,28 +241,36 @@ function PrizeMark({
   id,
   label,
   onPeek,
+  hideUnlocks,
 }: {
   id?: string;
   label?: string;
   onPeek: (look: LookPeek) => void;
+  hideUnlocks: boolean;
 }) {
   if (id) {
     const av = avatarById(id);
     const name = label || av.name;
     return (
       <span className="inline-flex min-w-0 items-center gap-1.5">
-        <button
-          type="button"
-          className="shrink-0"
-          aria-label={`View ${name}`}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onPeek({ src: av.src, name });
-          }}
-        >
-          <img src={av.src} alt="" className="size-7 rounded-md object-cover" />
-        </button>
+        {hideUnlocks ? (
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-black" aria-hidden>
+            <span className="font-display text-sm font-semibold leading-none text-white">?</span>
+          </span>
+        ) : (
+          <button
+            type="button"
+            className="shrink-0"
+            aria-label={`View ${name}`}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onPeek({ src: av.src, name });
+            }}
+          >
+            <img src={av.src} alt="" className="size-7 rounded-md object-cover" />
+          </button>
+        )}
         <span className="truncate text-fg">{name}</span>
       </span>
     );
@@ -246,14 +288,22 @@ function formatDay(day: string): string {
   });
 }
 
-function NewsLine({ item, onPeek }: { item: NewsItem; onPeek: (look: LookPeek) => void }) {
+function NewsLine({
+  item,
+  onPeek,
+  hideUnlocks,
+}: {
+  item: NewsItem;
+  onPeek: (look: LookPeek) => void;
+  hideUnlocks: boolean;
+}) {
   const a = item.faces[0];
   if (item.kind === "box" && a) {
     return (
       <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-fg">
         <Face face={a} onPeek={onPeek} />
         <span className="text-muted">opened</span>
-        <PrizeMark id={item.prizeId} label={item.prizeLabel} onPeek={onPeek} />
+        <PrizeMark id={item.prizeId} label={item.prizeLabel} onPeek={onPeek} hideUnlocks={hideUnlocks} />
         <span className="text-muted">from the mystery box</span>
       </p>
     );
@@ -275,7 +325,7 @@ function NewsLine({ item, onPeek }: { item: NewsItem; onPeek: (look: LookPeek) =
       <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-fg">
         <Face face={a} onPeek={onPeek} />
         <span className="text-muted">unlocked</span>
-        <PrizeMark id={item.prizeId} label={item.prizeLabel} onPeek={onPeek} />
+        <PrizeMark id={item.prizeId} label={item.prizeLabel} onPeek={onPeek} hideUnlocks={hideUnlocks} />
         <span className="text-muted">
           {item.kind === "star_unlock"
             ? `from ${need} Daily stars`
@@ -291,7 +341,7 @@ function NewsLine({ item, onPeek }: { item: NewsItem; onPeek: (look: LookPeek) =
       <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-fg">
         <Face face={a} onPeek={onPeek} />
         <span className="text-muted">scratched</span>
-        <PrizeMark id={item.prizeId} label={item.prizeLabel} onPeek={onPeek} />
+        <PrizeMark id={item.prizeId} label={item.prizeLabel} onPeek={onPeek} hideUnlocks={hideUnlocks} />
       </p>
     );
   }
