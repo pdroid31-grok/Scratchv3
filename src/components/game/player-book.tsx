@@ -5,6 +5,7 @@ import { Star } from "lucide-react";
 import { SliceStats } from "@/components/game/book-slice";
 import type { RankTabId } from "@/components/game/rank-tabs";
 import { AvatarPeek } from "@/components/game/avatar-peek";
+import { closetGridClass, useClosetCols } from "@/components/game/closet-cols";
 import { CLOSET_AVATARS, SHIRT_AVATARS, avatarById, isShirtAvatar, isUnlocked, lookSource, remainingToUnlock } from "@/lib/game/avatars";
 import type { PublicBook } from "@/lib/game/stats";
 
@@ -63,6 +64,7 @@ export function PlayerBook({ book, board: start }: { book: PublicBook; board: Ra
 function UnlockedCloset({ owned, wearing }: { owned: string[]; wearing: string }) {
   const unlocked = CLOSET_AVATARS.filter((avatar) => isUnlocked(avatar.id, owned));
   const left = remainingToUnlock(owned);
+  const cols = useClosetCols();
   if (unlocked.length === 0) return null;
   return (
     <div className="mt-5">
@@ -70,7 +72,7 @@ function UnlockedCloset({ owned, wearing }: { owned: string[]; wearing: string }
       <p className="mt-2 font-display text-xl font-semibold tabular-nums text-fg">
         {left === 0 ? "All unlocked" : `${left} left to unlock`}
       </p>
-      <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+      <ul className={`mt-3 ${closetGridClass(cols)}`}>
         {unlocked.map((avatar) => {
           const shirt = avatar.id === "holy";
           const shown = shirt

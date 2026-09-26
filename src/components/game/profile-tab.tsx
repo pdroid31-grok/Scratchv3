@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BookFormats, bookHasScores } from "@/components/game/book-slice";
 import { AvatarPeek } from "@/components/game/avatar-peek";
+import { closetGridClass, useClosetCols, writeClosetCols } from "@/components/game/closet-cols";
 import { isBankCommish } from "@/lib/game/stats-shared";
 import { isCommishSettingsUser } from "@/lib/game/commish";
 import type { CareerBook } from "@/lib/game/stats";
@@ -200,6 +201,7 @@ const NEWS_HIDE_UNLOCKS_KEY = "news-hide-unlocks";
 
 function PlayerSettings({ onClose }: { onClose: () => void }) {
   const [hideUnlocks, setHideUnlocks] = useState(false);
+  const closetCols = useClosetCols();
 
   useEffect(() => {
     try {
@@ -256,6 +258,25 @@ function PlayerSettings({ onClose }: { onClose: () => void }) {
             }}
           />
         </label>
+        <div className="mt-5">
+          <p className="text-sm font-medium text-fg">Pepe Closet View Width</p>
+          <div className="mt-2 grid grid-cols-3 gap-1">
+            {([3, 4, 5] as const).map((cols) => (
+              <button
+                key={cols}
+                type="button"
+                aria-pressed={closetCols === cols}
+                onClick={() => writeClosetCols(cols)}
+                className={cn(
+                  "h-11 rounded-md font-display text-sm font-semibold uppercase tracking-wider",
+                  closetCols === cols ? "bg-surface-2 text-fg" : "text-muted hover:text-fg",
+                )}
+              >
+                {cols}x
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -274,6 +295,7 @@ function Closet({
   pick: (id: AvatarId) => void | Promise<unknown>;
   left: number;
 }) {
+  const cols = useClosetCols();
   const selected = avatarById(avatarId);
   return (
     <>
@@ -281,7 +303,7 @@ function Closet({
       <p className="mt-2 font-display text-xl font-semibold tabular-nums text-fg">
         {left === 0 ? "All unlocked" : `${left} left to unlock`}
       </p>
-      <ul className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
+      <ul className={cn("mt-4", closetGridClass(cols))}>
         {CLOSET_AVATARS.filter((avatar) => isUnlocked(avatar.id, owned)).map((avatar) => {
           const shirt = avatar.id === "holy";
           const worn = shirt ? isShirtAvatar(avatarId) : avatar.id === avatarId;
