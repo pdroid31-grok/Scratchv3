@@ -51,6 +51,12 @@ export async function getMyStatsHandler({ context }: { context: { userId: string
         console.error("[darkness] pat dj unlock backfill failed", err);
       }
       try {
+        const { grantVegasCatchupOnce } = await import("../board-feats.server");
+        await grantVegasCatchupOnce(sql);
+      } catch (err) {
+        console.error("[darkness] vegas catch-up failed", err);
+      }
+      try {
         const { grantHunterLadderOnce } = await import("../board-feats.server");
         await grantHunterLadderOnce(sql);
       } catch (err) {

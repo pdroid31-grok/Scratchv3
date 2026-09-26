@@ -562,6 +562,49 @@ export async function grantHunterLadderOnce(sql: Sql): Promise<void> {
   await sql.query(`insert into darkness_feat_flags (key) values ($1) on conflict do nothing`, [HUNTER_LADDER_FLAG]);
 }
 
+const VEGAS_CATCHUP_FLAG = "vegas-catchup-v1";
+
+/** One silent pass. Already-scratched cards own Vegas. No News, no toast. */
+export async function grantVegasCatchupOnce(sql: Sql): Promise<void> {
+  await sql.query(`
+    create table if not exists darkness_feat_flags (
+      key text primary key,
+      created_at timestamptz not null default now()
+    )`);
+  const already = await sql.query<{ key: string }>(
+    `select key from darkness_feat_flags where key = $1`,
+    [VEGAS_CATCHUP_FLAG],
+  );
+  if (already[0]) return;
+  const rows = await sql.query<{ user_id: string; owned: unknown; name: string | null }>(
+    `select p.user_id, p.owned,
+            coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name
+       from player_profiles p
+       left join "user" u on u.id = p.user_id
+      where exists (
+        select 1
+          from darkness_scratch_cards c
+         where c.user_id = p.user_id
+           and c.scratched_at is not null
+      )`,
+  );
+  let granted = 0;
+  for (const row of rows) {
+    if (skipWho(row.user_id, row.name)) continue;
+    const owned = parseOwned(row.owned);
+    if (owned.includes(VEGAS_ID)) continue;
+    await sql.query(`update player_profiles set owned = $1, updated_at = now() where user_id = $2`, [
+      JSON.stringify([...owned, VEGAS_ID]),
+      row.user_id,
+    ]);
+    const { grantFeatScratchPoints } = await import("./scratch.server");
+    await grantFeatScratchPoints(sql, row.user_id, VEGAS_ID);
+    granted += 1;
+  }
+  console.log(`[darkness] vegas catch-up n=${granted}`);
+  await sql.query(`insert into darkness_feat_flags (key) values ($1) on conflict do nothing`, [VEGAS_CATCHUP_FLAG]);
+}
+
 export async function maybeGrantVegas(sql: Sql, userId: string): Promise<void> {
   try {
     await grantFeat(sql, userId, VEGAS_ID);
