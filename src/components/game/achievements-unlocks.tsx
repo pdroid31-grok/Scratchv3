@@ -5,6 +5,7 @@ import { Trophy, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ACHIEVEMENT_UNLOCKS, avatarById } from "@/lib/game/avatars";
 import { useProfile } from "@/lib/game/profile-store";
+import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { cn } from "@/lib/utils";
 
 export function AchievementsButton({ className, compact }: { className?: string; compact?: boolean }) {
@@ -42,7 +43,12 @@ export function AchievementsButton({ className, compact }: { className?: string;
 export function AchievementsSheet({ onClose }: { onClose: () => void }) {
   const book = useProfile((s) => s.book);
   const load = useProfile((s) => s.load);
+  const { user } = useCurrentUserState();
   const owned = book?.owned ?? ["poor"];
+  const achievementIds = new Set<string>(ACHIEVEMENT_UNLOCKS.map((row) => row.id));
+  const ownedCount = user
+    ? (book?.owned ?? []).filter((id) => achievementIds.has(id)).length
+    : 0;
 
   useEffect(() => {
     void load();
@@ -63,7 +69,12 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
         <div className="flex items-start justify-between gap-3 border-b border-border px-4 py-3">
           <div>
             <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-turf">Store</p>
-            <h2 className="mt-1 font-display text-2xl font-semibold uppercase tracking-wide text-fg">Achievements</h2>
+            <h2 className="mt-1 flex flex-nowrap items-baseline gap-2 whitespace-nowrap font-display text-2xl font-semibold uppercase tracking-wide text-fg">
+              Achievements
+              <span className="tabular-nums">
+                {ownedCount}/{ACHIEVEMENT_UNLOCKS.length}
+              </span>
+            </h2>
             <p className="mt-1 text-sm text-muted">All obtained Achievements award +50 scratch points.</p>
           </div>
           <button
