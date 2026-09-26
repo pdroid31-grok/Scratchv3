@@ -57,6 +57,7 @@ export type BoardRow = {
   games: number;
   wins: number;
   highest: number | null;
+  lowest?: number | null;
   stars: number;
 };
 

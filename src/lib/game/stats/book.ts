@@ -292,7 +292,7 @@ function kindSlices(auction: BookSlice, elimination: BookSlice): {
 
 type DailyMarks = { high: number | null; low: number | null };
 
-function tenthScore(value: number | string | null | undefined): number | null {
+export function tenthScore(value: number | string | null | undefined): number | null {
   const n = Number(value);
   if (!Number.isFinite(n)) return null;
   const tenth = Math.round(n * 10) / 10;
@@ -404,15 +404,8 @@ async function loadWeeklyMarks(
     for (const row of rows) {
       const season = Number(row.season);
       const week = Number(row.week);
-      let finished = Boolean(row.awarded);
-      if (!finished && clock) {
-        if (season < clock.season) finished = true;
-        else if (season === clock.season && week < clock.week) finished = true;
-        else if (season === clock.season && week === clock.week) finished = currentDone;
-      }
-      if (!finished) continue;
       const score = tenthScore(row.score);
-      if (score == null) continue;
+      if (score == null || !finishedContestWeek(season, week, Boolean(row.awarded), clock, currentDone)) continue;
       scores.push(score);
     }
     if (!scores.length) return { high: null, low: null };
@@ -422,7 +415,22 @@ async function loadWeeklyMarks(
   }
 }
 
-function foldMark(current: number | null, extra: number | null, pick: "max" | "min"): number | null {
+export function finishedContestWeek(
+  season: number,
+  week: number,
+  awarded: boolean,
+  clock: { season: number; week: number } | null,
+  currentDone: boolean,
+): boolean {
+  if (awarded) return true;
+  if (!clock) return false;
+  if (season < clock.season) return true;
+  if (season === clock.season && week < clock.week) return true;
+  if (season === clock.season && week === clock.week) return currentDone;
+  return false;
+}
+
+export function foldMark(current: number | null, extra: number | null, pick: "max" | "min"): number | null {
   if (extra == null) return current;
   if (current == null) return extra;
   return pick === "max" ? Math.max(current, extra) : Math.min(current, extra);

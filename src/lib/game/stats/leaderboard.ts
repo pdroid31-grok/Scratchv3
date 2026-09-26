@@ -2,6 +2,7 @@
 import { clampAvatar } from "../avatars";
 import { clipDisplayName, hiddenBoardIdSql, hiddenBoardNameSql, isHiddenBoardId, isHiddenBoardName } from "../stats-shared";
 import type { BoardRow, Leaderboard } from "../stats-types";
+import { finishedContestWeek, foldMark, tenthScore } from "./book";
 import { asInt } from "./shared";
 
 function clipPublicId(id: unknown): string {
@@ -27,7 +28,8 @@ export async function loadLeaderboard(): Promise<Leaderboard> {
     queryBoard(sql, "auction"),
     queryBoard(sql, "elimination"),
   ]);
-  const total = merged.slice(0, 20);
+  const ranked = merged.slice(0, 20);
+  const total = await stampTotalMarks(sql, ranked);
   const score = [...merged]
     .filter((row) => row.highest != null)
     .sort((a, b) => (b.highest ?? -1) - (a.highest ?? -1) || b.wins - a.wins || a.name.localeCompare(b.name))
@@ -38,6 +40,126 @@ export async function loadLeaderboard(): Promise<Leaderboard> {
 
 export async function getLeaderboardHandler(): Promise<Leaderboard> {
   return loadLeaderboard();
+}
+
+type MarkSql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
+
+/** Total display only. Wins and games stay as merged. One Daily read, one Weekly read. */
+async function stampTotalMarks(sql: MarkSql, rows: BoardRow[]): Promise<BoardRow[]> {
+  const ids = [...new Set(rows.map((row) => row.id).filter((id) => id && !isHiddenBoardId(id)))];
+  if (!ids.length) return rows.map((row) => ({ ...row }));
+  let daily: { user_id: string; score: number | string | null }[] = [];
+  let weekly: {
+    user_id: string;
+    score: number | string | null;
+    season: number | string;
+    week: number | string;
+    awarded: boolean | null;
+  }[] = [];
+  let nights: { user_id: string; lowest: number | string | null }[] = [];
+  let seeds: { user_id: string; career_book: unknown }[] = [];
+  try {
+    [daily, weekly, nights, seeds] = await Promise.all([
+      sql.query(
+        `select user_id, score
+           from darkness_daily_runs
+          where user_id = any($1::text[])
+            and status = 'done'
+            and score is not null
+            and score <> 0`,
+        [ids],
+      ),
+      sql.query(
+        `select r.user_id, r.score, r.season, r.week, coalesce(w.awarded, false) as awarded
+           from darkness_weekly_runs r
+           left join darkness_weekly_weeks w
+             on w.season = r.season and w.week = r.week
+          where r.user_id = any($1::text[])
+            and r.status = 'done'
+            and r.score is not null
+            and r.score <> 0`,
+        [ids],
+      ),
+      sql.query(
+        `select user_id,
+                min(case
+                  when coalesce(kind, 'auction') = 'elimination'
+                   and coalesce(low_score, score) <= 280
+                  then coalesce(low_score, score)
+                end) as lowest
+           from player_nights
+          where user_id = any($1::text[])
+          group by user_id`,
+        [ids],
+      ),
+      sql.query(
+        `select user_id, career_book
+           from player_profiles
+          where user_id = any($1::text[])
+            and career_book is not null`,
+        [ids],
+      ),
+    ]);
+  } catch {
+    return rows.map((row) => ({ ...row }));
+  }
+  let clock: { season: number; week: number } | null = null;
+  try {
+    const { nflClock } = await import("../weekly-sleeper");
+    clock = await nflClock();
+  } catch {
+    clock = null;
+  }
+  let currentDone = false;
+  if (
+    clock &&
+    weekly.some(
+      (row) => Number(row.season) === clock!.season && Number(row.week) === clock!.week && !row.awarded,
+    )
+  ) {
+    try {
+      const { weekWindow } = await import("../weekly-sleeper");
+      currentDone = Boolean((await weekWindow(clock.season, clock.week)).done);
+    } catch {
+      currentDone = false;
+    }
+  }
+  const extra = new Map<string, { high: number | null; low: number | null }>();
+  const add = (id: string, score: number | null, side: "both" | "low") => {
+    if (!id || score == null || isHiddenBoardId(id)) return;
+    const cur = extra.get(id) ?? { high: null, low: null };
+    if (side === "both") cur.high = foldMark(cur.high, score, "max");
+    cur.low = foldMark(cur.low, score, "min");
+    extra.set(id, cur);
+  };
+  for (const row of daily) add(row.user_id, tenthScore(row.score), "both");
+  for (const row of weekly) {
+    const score = tenthScore(row.score);
+    if (score == null) continue;
+    if (!finishedContestWeek(Number(row.season), Number(row.week), Boolean(row.awarded), clock, currentDone)) continue;
+    add(row.user_id, score, "both");
+  }
+  for (const row of nights) {
+    const score = Number(row.lowest);
+    if (!Number.isFinite(score)) continue;
+    add(row.user_id, score, "low");
+  }
+  for (const row of seeds) {
+    const elim = careerSlice(row.career_book, "elimination");
+    const score = Number(elim?.lowest);
+    if (!Number.isFinite(score)) continue;
+    add(row.user_id, score, "low");
+  }
+  return rows.map((row) => {
+    if (isHiddenBoardId(row.id) || isHiddenBoardName(row.name)) return { ...row };
+    const mark = extra.get(row.id);
+    if (!mark) return { ...row };
+    return {
+      ...row,
+      highest: foldMark(row.highest, mark.high, "max"),
+      lowest: mark.low,
+    };
+  });
 }
 
 async function queryBoard(
