@@ -1,7 +1,6 @@
 /** Server-only Double Trouble feat. Going forward only — not W1 / Sep 2–16. */
 import { parseOwned, DOUBLE_TROUBLE_ID } from "./avatars";
 import { isAwardSkippedName, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
-import { isCommishSettingsUser } from "./commish-types";
 import { dailyYesterday } from "./daily";
 import { ymdInTz } from "./weekly-sleeper";
 
@@ -38,7 +37,7 @@ export function weeklyAwardEtDay(games: { date?: string }[], endAt: number): str
 }
 
 function skipWho(userId: string, name?: string | null): boolean {
-  if (isHiddenBoardId(userId) || isCommishSettingsUser(userId)) return true;
+  if (isHiddenBoardId(userId)) return true;
   if (isHiddenBoardName(name) || isAwardSkippedName(name)) return true;
   return false;
 }
