@@ -75,7 +75,7 @@ export function AvatarPeek({
               <p className="mt-3 text-center font-display text-lg font-semibold uppercase tracking-wide text-fg">
                 {name}
               </p>
-              {source ? <p className="mt-1 text-center text-sm text-muted">{source}</p> : null}
+              {source ? <p className="mt-1 text-center text-sm text-fg">{source}</p> : null}
               {equip ? (
                 <button
                   type="button"
