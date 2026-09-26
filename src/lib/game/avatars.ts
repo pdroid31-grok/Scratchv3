@@ -103,6 +103,12 @@ export const AVATARS = [
   { id: "mirror", name: "Mirror", src: "/avatars/mirror.jpg?v=1" },
   { id: "twin", name: "Twin", src: "/avatars/twin.jpg?v=1" },
   { id: "threeleafclover", name: "3 Leaf Clover", src: "/avatars/threeleafclover.jpg?v=1" },
+  { id: "tinyhunter", name: "Tiny Hunter", src: "/avatars/tinyhunter.jpg?v=1" },
+  { id: "hunter", name: "Hunter", src: "/avatars/hunter.jpg?v=1" },
+  { id: "bighunter", name: "Big Hunter", src: "/avatars/bighunter.jpg?v=1" },
+  { id: "advancedhunter", name: "Advanced Hunter", src: "/avatars/advancedhunter.jpg?v=1" },
+  { id: "megahunter", name: "Mega Hunter", src: "/avatars/megahunter.jpg?v=1" },
+  { id: "alienhunter", name: "Alien Hunter", src: "/avatars/alienhunter.jpg?v=1" },
   { id: "football", name: "Football", src: "/avatars/football.jpg?v=1" },
   { id: "luchador", name: "Luchador", src: "/avatars/luchador.jpg?v=1" },
   { id: "tailgater", name: "Tailgater", src: "/avatars/tailgater.jpg?v=1" },
@@ -170,6 +176,12 @@ export const MIRROR_ID = "mirror" as const satisfies AvatarId;
 export const TWIN_ID = "twin" as const satisfies AvatarId;
 export const THREE_LEAF_ID = "threeleafclover" as const satisfies AvatarId;
 export const THREE_LEAF_NEED = 3;
+export const TINY_HUNTER_ID = "tinyhunter" as const satisfies AvatarId;
+export const HUNTER_ID = "hunter" as const satisfies AvatarId;
+export const BIG_HUNTER_ID = "bighunter" as const satisfies AvatarId;
+export const ADVANCED_HUNTER_ID = "advancedhunter" as const satisfies AvatarId;
+export const MEGA_HUNTER_ID = "megahunter" as const satisfies AvatarId;
+export const ALIEN_HUNTER_ID = "alienhunter" as const satisfies AvatarId;
 export const BANANA_SCORE_UNDER = 60;
 export const CROSSWORD_STREAK_NEED = 10;
 export const LOCKED_IN_STREAK_NEED = 100;
@@ -232,6 +244,12 @@ const FEAT_IDS = new Set<string>([
   MIRROR_ID,
   TWIN_ID,
   THREE_LEAF_ID,
+  TINY_HUNTER_ID,
+  HUNTER_ID,
+  BIG_HUNTER_ID,
+  ADVANCED_HUNTER_ID,
+  MEGA_HUNTER_ID,
+  ALIEN_HUNTER_ID,
 ]);
 export const ACHIEVEMENT_UNLOCKS = [
   { id: CLUB_200_ID, how: "Score 200+ points in a single match." },
@@ -264,6 +282,12 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: MIRROR_ID, how: "Post the same lineup as another player." },
   { id: TWIN_ID, how: "Same score as another player with a different lineup." },
   { id: THREE_LEAF_ID, how: "Scratch three different results." },
+  { id: TINY_HUNTER_ID, how: "Own 5 Achievements." },
+  { id: HUNTER_ID, how: "Own 10 Achievements." },
+  { id: BIG_HUNTER_ID, how: "Own 15 Achievements." },
+  { id: ADVANCED_HUNTER_ID, how: "Own 20 Achievements." },
+  { id: MEGA_HUNTER_ID, how: "Own 25 Achievements." },
+  { id: ALIEN_HUNTER_ID, how: "Own 30 Achievements." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];
 export const PRIZE_AVATARS = AVATARS.filter(
   (avatar) => avatar.id !== "poor" && avatar.id !== "golden" && !STAR_IDS.has(avatar.id) && !FEAT_IDS.has(avatar.id),
@@ -301,6 +325,35 @@ export function threeLeafHit(prizes: readonly string[]): boolean {
     if (key) seen.add(key);
   }
   return seen.size >= THREE_LEAF_NEED;
+}
+
+export const HUNTER_LADDER = [
+  { id: TINY_HUNTER_ID, need: 5 },
+  { id: HUNTER_ID, need: 10 },
+  { id: BIG_HUNTER_ID, need: 15 },
+  { id: ADVANCED_HUNTER_ID, need: 20 },
+  { id: MEGA_HUNTER_ID, need: 25 },
+  { id: ALIEN_HUNTER_ID, need: 30 },
+] as const satisfies readonly { id: AvatarId; need: number }[];
+
+const ACHIEVEMENT_IDS = new Set<string>(ACHIEVEMENT_UNLOCKS.map((row) => row.id));
+
+/** Next Hunter looks this owned set should gain, in threshold order. A granted Hunter counts toward the next rung. */
+export function huntersToGrant(owned: readonly string[]): AvatarId[] {
+  const have = new Set(owned);
+  let count = 0;
+  for (const id of have) {
+    if (ACHIEVEMENT_IDS.has(id)) count += 1;
+  }
+  const out: AvatarId[] = [];
+  for (const step of HUNTER_LADDER) {
+    if (have.has(step.id)) continue;
+    if (count < step.need) break;
+    have.add(step.id);
+    out.push(step.id);
+    count += 1;
+  }
+  return out;
 }
 
 export function hitBullseyeScore(score: number): boolean {

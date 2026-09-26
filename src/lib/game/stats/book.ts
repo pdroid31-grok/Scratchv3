@@ -51,6 +51,12 @@ export async function getMyStatsHandler({ context }: { context: { userId: string
         console.error("[darkness] pat dj unlock backfill failed", err);
       }
       try {
+        const { grantHunterLadderOnce } = await import("../board-feats.server");
+        await grantHunterLadderOnce(sql);
+      } catch (err) {
+        console.error("[darkness] hunter ladder dump failed", err);
+      }
+      try {
         const { grantPatBoxLunchOnce } = await import("../board-feats.server");
         await grantPatBoxLunchOnce(sql);
       } catch (err) {

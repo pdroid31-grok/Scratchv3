@@ -29,6 +29,7 @@ import {
   MIRROR_ID,
   TWIN_ID,
   THREE_LEAF_ID,
+  huntersToGrant,
   IRON_BOOT_POINTS,
   featWeekFromW3,
   hitFlashTotal,
@@ -114,6 +115,11 @@ async function grantFeat(sql: Sql, userId: string, featId: AvatarId): Promise<vo
     await grantFeatScratchPoints(sql, userId, featId);
   } catch (err) {
     console.error("[darkness] feat scratch points failed", err);
+  }
+  try {
+    await maybeGrantHunters(sql, userId);
+  } catch (err) {
+    console.error("[darkness] hunter ladder failed", err);
   }
 }
 
@@ -487,6 +493,73 @@ export async function maybeGrantTwinWeek(sql: Sql, season: number, week: number,
   } catch (err) {
     console.error("[darkness] twin grant failed", err);
   }
+}
+
+export async function maybeGrantHunters(sql: Sql, userId: string): Promise<void> {
+  const rows = await sql.query<{ owned: unknown; name: string | null }>(
+    `select p.owned,
+            coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name
+       from player_profiles p
+       left join "user" u on u.id = p.user_id
+      where p.user_id = $1`,
+    [userId],
+  );
+  const row = rows[0];
+  if (!row || skipWho(userId, row.name)) return;
+  for (const id of huntersToGrant(parseOwned(row.owned))) {
+    await grantFeat(sql, userId, id);
+  }
+}
+
+const HUNTER_LADDER_FLAG = "hunter-ladder-v1";
+
+/** One dump of current standings. Toasts only. Does not write News. */
+export async function grantHunterLadderOnce(sql: Sql): Promise<void> {
+  await sql.query(`
+    create table if not exists darkness_feat_flags (
+      key text primary key,
+      created_at timestamptz not null default now()
+    )`);
+  const already = await sql.query<{ key: string }>(
+    `select key from darkness_feat_flags where key = $1`,
+    [HUNTER_LADDER_FLAG],
+  );
+  if (already[0]) return;
+  const rows = await sql.query<{ user_id: string; owned: unknown; name: string | null }>(
+    `select p.user_id, p.owned,
+            coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name
+       from player_profiles p
+       left join "user" u on u.id = p.user_id`,
+  );
+  for (const row of rows) {
+    if (skipWho(row.user_id, row.name)) continue;
+    const owned = parseOwned(row.owned);
+    const grants = huntersToGrant(owned);
+    if (!grants.length) continue;
+    const next = [...owned];
+    for (const id of grants) {
+      if (!next.includes(id)) next.push(id);
+    }
+    await sql.query(`update player_profiles set owned = $1, updated_at = now() where user_id = $2`, [
+      JSON.stringify(next),
+      row.user_id,
+    ]);
+    const { recordUnlockToast } = await import("./toasts.server");
+    const { grantFeatScratchPoints } = await import("./scratch.server");
+    for (let i = 0; i < grants.length; i += 1) {
+      const id = grants[i]!;
+      await recordUnlockToast(sql, row.user_id, id, "feats");
+      await sql.query(
+        `update darkness_toasts
+            set created_at = now() + ($2::int * interval '1 millisecond')
+          where source_key = $1`,
+        [`feat_unlock:${row.user_id}:${id}`, i],
+      );
+      await grantFeatScratchPoints(sql, row.user_id, id);
+    }
+    console.log(`[darkness] hunter ladder ${grants.join(",")}`);
+  }
+  await sql.query(`insert into darkness_feat_flags (key) values ($1) on conflict do nothing`, [HUNTER_LADDER_FLAG]);
 }
 
 export async function maybeGrantVegas(sql: Sql, userId: string): Promise<void> {
