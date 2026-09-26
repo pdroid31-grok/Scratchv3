@@ -27,6 +27,7 @@ import {
   IRON_BOOT_ID,
   OVERHEAD_ID,
   MIRROR_ID,
+  TWIN_ID,
   IRON_BOOT_POINTS,
   featWeekFromW3,
   hitFlashTotal,
@@ -36,6 +37,8 @@ import {
   lineupSignature,
   overheadPassed,
   mirrorUserIds,
+  TWIN_FROM,
+  twinUserIds,
   EARLY_BIRD_NEED,
   NIGHT_OWL_NEED,
   FEAT_TRACK_FROM,
@@ -431,6 +434,56 @@ export async function maybeGrantMirrorWeek(sql: Sql, season: number, week: numbe
     for (const userId of mirrorUserIds(signed)) await grantFeat(sql, userId, MIRROR_ID);
   } catch (err) {
     console.error("[darkness] mirror grant failed", err);
+  }
+}
+
+/** Twin for one Daily day. Same score, different full lineups. Hidden rows are not in the set. */
+export async function maybeGrantTwinDay(sql: Sql, day: string): Promise<void> {
+  try {
+    if (!day || day < TWIN_FROM) return;
+    const rows = await sql.query<DailyContestRow>(
+      `select r.user_id, r.score, r.picks, r.finished_at, r.started_at,
+              coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name
+         from darkness_daily_runs r
+         left join player_profiles p on p.user_id = r.user_id
+         left join "user" u on u.id = r.user_id
+        where r.day = $1::date and r.status = 'done' and r.score is not null`,
+      [day],
+    );
+    const signed = visibleContest(rows).map((row) => ({
+      userId: row.user_id,
+      score: Number(row.score),
+      signature: lineupSignature(asPicks(row.picks)),
+    }));
+    for (const userId of twinUserIds(signed)) await grantFeat(sql, userId, TWIN_ID);
+  } catch (err) {
+    console.error("[darkness] twin grant failed", err);
+  }
+}
+
+/** Twin for a finished Weekly week. Live and waiting-kickoff weeks do not grant. Weeks before 2026-W3 do not. */
+export async function maybeGrantTwinWeek(sql: Sql, season: number, week: number, finished: boolean): Promise<void> {
+  try {
+    if (!finished || dailyDayStamp() < TWIN_FROM || !featWeekFromW3(season, week)) return;
+    const rows = await sql.query<{ user_id: string; name: string | null; score: number | string | null; picks: unknown }>(
+      `select r.user_id, r.score, r.picks,
+              coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name
+         from darkness_weekly_runs r
+         left join player_profiles p on p.user_id = r.user_id
+         left join "user" u on u.id = r.user_id
+        where r.season = $1 and r.week = $2 and r.status = 'done' and r.score is not null`,
+      [season, week],
+    );
+    const signed = rows
+      .filter((row) => !skipBoardRow(row.user_id, row.name) && !skipBoardRow(row.user_id, clipGm(row.name ?? "")))
+      .map((row) => ({
+        userId: row.user_id,
+        score: Number(row.score),
+        signature: lineupSignature(asPicks(row.picks)),
+      }));
+    for (const userId of twinUserIds(signed)) await grantFeat(sql, userId, TWIN_ID);
+  } catch (err) {
+    console.error("[darkness] twin grant failed", err);
   }
 }
 

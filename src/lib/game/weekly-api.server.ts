@@ -344,6 +344,12 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
     } catch (err) {
       console.error("[darkness] mirror grant failed", err);
     }
+    try {
+      const { maybeGrantTwinWeek } = await import("./board-feats.server");
+      await maybeGrantTwinWeek(sql, season, week, true);
+    } catch (err) {
+      console.error("[darkness] twin grant failed", err);
+    }
     return;
   }
   const window = await weekWindow(season, week);
@@ -420,6 +426,12 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
     await maybeGrantMirrorWeek(sql, season, week);
   } catch (err) {
     console.error("[darkness] flash grant failed", err);
+  }
+  try {
+    const { maybeGrantTwinWeek } = await import("./board-feats.server");
+    await maybeGrantTwinWeek(sql, season, week, true);
+  } catch (err) {
+    console.error("[darkness] twin grant failed", err);
   }
   try {
     await grantWeeklyDoubleDonuts(sql, season, week);

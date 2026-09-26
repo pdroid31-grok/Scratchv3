@@ -101,6 +101,7 @@ export const AVATARS = [
   { id: "ironboot", name: "Iron Boot", src: "/avatars/ironboot.jpg?v=1" },
   { id: "overhead", name: "Overhead", src: "/avatars/overhead.jpg?v=1" },
   { id: "mirror", name: "Mirror", src: "/avatars/mirror.jpg?v=1" },
+  { id: "twin", name: "Twin", src: "/avatars/twin.jpg?v=1" },
   { id: "football", name: "Football", src: "/avatars/football.jpg?v=1" },
   { id: "luchador", name: "Luchador", src: "/avatars/luchador.jpg?v=1" },
   { id: "tailgater", name: "Tailgater", src: "/avatars/tailgater.jpg?v=1" },
@@ -165,6 +166,7 @@ export const THRIFTY_ID = "thrifty" as const satisfies AvatarId;
 export const IRON_BOOT_ID = "ironboot" as const satisfies AvatarId;
 export const OVERHEAD_ID = "overhead" as const satisfies AvatarId;
 export const MIRROR_ID = "mirror" as const satisfies AvatarId;
+export const TWIN_ID = "twin" as const satisfies AvatarId;
 export const BANANA_SCORE_UNDER = 60;
 export const CROSSWORD_STREAK_NEED = 10;
 export const LOCKED_IN_STREAK_NEED = 100;
@@ -190,6 +192,7 @@ export const FLASH_FROM_WEEK = 3;
 export const OVERHEAD_FROM = "2026-09-25";
 export const MIRROR_FROM = "2026-09-25";
 export const OVERHEAD_SCORE = 150;
+export const TWIN_FROM = "2026-09-26";
 const STAR_IDS = new Set<string>(STAR_UNLOCKS.map((row) => row.id));
 const FEAT_IDS = new Set<string>([
   CLUB_200_ID,
@@ -224,6 +227,7 @@ const FEAT_IDS = new Set<string>([
   IRON_BOOT_ID,
   OVERHEAD_ID,
   MIRROR_ID,
+  TWIN_ID,
 ]);
 export const ACHIEVEMENT_UNLOCKS = [
   { id: CLUB_200_ID, how: "Score 200+ points in a single match." },
@@ -254,6 +258,7 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: IRON_BOOT_ID, how: "Defense + Kicker score 40+ combined in one Weekly." },
   { id: OVERHEAD_ID, how: "Score 150+ in Daily, then get passed." },
   { id: MIRROR_ID, how: "Post the same lineup as another player." },
+  { id: TWIN_ID, how: "Same score as another player with a different lineup." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];
 export const PRIZE_AVATARS = AVATARS.filter(
   (avatar) => avatar.id !== "poor" && avatar.id !== "golden" && !STAR_IDS.has(avatar.id) && !FEAT_IDS.has(avatar.id),
@@ -357,6 +362,28 @@ export function mirrorUserIds(rows: readonly { userId: string; signature: string
   const ids: string[] = [];
   for (const list of buckets.values()) {
     if (list.length >= 2) ids.push(...list);
+  }
+  return ids;
+}
+
+export type TwinRow = { userId: string; score: number; signature: string | null };
+
+/** Same one-decimal score, at least two different full lineups. Identical lineups are Mirror, not Twin. */
+export function twinUserIds(rows: readonly TwinRow[]): string[] {
+  const buckets = new Map<number, TwinRow[]>();
+  for (const row of rows) {
+    if (!row.signature || !Number.isFinite(row.score)) continue;
+    const key = Math.round(row.score * 10) / 10;
+    const list = buckets.get(key) ?? [];
+    if (!list.some((item) => item.userId === row.userId)) list.push(row);
+    buckets.set(key, list);
+  }
+  const ids: string[] = [];
+  for (const list of buckets.values()) {
+    if (list.length < 2) continue;
+    const sigs = new Set(list.map((row) => row.signature));
+    if (sigs.size < 2) continue;
+    for (const row of list) ids.push(row.userId);
   }
   return ids;
 }
