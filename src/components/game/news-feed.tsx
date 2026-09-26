@@ -124,33 +124,10 @@ export function NewsFeed({ onPlay }: { onPlay: () => void }) {
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
-      <div className="mt-4 flex items-center gap-3">
-        <button
-          type="button"
-          className="inline-flex min-w-0 flex-1 items-center gap-2 whitespace-nowrap font-display text-xl font-semibold uppercase leading-none tracking-wide text-muted hover:text-fg sm:text-2xl"
-          onClick={onPlay}
-        >
-          <ArrowLeft className={newsArrowClass} strokeWidth={2.5} aria-hidden />
-          <span className="leading-none">Play Matches</span>
-        </button>
-        <label className="inline-flex shrink-0 items-center gap-2 text-sm font-medium text-fg">
-          <input
-            type="checkbox"
-            className="size-4 accent-fg"
-            checked={hideUnlocks}
-            onChange={(event) => {
-              const next = event.target.checked;
-              setHideUnlocks(next);
-              try {
-                localStorage.setItem(HIDE_UNLOCKS_KEY, next ? "1" : "0");
-              } catch {
-                /* private mode */
-              }
-            }}
-          />
-          Hide unlocks
-        </label>
-      </div>
+      <button type="button" className={newsLinkClass} onClick={onPlay}>
+        <ArrowLeft className={newsArrowClass} strokeWidth={2.5} aria-hidden />
+        <span className="leading-none">Play Matches</span>
+      </button>
       <section className="mt-3 overflow-x-hidden rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)]">
       {rows == null ? (
         <div className="mt-4 h-40 animate-pulse rounded-lg bg-bg" />

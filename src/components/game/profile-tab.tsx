@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { Star } from "lucide-react";
+import { Settings, Star, X } from "lucide-react";
 import { CLOSET_AVATARS, SHIRT_AVATARS, avatarById, isShirtAvatar, isUnlocked, lookSource, ownsAvatar, remainingToUnlock, type AvatarId } from "@/lib/game/avatars";
 import { useProfile } from "@/lib/game/profile-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -34,6 +34,7 @@ export function ProfileTab() {
   const [draft, setDraft] = useState(shown);
   const [saving, setSaving] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [playerSettings, setPlayerSettings] = useState(false);
 
   useEffect(() => {
     setDraft(shown);
@@ -60,8 +61,16 @@ export function ProfileTab() {
         </section>
       ) : (
         <>
-          <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
-            <div className="flex items-center gap-4">
+          <section className="relative rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
+            <button
+              type="button"
+              className="absolute right-4 top-4 inline-flex items-center gap-1.5 font-display text-xs font-semibold uppercase tracking-wider text-muted hover:text-fg sm:right-5 sm:top-5"
+              onClick={() => setPlayerSettings(true)}
+            >
+              Settings
+              <Settings className="size-4" aria-hidden />
+            </button>
+            <div className="flex items-center gap-4 pr-24">
               <AvatarPeek
                 src={selected.src}
                 alt={selected.name}
@@ -182,6 +191,72 @@ export function ProfileTab() {
           {signingOut ? "Signing out…" : "Sign out"}
         </button>
       ) : null}
+      {playerSettings && user ? <PlayerSettings onClose={() => setPlayerSettings(false)} /> : null}
+    </div>
+  );
+}
+
+const NEWS_HIDE_UNLOCKS_KEY = "news-hide-unlocks";
+
+function PlayerSettings({ onClose }: { onClose: () => void }) {
+  const [hideUnlocks, setHideUnlocks] = useState(false);
+
+  useEffect(() => {
+    try {
+      setHideUnlocks(localStorage.getItem(NEWS_HIDE_UNLOCKS_KEY) === "1");
+    } catch {
+      /* private mode */
+    }
+  }, []);
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-bg/90 p-5 pt-16"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Player Settings"
+      onClick={onClose}
+    >
+      <button
+        type="button"
+        className="absolute right-3 top-3 flex size-11 items-center justify-center rounded-full bg-surface text-fg shadow-[var(--shadow-border)]"
+        aria-label="Back to Profile"
+        onClick={onClose}
+      >
+        <X className="size-5" strokeWidth={2} />
+      </button>
+      <div
+        className="w-full max-w-sm rounded-xl bg-surface p-5 shadow-[var(--shadow-border)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-fg">Player Settings</h2>
+        <label className="mt-5 flex items-center justify-between gap-4 text-sm font-medium text-fg">
+          Hide unlocks in News
+          <input
+            type="checkbox"
+            role="switch"
+            className="size-4 accent-fg"
+            checked={hideUnlocks}
+            onChange={(event) => {
+              const next = event.target.checked;
+              setHideUnlocks(next);
+              try {
+                localStorage.setItem(NEWS_HIDE_UNLOCKS_KEY, next ? "1" : "0");
+              } catch {
+                /* private mode */
+              }
+            }}
+          />
+        </label>
+      </div>
     </div>
   );
 }
