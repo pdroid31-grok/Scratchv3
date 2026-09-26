@@ -1009,7 +1009,7 @@ describe("avatars", () => {
       ),
       false,
     );
-    for (const id of ["referee", "turf", "cone", "gatorade", "mascot", "otcoin", "robot", "tornado", "chilipepper", "mafia", "jacked", "inflated", "electrocuted", "spider", "butler", "football", "luchador", "tailgater", "broadcast", "rubberduck"]) {
+    for (const id of ["referee", "turf", "cone", "gatorade", "mascot", "otcoin", "robot", "tornado", "chilipepper", "mafia", "jacked", "inflated", "electrocuted", "spider", "butler", "lion", "balloon", "aquarium", "pizza", "football", "luchador", "tailgater", "broadcast", "rubberduck"]) {
       assert.equal(PRIZE_AVATARS.some((avatar) => avatar.id === id), true, id);
     }
     assert.equal(boxPoolOwnedCount(["poor", "banana", "crossword", "thanos", "boxaddict", "club200", "peeping", "commish", "jail"]), 0);

@@ -78,6 +78,10 @@ export const AVATARS = [
   { id: "electrocuted", name: "Electrocuted", src: "/avatars/electrocuted.jpg?v=1" },
   { id: "spider", name: "Spider", src: "/avatars/spider.jpg?v=1" },
   { id: "butler", name: "Butler", src: "/avatars/butler.jpg?v=1" },
+  { id: "lion", name: "Lion", src: "/avatars/lion.jpg?v=1" },
+  { id: "balloon", name: "Balloon", src: "/avatars/balloon.jpg?v=1" },
+  { id: "aquarium", name: "Aquarium", src: "/avatars/aquarium.jpg?v=1" },
+  { id: "pizza", name: "Pizza", src: "/avatars/pizza.jpg?v=1" },
   { id: "commish", name: "Commish", src: "/avatars/commish.jpg?v=1" },
   { id: "jail", name: "Jail", src: "/avatars/jail.jpg?v=1" },
   { id: "crypepe", name: "Crying", src: "/avatars/crypepe.jpg?v=2" },
@@ -293,7 +297,7 @@ export const PRIZE_AVATARS = AVATARS.filter(
   (avatar) => avatar.id !== "poor" && avatar.id !== "golden" && !STAR_IDS.has(avatar.id) && !FEAT_IDS.has(avatar.id),
 );
 /** Mystery Box only — never a scratch-ticket prize. Still in PRIZE_AVATARS / pickPrize. */
-export const BOX_ONLY_IDS = ["jacked", "inflated", "electrocuted", "spider", "butler"] as const satisfies readonly AvatarId[];
+export const BOX_ONLY_IDS = ["jacked", "inflated", "electrocuted", "spider", "butler", "lion", "balloon", "aquarium", "pizza"] as const satisfies readonly AvatarId[];
 const PRIZE_IDS = new Set<string>(PRIZE_AVATARS.map((avatar) => avatar.id));
 
 /** Distinct owned ids that are in the mystery-box pool. */
