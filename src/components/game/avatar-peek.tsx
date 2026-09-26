@@ -10,6 +10,9 @@ export function AvatarPeek({
   source,
   className,
   buttonClassName,
+  equip = false,
+  equipped = false,
+  onEquip,
 }: {
   src: string;
   alt?: string;
@@ -17,6 +20,9 @@ export function AvatarPeek({
   source?: string | null;
   className?: string;
   buttonClassName?: string;
+  equip?: boolean;
+  equipped?: boolean;
+  onEquip?: () => void;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -70,6 +76,20 @@ export function AvatarPeek({
                 {name}
               </p>
               {source ? <p className="mt-1 text-center text-sm text-muted">{source}</p> : null}
+              {equip ? (
+                <button
+                  type="button"
+                  disabled={equipped}
+                  className="mt-4 inline-flex h-11 min-h-11 w-full items-center justify-center rounded-md bg-fg px-4 font-display text-sm font-semibold uppercase tracking-wider text-bg disabled:opacity-60"
+                  onClick={() => {
+                    if (equipped) return;
+                    onEquip?.();
+                    setOpen(false);
+                  }}
+                >
+                  {equipped ? "EQUIPPED" : "EQUIP"}
+                </button>
+              ) : null}
             </div>
           ) : (
             <img

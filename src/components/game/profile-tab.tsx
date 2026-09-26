@@ -299,17 +299,17 @@ function Closet({
                   active && "ring-2 ring-accent",
                 )}
               >
-                <button
-                  type="button"
-                  disabled={!user}
-                  onClick={() => void pick(shirt ? (isShirtAvatar(avatarId) ? avatarId : "holy") : avatar.id)}
-                  className={cn(
-                    "relative aspect-square w-full overflow-hidden bg-surface-2",
-                    user && "hover:opacity-95",
-                  )}
-                >
-                  <img src={shownLook.src} alt="" className="size-full object-cover" />
-                </button>
+                <AvatarPeek
+                  src={shownLook.src}
+                  alt={shownLook.name}
+                  name={shownLook.name}
+                  source={lookSource(shownLook.id)}
+                  className="size-full object-cover"
+                  buttonClassName="relative block aspect-square w-full overflow-hidden bg-surface-2"
+                  equip={user}
+                  equipped={user && shownLook.id === avatarId}
+                  onEquip={user ? () => void pick(shownLook.id) : undefined}
+                />
                 <span className="px-2 py-2">
                   <span className="block truncate font-display text-sm font-semibold uppercase tracking-wide text-fg">
                     {shirt ? "Shirt" : avatar.name}
