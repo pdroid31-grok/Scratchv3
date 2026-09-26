@@ -1,6 +1,6 @@
 /** Career book handlers. Move-only from stats.server. */
 import { clampAvatar, isAvatarId, type AvatarId } from "../avatars";
-import { clipDisplayName } from "../stats-shared";
+import { clipDisplayName, isHiddenBoardId, isHiddenBoardName } from "../stats-shared";
 import { syncDailyStarsFromPayouts } from "../payouts";
 import type { BookSlice, CareerBook, CareerOpponent, PublicBook } from "../stats-types";
 import { asInt, emptyBook, emptySlice, type OppRow, type TotalsRow } from "./shared";
@@ -107,9 +107,9 @@ export async function getMyStatsHandler({ context }: { context: { userId: string
     const seeded = await loadCareerBook(sql, context.userId);
 
     if (!row || asInt(row.games) === 0) {
-      const daily = await loadDailyMarks(sql, context.userId);
+      const marks = await loadExtraMarks(sql, context.userId);
       if (seeded) {
-        const elimination = withDailyElim(seeded.elimination, daily);
+        const elimination = withScoreMarks(seeded.elimination, marks);
         const total = totalRecord(seeded.total, row, elimination);
         return withScratchBook(sql, context.userId, {
           ...emptyBook(),
@@ -126,7 +126,7 @@ export async function getMyStatsHandler({ context }: { context: { userId: string
           ...settled,
         });
       }
-      const elimination = withDailyElim(emptySlice(), daily);
+      const elimination = withScoreMarks(emptySlice(), marks);
       const total = totalRecord(null, row, elimination);
       if (total.highest == null && total.lowest == null) {
         return withScratchBook(sql, context.userId, { ...emptyBook(), ...settled });
@@ -200,8 +200,8 @@ export async function getMyStatsHandler({ context }: { context: { userId: string
       kindOpps.filter((row) => (kind === "elimination" ? row.kind === "elimination" : row.kind !== "elimination")).slice(0, 10).map(mapOpp);
     const listed = opponents.map(mapOpp);
     const mergedAuction = seeded ? addSlices(seeded.auction, auction) : auction;
-    const daily = await loadDailyMarks(sql, context.userId);
-    const mergedElim = withDailyElim(seeded ? addSlices(seeded.elimination, elimination) : elimination, daily);
+    const marks = await loadExtraMarks(sql, context.userId);
+    const mergedElim = withScoreMarks(seeded ? addSlices(seeded.elimination, elimination) : elimination, marks);
     const total = totalRecord(seeded?.total ?? null, row, mergedElim);
 
     return withScratchBook(sql, context.userId, {
@@ -300,6 +300,38 @@ function tenthScore(value: number | string | null | undefined): number | null {
   return tenth;
 }
 
+async function hiddenFromScores(
+  sql: { query: <T>(text: string, params?: unknown[]) => Promise<T[]> },
+  userId: string,
+): Promise<boolean> {
+  if (isHiddenBoardId(userId)) return true;
+  try {
+    const rows = await sql.query<{ name: string | null }>(
+      `select coalesce(nullif(trim(p.display_name), ''), nullif(trim(u.name), ''), '') as name
+         from player_profiles p
+         left join "user" u on u.id = p.user_id
+        where p.user_id = $1`,
+      [userId],
+    );
+    return isHiddenBoardName(rows[0]?.name);
+  } catch {
+    return false;
+  }
+}
+
+async function loadExtraMarks(
+  sql: { query: <T>(text: string, params?: unknown[]) => Promise<T[]> },
+  userId: string,
+): Promise<DailyMarks> {
+  if (await hiddenFromScores(sql, userId)) return { high: null, low: null };
+  const daily = await loadDailyMarks(sql, userId);
+  const weekly = await loadWeeklyMarks(sql, userId);
+  return {
+    high: foldMark(daily.high, weekly.high, "max"),
+    low: foldMark(daily.low, weekly.low, "min"),
+  };
+}
+
 async function loadDailyMarks(
   sql: { query: <T>(text: string, params?: unknown[]) => Promise<T[]> },
   userId: string,
@@ -325,21 +357,86 @@ async function loadDailyMarks(
   }
 }
 
+async function loadWeeklyMarks(
+  sql: { query: <T>(text: string, params?: unknown[]) => Promise<T[]> },
+  userId: string,
+): Promise<DailyMarks> {
+  try {
+    const rows = await sql.query<{
+      score: number | string | null;
+      season: number | string;
+      week: number | string;
+      awarded: boolean | null;
+    }>(
+      `select r.score, r.season, r.week, coalesce(w.awarded, false) as awarded
+         from darkness_weekly_runs r
+         left join darkness_weekly_weeks w
+           on w.season = r.season and w.week = r.week
+        where r.user_id = $1
+          and r.status = 'done'
+          and r.score is not null
+          and r.score <> 0`,
+      [userId],
+    );
+    if (!rows.length) return { high: null, low: null };
+    let clock: { season: number; week: number } | null = null;
+    try {
+      const { nflClock } = await import("../weekly-sleeper");
+      clock = await nflClock();
+    } catch {
+      clock = null;
+    }
+    let currentDone = false;
+    if (
+      clock &&
+      rows.some(
+        (row) => Number(row.season) === clock!.season && Number(row.week) === clock!.week && !row.awarded,
+      )
+    ) {
+      try {
+        const { weekWindow } = await import("../weekly-sleeper");
+        currentDone = Boolean((await weekWindow(clock.season, clock.week)).done);
+      } catch {
+        currentDone = false;
+      }
+    }
+    const scores: number[] = [];
+    for (const row of rows) {
+      const season = Number(row.season);
+      const week = Number(row.week);
+      let finished = Boolean(row.awarded);
+      if (!finished && clock) {
+        if (season < clock.season) finished = true;
+        else if (season === clock.season && week < clock.week) finished = true;
+        else if (season === clock.season && week === clock.week) finished = currentDone;
+      }
+      if (!finished) continue;
+      const score = tenthScore(row.score);
+      if (score == null) continue;
+      scores.push(score);
+    }
+    if (!scores.length) return { high: null, low: null };
+    return { high: Math.max(...scores), low: Math.min(...scores) };
+  } catch {
+    return { high: null, low: null };
+  }
+}
+
 function foldMark(current: number | null, extra: number | null, pick: "max" | "min"): number | null {
   if (extra == null) return current;
   if (current == null) return extra;
   return pick === "max" ? Math.max(current, extra) : Math.min(current, extra);
 }
 
-function withDailyElim(elim: BookSlice, daily: DailyMarks): BookSlice {
+function withScoreMarks(elim: BookSlice, marks: DailyMarks): BookSlice {
   return {
     ...elim,
-    highest: foldMark(elim.highest, daily.high, "max"),
-    lowest: foldMark(elim.lowest, daily.low, "min"),
+    highest: foldMark(elim.highest, marks.high, "max"),
+    lowest: foldMark(elim.lowest, marks.low, "min"),
   };
 }
 
-/** Rankings Total: career_book.total plus every hosted night. High/low stay elim + Daily. */
+/** Rankings Total wins stay career_book plus hosted nights. High/low are elim + Daily + finished Weekly. */
 function totalRecord(seed: BookSlice | null, nights: TotalsRow | undefined, elim: BookSlice): BookSlice {
   const base = seed ?? emptySlice();
   return {
@@ -514,9 +611,9 @@ export async function getPublicProfileHandler({ data }: { data: { userId: string
       dailyStars,
     };
     const seeded = await loadCareerBook(sql, data.userId);
-    const daily = await loadDailyMarks(sql, data.userId);
+    const marks = await loadExtraMarks(sql, data.userId);
     const mergedAuction = seeded ? addSlices(seeded.auction, auction) : auction;
-    const mergedElim = withDailyElim(seeded ? addSlices(seeded.elimination, elimination) : elimination, daily);
+    const mergedElim = withScoreMarks(seeded ? addSlices(seeded.elimination, elimination) : elimination, marks);
     const totalRecordSlice = totalRecord(seeded?.total ?? null, row, mergedElim);
     if (!seeded && totalRecordSlice.games === 0 && totalRecordSlice.highest == null && totalRecordSlice.lowest == null) {
       return {

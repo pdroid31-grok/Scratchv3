@@ -9,7 +9,7 @@ import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { authEnabled, signOut } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { BookFormats } from "@/components/game/book-slice";
+import { BookFormats, bookHasScores } from "@/components/game/book-slice";
 import { AvatarPeek } from "@/components/game/avatar-peek";
 import { isBankCommish } from "@/lib/game/stats-shared";
 import { isCommishSettingsUser } from "@/lib/game/commish";
@@ -159,7 +159,7 @@ export function ProfileTab() {
                 <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-fg">Your book</h2>
                 {!loaded || !book ? (
                   <p className="mt-3 text-sm text-muted">Loading nights…</p>
-                ) : book.games === 0 ? (
+                ) : !bookHasScores(book) ? (
                   <p className="mt-3 text-sm text-muted">No nights yet. Finish a match and it lands here.</p>
                 ) : (
                   <BookFormats
@@ -395,7 +395,7 @@ function PatBookTabs({
             <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-fg">Your book</h2>
             {!loaded || !book ? (
               <p className="mt-3 text-sm text-muted">Loading nights…</p>
-            ) : book.games === 0 ? (
+            ) : !bookHasScores(book) ? (
               <p className="mt-3 text-sm text-muted">No nights yet. Finish a match and it lands here.</p>
             ) : (
               <BookFormats

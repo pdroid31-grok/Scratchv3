@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
-import { BookFormats } from "@/components/game/book-slice";
+import { BookFormats, bookHasScores } from "@/components/game/book-slice";
 import { getMyStats, type CareerBook } from "@/lib/game/stats";
 
 export function CareerCard() {
@@ -59,7 +59,7 @@ export function CareerCard() {
     );
   }
 
-  if (book.games === 0) {
+  if (!bookHasScores(book)) {
     return (
       <section className="mt-5 rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)]">
         <p className="font-display text-lg font-semibold uppercase tracking-wide text-fg">Career book</p>

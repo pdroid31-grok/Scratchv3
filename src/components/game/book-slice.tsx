@@ -2,6 +2,17 @@
 
 import type { BookSlice, CareerOpponent } from "@/lib/game/stats";
 
+export function bookHasScores(book: {
+  games: number;
+  highest?: number | null;
+  lowest?: number | null;
+  total?: { highest: number | null; lowest: number | null } | null;
+}): boolean {
+  if (book.games > 0) return true;
+  if (book.highest != null || book.lowest != null) return true;
+  return book.total?.highest != null || book.total?.lowest != null;
+}
+
 export function BookFormats({
   slices,
   opponents,
@@ -29,7 +40,8 @@ export function SliceStats({
   empty: string;
   opponents?: CareerOpponent[];
 }) {
-  if (slice.games === 0 && slice.wins === 0 && slice.losses === 0 && !opponents?.length) {
+  const hasMark = slice.highest != null || slice.lowest != null;
+  if (!hasMark && slice.games === 0 && slice.wins === 0 && slice.losses === 0 && !opponents?.length) {
     void empty;
     return (
       <dl className="grid grid-cols-2 gap-3">
