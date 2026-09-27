@@ -23,11 +23,7 @@ type BoardSql = {
 export async function loadLeaderboard(): Promise<Leaderboard> {
   const { getSql } = await import("@/lib/db");
   const sql = await getSql();
-  const [merged, auction, elimination] = await Promise.all([
-    queryBoard(sql, null, 0),
-    queryBoard(sql, "auction"),
-    queryBoard(sql, "elimination"),
-  ]);
+  const merged = await queryBoard(sql, null, 0);
   const ranked = merged.slice(0, 20);
   const total = await stampTotalMarks(sql, ranked);
   const score = [...merged]
@@ -35,7 +31,7 @@ export async function loadLeaderboard(): Promise<Leaderboard> {
     .sort((a, b) => (b.highest ?? -1) - (a.highest ?? -1) || b.wins - a.wins || a.name.localeCompare(b.name))
     .slice(0, 20);
   const stars = await queryStarsBoard(sql, merged);
-  return { total, auction, elimination, score, stars };
+  return { total, auction: [], elimination: [], score, stars };
 }
 
 export async function getLeaderboardHandler(): Promise<Leaderboard> {
