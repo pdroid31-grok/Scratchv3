@@ -94,6 +94,31 @@ function clearScratchReadyStamp(sourceKey: string) {
   }
 }
 
+function unlockHoldStamp(sourceKey: string): number {
+  const key = `darkness-unlock-at:${sourceKey}`;
+  try {
+    const saved = Number(sessionStorage.getItem(key));
+    if (Number.isFinite(saved) && saved > 0) return saved;
+    const now = Date.now();
+    sessionStorage.setItem(key, String(now));
+    return now;
+  } catch {
+    return Date.now();
+  }
+}
+
+function clearUnlockHoldStamp(sourceKey: string) {
+  try {
+    sessionStorage.removeItem(`darkness-unlock-at:${sourceKey}`);
+  } catch {
+    /* ignore */
+  }
+}
+
+function isUnlockHold(kind: ToastItem["kind"]): boolean {
+  return kind === "feat_unlock" || kind === "star_unlock";
+}
+
 function featHow(id?: string): string {
   return ACHIEVEMENT_UNLOCKS.find((row) => row.id === id)?.how ?? "";
 }
@@ -203,7 +228,11 @@ export function CelebrationToasts() {
     async function pull() {
       try {
         const rows = await listToasts();
-        if (live) setQueue(rows);
+        if (!live) return;
+        for (const row of rows) {
+          if (isUnlockHold(row.kind)) unlockHoldStamp(row.sourceKey);
+        }
+        setQueue(rows);
       } catch {
         if (live) setQueue([]);
       }
@@ -223,7 +252,9 @@ export function CelebrationToasts() {
 
   const item = queue[0];
   const waitingOnScratch = item?.kind === "scratch_ready";
+  const waitingOnUnlock = item ? isUnlockHold(item.kind) : false;
   const [scratchVisible, setScratchVisible] = useState(false);
+  const [unlockVisible, setUnlockVisible] = useState(false);
 
   useEffect(() => {
     if (!waitingOnScratch || !item) {
@@ -241,10 +272,27 @@ export function CelebrationToasts() {
     return () => window.clearTimeout(id);
   }, [waitingOnScratch, item?.sourceKey]);
 
+  useEffect(() => {
+    if (!waitingOnUnlock || !item) {
+      setUnlockVisible(false);
+      return;
+    }
+    const started = unlockHoldStamp(item.sourceKey);
+    const wait = SCRATCH_READY_WAIT_MS - (Date.now() - started);
+    if (wait <= 0) {
+      setUnlockVisible(true);
+      return;
+    }
+    setUnlockVisible(false);
+    const id = window.setTimeout(() => setUnlockVisible(true), wait);
+    return () => window.clearTimeout(id);
+  }, [waitingOnUnlock, item?.sourceKey]);
+
   function dismiss() {
     if (!item) return;
     const key = item.sourceKey;
     if (item.kind === "scratch_ready") clearScratchReadyStamp(key);
+    if (isUnlockHold(item.kind)) clearUnlockHoldStamp(key);
     setQueue((rows) => rows.filter((row) => row.sourceKey !== key));
     void seenToast({ data: { sourceKey: key } }).catch(() => undefined);
   }
@@ -258,7 +306,7 @@ export function CelebrationToasts() {
     return () => window.removeEventListener("keydown", onKey);
   }, [item]);
 
-  if (!user || !item || (waitingOnScratch && !scratchVisible)) return null;
+  if (!user || !item || (waitingOnScratch && !scratchVisible) || (waitingOnUnlock && !unlockVisible)) return null;
 
   function goScratch() {
     try {
