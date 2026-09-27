@@ -1,9 +1,16 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
-import type { CommishList, CommishOk, CommishPasswordStatus } from "./commish-types";
+import type { CommishAvatarProgress, CommishList, CommishOk, CommishPasswordStatus } from "./commish-types";
 
-export type { CommishBook, CommishList, CommishOk, CommishPasswordStatus } from "./commish-types";
-export { COMMISH_SETTINGS_ID, COMMISH_PASSWORD_NAME, GROKBOT_PASSWORD_NAME, isCommishSettingsUser } from "./commish-types";
+export type { CommishAvatarProgress, CommishBook, CommishList, CommishOk, CommishPasswordStatus } from "./commish-types";
+export {
+  COMMISH_AVATAR_PROGRESS,
+  COMMISH_SETTINGS_ID,
+  COMMISH_PASSWORD_NAME,
+  GROKBOT_PASSWORD_NAME,
+  isCommishAvatarProgressId,
+  isCommishSettingsUser,
+} from "./commish-types";
 
 function clipId(value: unknown): string {
   return String(value ?? "").trim().slice(0, 80);
@@ -109,4 +116,14 @@ export const giveInspector1Scratch = createServerFn({ method: "POST" })
   .handler(async ({ context }): Promise<CommishOk> => {
     const { giveInspector1ScratchHandler } = await import("./commish.server");
     return giveInspector1ScratchHandler({ context });
+  });
+
+export const commishAvatarProgress = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((data: { id?: string }) => ({
+    id: String(data.id ?? "").trim().slice(0, 40),
+  }))
+  .handler(async ({ context, data }): Promise<CommishAvatarProgress> => {
+    const { commishAvatarProgressHandler } = await import("./commish-feat-progress.server");
+    return commishAvatarProgressHandler({ context, data });
   });

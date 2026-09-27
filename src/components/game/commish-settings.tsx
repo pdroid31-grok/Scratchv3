@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { avatarById, AVATARS } from "@/lib/game/avatars";
+import { avatarById } from "@/lib/game/avatars";
 import {
   clearCommishClaim,
   COMMISH_PASSWORD_NAME,
@@ -25,6 +25,7 @@ import {
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CommishAvatars } from "@/components/game/commish-avatars";
 
 export function CommishSettingsPage() {
   const { user, isPending } = useCurrentUserState();
@@ -119,26 +120,7 @@ export function CommishSettingsPage() {
         </div>
       </section>
 
-      {tab === "avatars" ? (
-        <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
-          <h2 className="font-display text-xl font-semibold uppercase tracking-wide text-fg">Avatars</h2>
-          <p className="mt-1 text-sm text-muted">Preview only. {AVATARS.length} looks.</p>
-          <ul className="mt-3 grid max-h-[min(72vh,44rem)] grid-cols-3 gap-3 overflow-y-auto pr-1 sm:grid-cols-4">
-            {AVATARS.map((avatar) => (
-              <li key={avatar.id} className="min-w-0">
-                <img
-                  src={avatar.src}
-                  alt=""
-                  className="aspect-square w-full rounded-lg object-cover shadow-[var(--shadow-border)]"
-                />
-                <p className="mt-1 truncate text-center font-display text-xs font-semibold uppercase tracking-wide text-fg">
-                  {avatar.name}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : (
+      {tab === "avatars" ? <CommishAvatars /> : (
         <>
 
       <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
