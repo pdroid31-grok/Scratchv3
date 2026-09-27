@@ -159,10 +159,11 @@ async function settleYesterday(sql: Sql, today: string): Promise<void> {
       /* payouts table may not exist yet */
     }
     try {
-      const { maybeGrantComebackPair, maybeGrantDailyContestFeats, maybeGrantTwinDay } = await import("./board-feats.server");
+      const { maybeGrantComebackPair, maybeGrantDailyContestFeats, maybeGrantTwinDay, maybeGrantThriftyDaily } = await import("./board-feats.server");
       await maybeGrantComebackPair(sql, yday);
       await maybeGrantDailyContestFeats(sql, yday);
       await maybeGrantTwinDay(sql, yday);
+      await maybeGrantThriftyDaily(sql, yday);
     } catch (err) {
       console.error("[darkness] comeback pair failed", err);
     }
@@ -186,10 +187,11 @@ async function settleYesterday(sql: Sql, today: string): Promise<void> {
       await syncDailyStarsFromPayouts(sql, row.user_id);
     }
     try {
-      const { maybeGrantComebackPair, maybeGrantDailyContestFeats, maybeGrantTwinDay } = await import("./board-feats.server");
+      const { maybeGrantComebackPair, maybeGrantDailyContestFeats, maybeGrantTwinDay, maybeGrantThriftyDaily } = await import("./board-feats.server");
       await maybeGrantComebackPair(sql, yday);
       await maybeGrantDailyContestFeats(sql, yday);
       await maybeGrantTwinDay(sql, yday);
+      await maybeGrantThriftyDaily(sql, yday);
     } catch (err) {
       console.error("[darkness] comeback pair failed", err);
     }
@@ -236,6 +238,12 @@ async function settleYesterday(sql: Sql, today: string): Promise<void> {
       where day = $1::date and awarded = false`,
     [yday, ids[0] ?? null],
   );
+  try {
+    const { maybeGrantThriftyDaily } = await import("./board-feats.server");
+    await maybeGrantThriftyDaily(sql, yday);
+  } catch (err) {
+    console.error("[darkness] thrifty grant failed", err);
+  }
   try {
     const { recordNewsSafe, newsActor, formatNewsScore } = await import("./news.server");
     for (const id of ids) {
@@ -410,7 +418,7 @@ async function completeDailyRun(
     });
   }
   try {
-    const { maybeGrantBullseye, maybeGrantEarlyBird, maybeGrantNightOwl, maybeGrantLost, maybeGrantDoubleDonutDaily, maybeGrantLumpedUp, maybeGrantNegative, maybeGrantThrifty } = await import("./board-feats.server");
+    const { maybeGrantBullseye, maybeGrantEarlyBird, maybeGrantNightOwl, maybeGrantLost, maybeGrantDoubleDonutDaily, maybeGrantLumpedUp, maybeGrantNegative } = await import("./board-feats.server");
     await maybeGrantBullseye(sql, userId, score);
     await maybeGrantEarlyBird(sql, userId);
     await maybeGrantNightOwl(sql, userId);
@@ -418,7 +426,6 @@ async function completeDailyRun(
     if (day.day >= DOUBLE_DONUT_FROM) await maybeGrantDoubleDonutDaily(sql, userId);
     if (day.day >= NEGATIVE_FROM) await maybeGrantNegative(sql, userId);
     if (day.day >= "2026-09-17") await maybeGrantLumpedUp(sql, userId);
-    await maybeGrantThrifty(sql, userId, picks.map((pick) => pick.player.cost));
     const { maybeGrantThreeHeaded, maybeGrantTripleDonutDaily, maybeGrantPenny, maybeGrantBlueStreak, maybeGrantColdStreak } = await import("./board-feats.server");
     if (day.day >= THREE_HEADED_FROM) await maybeGrantThreeHeaded(sql, userId, snap.map((pick) => pick.team));
     if (day.day >= TRIPLE_DONUT_FROM) await maybeGrantTripleDonutDaily(sql, userId);

@@ -7,7 +7,7 @@ import { applyPrize, bagLegend, HALFTIME_BAG, prizeLabel, redactHalftime, type P
 import { clipDisplayName, hostedNightKey, nightKey, opponentKey, planHostedNightWrite, isBankCommish } from "./stats-shared";
 import { parseRankTab } from "./rank-tabs";
 import { hostedMatchView, historyLineScore } from "./hosted-match";
-import { clampAvatar, isUnlocked, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, walletBalance, PRIZE_AVATARS, WIN_PAY, BOX_COST, GOLDEN_COST, boxPoolOwnedCount, hitBananaScore, hitBoxAddict, justUnlockedBanana, justUnlockedScratchLook, BOX_ADDICT_POOL_NEED, BANANA_SCORE_UNDER, avatarById, hitHeavyHitterScore, skipHeavyHitterWeek, stampDayGap, lostGapHit, earlyBirdDayCount, nightOwlDayCount, comebackKidHit, freeFallHit, EARLY_BIRD_NEED, NIGHT_OWL_NEED, FEAT_TRACK_FROM, DOUBLE_DONUT_FROM, NEGATIVE_FROM, FEAT_SCRATCH_POINTS, THRIFTY_NEED, IRON_BOOT_POINTS, featWeekFromW3, hitFlashTotal, thriftyHit, OVERHEAD_FROM, MIRROR_FROM, OVERHEAD_SCORE, lineupSignature, overheadPassed, mirrorUserIds, TWIN_FROM, twinUserIds, threeLeafHit, THREE_LEAF_NEED, huntersToGrant, LOST_GAP_DAYS, HEAVY_HITTER_PPR, lumpedUpHit, weeklyRealZeroCount, doubleDonutHit, isExactZeroScore, isNegativeScore, lookSource, threeHeadedHit, tripleDonutHit, pennyHit, blueStreakHit, coldStreakHit } from "./avatars";
+import { clampAvatar, isUnlocked, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, walletBalance, PRIZE_AVATARS, WIN_PAY, BOX_COST, GOLDEN_COST, boxPoolOwnedCount, hitBananaScore, hitBoxAddict, justUnlockedBanana, justUnlockedScratchLook, BOX_ADDICT_POOL_NEED, BANANA_SCORE_UNDER, avatarById, hitHeavyHitterScore, skipHeavyHitterWeek, stampDayGap, lostGapHit, earlyBirdDayCount, nightOwlDayCount, comebackKidHit, freeFallHit, EARLY_BIRD_NEED, NIGHT_OWL_NEED, FEAT_TRACK_FROM, DOUBLE_DONUT_FROM, NEGATIVE_FROM, FEAT_SCRATCH_POINTS, THRIFTY_CAP, IRON_BOOT_POINTS, featWeekFromW3, hitFlashTotal, thriftyHit, thriftySlotCosts, OVERHEAD_FROM, MIRROR_FROM, OVERHEAD_SCORE, lineupSignature, overheadPassed, mirrorUserIds, TWIN_FROM, twinUserIds, threeLeafHit, THREE_LEAF_NEED, huntersToGrant, LOST_GAP_DAYS, HEAVY_HITTER_PPR, lumpedUpHit, weeklyRealZeroCount, doubleDonutHit, isExactZeroScore, isNegativeScore, lookSource, threeHeadedHit, tripleDonutHit, pennyHit, blueStreakHit, coldStreakHit } from "./avatars";
 import { PLAYERS } from "./players";
 import { ratingFromPpr } from "./ratings";
 import { emptyRoster, type Roster } from "./types";
@@ -1061,15 +1061,28 @@ describe("avatars", () => {
     assert.equal(LOST_GAP_DAYS, 10);
     assert.equal(HEAVY_HITTER_PPR, 50);
     assert.equal(FEAT_SCRATCH_POINTS, 50);
-    assert.equal(THRIFTY_NEED, 5);
+    assert.equal(THRIFTY_CAP, 30);
     assert.equal(IRON_BOOT_POINTS, 40);
     assert.equal(featWeekFromW3(2026, 2), false);
     assert.equal(featWeekFromW3(2026, 3), true);
     assert.equal(hitFlashTotal(99.9), false);
     assert.equal(hitFlashTotal(100), true);
     assert.equal(hitFlashTotal(100.04), true);
-    assert.equal(thriftyHit([1, 1, 1, 1, 2]), false);
-    assert.equal(thriftyHit([1, 1, 1, 1, 1]), true);
+    assert.equal(thriftyHit([4, 4, 4, 4, 4, 4, 4, 2]), true);
+    assert.equal(thriftyHit([4, 4, 4, 4, 4, 4, 4, 3]), false);
+    assert.equal(thriftyHit([1, 1, 1, 1, 1]), false);
+    const slots = [
+      { slot: "QB", cost: 4 },
+      { slot: "RB1", cost: 4 },
+      { slot: "RB2", cost: 4 },
+      { slot: "WR1", cost: 4 },
+      { slot: "WR2", cost: 4 },
+      { slot: "TE", cost: 4 },
+      { slot: "K", cost: 3 },
+      { slot: "D", cost: 3 },
+    ];
+    assert.equal(thriftySlotCosts(slots)?.reduce((n, cost) => n + cost, 0), 30);
+    assert.equal(thriftySlotCosts(slots.slice(0, 7)), null);
     assert.equal(OVERHEAD_FROM, "2026-09-25");
     assert.equal(MIRROR_FROM, "2026-09-25");
     assert.equal(OVERHEAD_SCORE, 150);

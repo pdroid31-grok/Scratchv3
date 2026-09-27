@@ -15,6 +15,7 @@ import {
   silverSecondDayCount,
   skipHeavyHitterWeek,
   stampDayGap,
+  thriftySlotCosts,
   type EarlyBirdRow,
 } from "./avatars";
 import { dailyBestToneCount } from "./board-feats.server";
@@ -22,6 +23,7 @@ import { asTime } from "./board-feats/place-weekly";
 import { skipBoardRow } from "./board-feats/grant";
 import { dailyDayStamp } from "./daily";
 import { clipGm } from "./stats-shared";
+import { weeklyAwardEtDay } from "./double-trouble.server";
 import {
   COMMISH_AVATAR_PROGRESS,
   COMMISH_SETTINGS_ID,
@@ -64,20 +66,16 @@ function ppr(n: number): string {
   return (Math.round(n * 10) / 10).toFixed(1);
 }
 
-function spent(picks: unknown): number | null {
-  if (!Array.isArray(picks)) return null;
-  let n = 0;
-  let any = false;
-  for (const raw of picks) {
-    if (!raw || typeof raw !== "object") continue;
-    const id = String((raw as { id?: string }).id ?? "").trim();
-    if (!id) continue;
-    const cost = Number((raw as { cost?: number }).cost);
-    if (!Number.isFinite(cost)) continue;
-    n += cost;
-    any = true;
-  }
-  return any ? n : null;
+function lineupCost(picks: unknown): number | null {
+  const costs = thriftySlotCosts(Array.isArray(picks) ? (picks as { slot?: string; cost?: number }[]) : null);
+  if (!costs) return null;
+  return costs.reduce((sum, cost) => sum + cost, 0);
+}
+
+function weekAwardDay(endAt: unknown): string {
+  const n = endAt instanceof Date ? endAt.getTime() : Date.parse(String(endAt ?? ""));
+  if (!Number.isFinite(n)) return "";
+  return weeklyAwardEtDay([], n);
 }
 
 function pennySlots(picks: unknown): number | null {
@@ -177,7 +175,7 @@ async function progressFor(sql: Sql, id: CommishAvatarProgressId, people: Person
     }
     return fill(people, (userId) => `${currentColdRun(by.get(userId) ?? [])}/${COLD_STREAK_NEED}`);
   }
-  if (id === "lost" || id === "bluestreak" || id === "thrifty" || id === "penny") {
+  if (id === "lost" || id === "bluestreak" || id === "penny") {
     const rows = await sql.query<{ user_id: string; day: string; year: number | string; week: number | string; picks: unknown }>(
       `select distinct on (r.user_id) r.user_id, r.day::text as day, d.year, d.week, r.picks
          from darkness_daily_runs r
@@ -198,12 +196,36 @@ async function progressFor(sql: Sql, id: CommishAvatarProgressId, people: Person
         const picks = Array.isArray(row.picks) ? (row.picks as { id?: string; name?: string; team?: string; slot?: string }[]) : [];
         return `${dailyBestToneCount(picks, Number(row.year), Number(row.week))}/${BLUE_STREAK_NEED}`;
       }
-      if (id === "thrifty") {
-        const n = spent(row.picks);
-        return n == null ? "—" : money(n);
-      }
       const n = pennySlots(row.picks);
       return n == null ? "—" : String(n);
+    });
+  }
+  if (id === "thrifty") {
+    const daily = await sql.query<{ user_id: string; picks: unknown }>(
+      `select user_id, picks
+         from darkness_daily_runs
+        where status = 'done' and payout_win is true and day >= $1::date`,
+      [FEAT_TRACK_FROM],
+    );
+    const weekly = await sql.query<{ user_id: string; picks: unknown; end_at: unknown }>(
+      `select r.user_id, r.picks, w.end_at
+         from darkness_weekly_runs r
+         join darkness_weekly_weeks w on w.season = r.season and w.week = r.week
+        where r.status = 'done' and r.payout_win is true and w.awarded is true`,
+    );
+    const best = new Map<string, number>();
+    const consider = (userId: string, picks: unknown, day: string) => {
+      if (!day || day < FEAT_TRACK_FROM) return;
+      const cost = lineupCost(picks);
+      if (cost == null) return;
+      const prev = best.get(userId);
+      if (prev == null || cost < prev) best.set(userId, cost);
+    };
+    for (const row of daily) consider(row.user_id, row.picks, FEAT_TRACK_FROM);
+    for (const row of weekly) consider(row.user_id, row.picks, weekAwardDay(row.end_at));
+    return fill(people, (userId) => {
+      const cost = best.get(userId);
+      return cost == null ? "—" : money(cost);
     });
   }
   if (id === "heavyhitter") {

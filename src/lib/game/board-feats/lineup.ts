@@ -1,6 +1,7 @@
 import {
   THRIFTY_ID,
   thriftyHit,
+  thriftySlotCosts,
   DOUBLE_DONUT_ID,
   LUMPED_UP_ID,
   NEGATIVE_ID,
@@ -34,12 +35,51 @@ import { ELIM_LEGACY_WEEKS } from "../elim-legacy-weeks";
 import type { TeamId } from "../types";
 import { grantFeat, type Sql } from "./grant";
 
-export async function maybeGrantThrifty(sql: Sql, userId: string, costs: readonly number[]): Promise<void> {
+type SlotPick = { slot?: string; cost?: number };
+
+export async function maybeGrantThrifty(
+  sql: Sql,
+  userId: string,
+  picks: readonly SlotPick[],
+  won: boolean,
+  day: string,
+): Promise<void> {
   try {
-    if (!thriftyHit(costs)) return;
+    if (!won) return;
+    if (!day || day < FEAT_TRACK_FROM) return;
+    const costs = thriftySlotCosts(picks);
+    if (!costs || !thriftyHit(costs)) return;
     await grantFeat(sql, userId, THRIFTY_ID);
   } catch (err) {
     console.error("[darkness] thrifty grant failed", err);
+  }
+}
+
+export async function maybeGrantThriftyDaily(sql: Sql, day: string): Promise<void> {
+  if (!day || day < FEAT_TRACK_FROM) return;
+  const rows = await sql.query<{ user_id: string; picks: unknown }>(
+    `select user_id, picks
+       from darkness_daily_runs
+      where day = $1::date and status = 'done' and payout_win is true`,
+    [day],
+  );
+  for (const row of rows) {
+    const picks = Array.isArray(row.picks) ? (row.picks as SlotPick[]) : [];
+    await maybeGrantThrifty(sql, row.user_id, picks, true, day);
+  }
+}
+
+export async function maybeGrantThriftyWeekly(sql: Sql, season: number, week: number, awardDay: string): Promise<void> {
+  if (!awardDay || awardDay < FEAT_TRACK_FROM) return;
+  const rows = await sql.query<{ user_id: string; picks: unknown }>(
+    `select user_id, picks
+       from darkness_weekly_runs
+      where season = $1 and week = $2 and status = 'done' and payout_win is true`,
+    [season, week],
+  );
+  for (const row of rows) {
+    const picks = Array.isArray(row.picks) ? (row.picks as SlotPick[]) : [];
+    await maybeGrantThrifty(sql, row.user_id, picks, true, awardDay);
   }
 }
 

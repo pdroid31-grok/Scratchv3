@@ -286,7 +286,7 @@ export const NEGATIVE_FROM = "2026-09-23";
 
 export const FEAT_SCRATCH_POINTS = 50;
 
-export const THRIFTY_NEED = 5;
+export const THRIFTY_CAP = 30;
 
 export const IRON_BOOT_POINTS = 40;
 
@@ -395,7 +395,7 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: LUMPED_UP_ID, how: "Score under 100 in Daily three days in a row." },
   { id: NEGATIVE_ID, how: "Start a player who finishes with negative points in a Daily Match." },
   { id: FLASH_ID, how: "First to 100.0 in a live Weekly (ties share)." },
-  { id: THRIFTY_ID, how: "Start 5 or more $1 players in one Daily or Weekly lineup." },
+  { id: THRIFTY_ID, how: "Win a Daily or Weekly spending $30 or less." },
   { id: IRON_BOOT_ID, how: "Defense + Kicker score 40+ combined in one Weekly." },
   { id: OVERHEAD_ID, how: "Score 150+ in Daily, then get passed." },
   { id: MIRROR_ID, how: "Post the same lineup as another player." },
@@ -473,6 +473,7 @@ export {
   featWeekFromW3,
   hitFlashTotal,
   thriftyHit,
+  thriftySlotCosts,
   lineupSignature,
   overheadTenths,
   overheadPassed,

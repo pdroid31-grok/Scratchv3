@@ -19,6 +19,8 @@ export {
 } from "./board-feats/place-weekly";
 export {
   maybeGrantThrifty,
+  maybeGrantThriftyDaily,
+  maybeGrantThriftyWeekly,
   dailyLineupRealZeroCount,
   dailyLineupHasNegative,
   maybeGrantNegative,

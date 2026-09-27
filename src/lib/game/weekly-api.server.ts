@@ -382,6 +382,14 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
     } catch (err) {
       console.error("[darkness] twin grant failed", err);
     }
+    try {
+      const window = await weekWindow(season, week);
+      const { weeklyAwardEtDay } = await import("./double-trouble.server");
+      const { maybeGrantThriftyWeekly } = await import("./board-feats.server");
+      await maybeGrantThriftyWeekly(sql, season, week, weeklyAwardEtDay(window.games, window.endAt));
+    } catch (err) {
+      console.error("[darkness] thrifty grant failed", err);
+    }
     return;
   }
   const window = await weekWindow(season, week);
@@ -470,6 +478,13 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
     await grantWeeklyTripleDonuts(sql, season, week);
   } catch (err) {
     console.error("[darkness] donut weekly failed", err);
+  }
+  try {
+    const { weeklyAwardEtDay } = await import("./double-trouble.server");
+    const { maybeGrantThriftyWeekly } = await import("./board-feats.server");
+    await maybeGrantThriftyWeekly(sql, season, week, weeklyAwardEtDay(window.games, window.endAt));
+  } catch (err) {
+    console.error("[darkness] thrifty grant failed", err);
   }
   try {
     const { grantDoubleTroubleAfterWeekly } = await import("./double-trouble.server");
@@ -821,12 +836,7 @@ export async function lockWeeklyHandler({ context, data }: { context: { userId: 
       [week.season, week.week, context.userId, JSON.stringify(snap)],
     );
     try {
-      const { maybeGrantThrifty, maybeGrantMirrorWeek, maybeGrantThreeHeaded } = await import("./board-feats.server");
-      await maybeGrantThrifty(
-        sql,
-        context.userId,
-        snap.map((pick) => pick.cost),
-      );
+      const { maybeGrantMirrorWeek, maybeGrantThreeHeaded } = await import("./board-feats.server");
       await maybeGrantThreeHeaded(
         sql,
         context.userId,
@@ -834,7 +844,7 @@ export async function lockWeeklyHandler({ context, data }: { context: { userId: 
       );
       await maybeGrantMirrorWeek(sql, week.season, week.week);
     } catch (err) {
-      console.error("[darkness] thrifty grant failed", err);
+      console.error("[darkness] weekly lock feat failed", err);
     }
     const next = await loadRun(sql, week.season, week.week, context.userId);
     return {

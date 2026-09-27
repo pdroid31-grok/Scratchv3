@@ -33,7 +33,7 @@ export const COMMISH_AVATAR_PROGRESS = [
   { id: "lost", label: "Lost", hint: "ET days since last done Daily (need 10)" },
   { id: "heavyhitter", label: "Heavy Hitter", hint: "Best single Weekly pick PPR (need 50; skip 2026-W1)" },
   { id: "bluestreak", label: "Blue Streak", hint: "Blue cells on last done Daily / 4" },
-  { id: "thrifty", label: "Thrifty", hint: "$ spent on last done Daily (need ≤ 5)" },
+  { id: "thrifty", label: "Thrifty", hint: "Lowest winning lineup cost (need ≤ $30)" },
   { id: "penny", label: "Penny", hint: "$1 slots on last done Daily" },
   { id: "silvermedal", label: "Silver Medal", hint: "Daily 2nd-place days / 5" },
   { id: "boxaddict", label: "Box Addict", hint: "Owned box-pool looks / 25" },

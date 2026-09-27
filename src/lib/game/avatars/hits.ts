@@ -8,7 +8,7 @@ import {
   LUMPED_UP_UNDER,
   LUMPED_UP_DAYS,
   DOUBLE_DONUT_NEED,
-  THRIFTY_NEED,
+  THRIFTY_CAP,
   FLASH_FROM_SEASON,
   FLASH_FROM_WEEK,
   OVERHEAD_SCORE,
@@ -57,12 +57,32 @@ export function hitFlashTotal(score: number): boolean {
 }
 
 export function thriftyHit(costs: readonly number[]): boolean {
-  let n = 0;
-  for (const cost of costs) if (cost === 1) n += 1;
-  return n >= THRIFTY_NEED;
+  if (costs.length !== 8) return false;
+  let sum = 0;
+  for (const cost of costs) {
+    if (!Number.isFinite(cost)) return false;
+    sum += cost;
+  }
+  return sum <= THRIFTY_CAP;
 }
 
 const LINEUP_SLOTS = ["QB", "RB1", "RB2", "WR1", "WR2", "TE", "K", "D"] as const;
+
+/** Eight slot prices. A missing or duplicate slot does not count. */
+export function thriftySlotCosts(
+  picks: readonly { slot?: string; cost?: number }[] | null | undefined,
+): number[] | null {
+  if (!picks) return null;
+  const by = new Map<string, number>();
+  for (const pick of picks) {
+    const slot = String(pick?.slot ?? "").trim();
+    const cost = Number(pick?.cost);
+    if (!slot || by.has(slot) || !Number.isFinite(cost)) continue;
+    by.set(slot, cost);
+  }
+  if (LINEUP_SLOTS.some((slot) => !by.has(slot))) return null;
+  return LINEUP_SLOTS.map((slot) => by.get(slot)!);
+}
 
 /** Same player id in each of the 8 slots. Array order does not matter. */
 export function lineupSignature(picks: readonly { slot?: string; id?: string }[] | null | undefined): string | null {
