@@ -375,7 +375,6 @@ function BoardList({
                       {row.wins} {row.wins === 1 ? "win" : "wins"}
                       <span className="text-subtle"> · {row.games} played</span>
                       {row.highest != null ? <span className="text-subtle"> · high {row.highest}</span> : null}
-                      {row.lowest != null ? <span className="text-subtle"> · low {row.lowest}</span> : null}
                     </span>
                   )}
                 </span>
