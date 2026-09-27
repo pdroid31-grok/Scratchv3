@@ -477,6 +477,12 @@ export async function getDailyHandler({ context }: { context: { userId: string |
     await ensureDailyTables(sql);
     const today = dailyDayStamp();
     const day = await ensureToday(sql, today);
+    try {
+      const { grantPennyCap10TodayOnce } = await import("./board-feats.server");
+      await grantPennyCap10TodayOnce(sql);
+    } catch (err) {
+      console.error("[darkness] penny today failed", err);
+    }
     const userId = context.userId;
     if (!userId) return metaFrom(day, "signed_out", null);
     const run = await loadRun(sql, today, userId);
@@ -587,6 +593,14 @@ export async function listDailyBoardHandler({ data }: { data: { day: string } })
       if (prior && !prior.awarded) await settleYesterdaySafe(sql, today);
     }
     if (data.day === today) await ensureToday(sql, today);
+    if (data.day === today) {
+      try {
+        const { grantPennyCap10TodayOnce } = await import("./board-feats.server");
+        await grantPennyCap10TodayOnce(sql);
+      } catch (err) {
+        console.error("[darkness] penny today failed", err);
+      }
+    }
     const day = await loadDay(sql, data.day);
     if (!day) {
       return { day: data.day, year: 0, week: null, awarded: false, winnerId: null, rows: [] };

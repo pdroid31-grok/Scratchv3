@@ -409,7 +409,7 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: ALIEN_HUNTER_ID, how: "Own 30 Achievements." },
   { id: THREE_HEADED_ID, how: "Start 3 players from the same NFL team in a Daily or Weekly Match." },
   { id: TRIPLE_DONUT_ID, how: "Start three or more players who score 0 in a Daily or Weekly Match." },
-  { id: PENNY_ID, how: "Lock a Daily lineup where every player costs $1." },
+  { id: PENNY_ID, how: "Spend $10 or less on a Daily lineup." },
   { id: BLUE_STREAK_ID, how: "Start 4 or more players who score in the blue in one Daily." },
   { id: COLD_STREAK_ID, how: "Finish 15 Daily Matches in a row with no Daily win." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];

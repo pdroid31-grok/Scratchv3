@@ -195,10 +195,13 @@ export function threeHeadedHit(teams: readonly string[]): boolean {
   return false;
 }
 
-/** Every filled slot is $1. An empty lineup does not count. */
-export function pennyHit(costs: readonly number[]): boolean {
-  if (!costs.length) return false;
-  return costs.every((cost) => cost === 1);
+/** Eight Daily slot prices. A missing slot or bad cost does not count. */
+export function pennyHit(picks: readonly { slot?: string; cost?: number }[] | null | undefined): boolean {
+  const costs = thriftySlotCosts(picks);
+  if (!costs) return false;
+  let sum = 0;
+  for (const cost of costs) sum += cost;
+  return sum <= 10;
 }
 
 export function blueStreakHit(bestCount: number): boolean {

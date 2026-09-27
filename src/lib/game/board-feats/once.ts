@@ -1,5 +1,6 @@
-import { parseOwned, huntersToGrant, VEGAS_ID, COLD_STREAK_FROM, THREE_HEADED_FROM, threeHeadedHit } from "../avatars";
-import { skipWho, type Sql } from "./grant";
+import { parseOwned, huntersToGrant, VEGAS_ID, COLD_STREAK_FROM, THREE_HEADED_FROM, threeHeadedHit, pennyHit, PENNY_ID } from "../avatars";
+import { dailyDayStamp } from "../daily";
+import { grantFeat, skipWho, type Sql } from "./grant";
 import {
   maybeGrantBlueStreak,
   maybeGrantColdStreak,
@@ -165,4 +166,35 @@ async function maybeGrantThreeHeadedFromDaily(sql: Sql, userId: string): Promise
     await maybeGrantThreeHeaded(sql, userId, picks.map((pick) => String(pick.team ?? "")));
     return;
   }
+}
+
+const PENNY_CAP10_FLAG = "penny-cap10-today-v1";
+
+/** One pass over today's done Daily runs. Later locks still grant on their own. */
+export async function grantPennyCap10TodayOnce(sql: Sql): Promise<void> {
+  await sql.query(`
+    create table if not exists darkness_feat_flags (
+      key text primary key,
+      created_at timestamptz not null default now()
+    )`);
+  const already = await sql.query<{ key: string }>(
+    `select key from darkness_feat_flags where key = $1`,
+    [PENNY_CAP10_FLAG],
+  );
+  if (already[0]) return;
+  const today = dailyDayStamp();
+  const rows = await sql.query<{ user_id: string; picks: unknown }>(
+    `select user_id, picks
+       from darkness_daily_runs
+      where status = 'done'
+        and day = $1::date
+        and picks is not null`,
+    [today],
+  );
+  for (const row of rows) {
+    const picks = Array.isArray(row.picks) ? (row.picks as LinePick[]) : [];
+    if (!pennyHit(picks)) continue;
+    await grantFeat(sql, row.user_id, PENNY_ID);
+  }
+  await sql.query(`insert into darkness_feat_flags (key) values ($1) on conflict do nothing`, [PENNY_CAP10_FLAG]);
 }

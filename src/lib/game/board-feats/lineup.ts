@@ -314,12 +314,7 @@ export async function maybeGrantPenny(sql: Sql, userId: string): Promise<void> {
     );
     for (const row of rows) {
       const picks = Array.isArray(row.picks) ? (row.picks as LinePick[]) : [];
-      const costs = picks.flatMap((pick) => {
-        const id = String(pick.id ?? "").trim();
-        if (!id) return [];
-        return [Number(pick.cost)];
-      });
-      if (!pennyHit(costs)) continue;
+      if (!pennyHit(picks)) continue;
       await grantFeat(sql, userId, PENNY_ID);
       return;
     }
