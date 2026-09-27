@@ -394,7 +394,7 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: DOUBLE_DONUT_ID, how: "Start two or more players who score 0 in a Daily or Weekly Match." },
   { id: LUMPED_UP_ID, how: "Score under 100 in Daily three days in a row." },
   { id: NEGATIVE_ID, how: "Start a player who finishes with negative points in a Daily Match." },
-  { id: FLASH_ID, how: "First to 100.0 in a live Weekly (ties share)." },
+  { id: FLASH_ID, how: "First to 100.0 in a live Weekly." },
   { id: THRIFTY_ID, how: "Win a Daily or Weekly spending $30 or less." },
   { id: IRON_BOOT_ID, how: "Defense + Kicker score 40+ combined in one Weekly." },
   { id: OVERHEAD_ID, how: "Score 150+ in Daily, then get passed." },

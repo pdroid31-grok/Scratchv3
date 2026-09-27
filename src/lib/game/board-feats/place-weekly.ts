@@ -97,7 +97,7 @@ export async function maybeGrantIronBoot(
   }
 }
 
-/** First live pass at 100.0 locks the week. Later crossings do not grant. */
+/** First live pass at 100.0 locks the week on one player. Later crossings do not grant. */
 export async function maybeGrantFlashWeek(
   sql: Sql,
   season: number,
@@ -116,12 +116,15 @@ export async function maybeGrantFlashWeek(
     if (already[0]) return;
     const hit = rows.filter((row) => row.userId && !isHiddenBoardId(row.userId) && hitFlashTotal(row.score));
     if (!hit.length) return;
+    hit.sort((a, b) => b.score - a.score || (a.userId < b.userId ? -1 : a.userId > b.userId ? 1 : 0));
+    const winner = hit[0];
+    if (!winner) return;
     const inserted = await sql.query<{ key: string }>(
       `insert into darkness_weekly_flags (key) values ($1) on conflict (key) do nothing returning key`,
       [key],
     );
     if (!inserted[0]) return;
-    for (const row of hit) await grantFeat(sql, row.userId, FLASH_ID);
+    await grantFeat(sql, winner.userId, FLASH_ID);
   } catch (err) {
     console.error("[darkness] flash grant failed", err);
   }
