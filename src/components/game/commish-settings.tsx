@@ -39,6 +39,8 @@ export function CommishSettingsPage() {
   const [pwStatus, setPwStatus] = useState<CommishPasswordStatus | null>(null);
   const [botStatus, setBotStatus] = useState<CommishPasswordStatus | null>(null);
   const [tab, setTab] = useState<"tools" | "avatars">("tools");
+  const [booksOpen, setBooksOpen] = useState(false);
+  const [bankOpen, setBankOpen] = useState(false);
 
   async function reload() {
     const next = await listCommishBooks({ data: {} });
@@ -124,7 +126,18 @@ export function CommishSettingsPage() {
         <>
 
       <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
-        <LiveBankCard />
+        <button
+          type="button"
+          aria-expanded={bankOpen}
+          onClick={() => setBankOpen((open) => !open)}
+          className="flex w-full items-center justify-between gap-3 text-left"
+        >
+          <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-fg">Live bank</h2>
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border text-base leading-none text-fg">
+            {bankOpen ? "−" : "+"}
+          </span>
+        </button>
+        {bankOpen ? <div className="mt-4"><LiveBankCard /></div> : null}
       </section>
 
       <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
@@ -202,27 +215,39 @@ export function CommishSettingsPage() {
       </section>
 
       <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
-        <h2 className="font-display text-xl font-semibold uppercase tracking-wide text-fg">Books</h2>
-        {books === null ? (
-          <p className="mt-3 text-sm text-muted">Loading…</p>
-        ) : (
-          <ul className="mt-3 divide-y divide-border/60">
-            {books.map((row) => (
-              <li key={row.id} className="flex items-start gap-3 py-2.5">
-                <img src={avatarById(row.avatarId).src} alt="" className="size-9 shrink-0 rounded-md object-cover" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-display text-sm font-semibold uppercase tracking-wide text-fg">
-                    {row.name} · ${row.coins} · {avatarById(row.avatarId).name}
-                  </p>
-                  <p className="break-all text-[11px] tabular-nums text-muted">{row.id}</p>
-                  {row.claimedBy ? (
-                    <p className="mt-0.5 break-all text-[11px] text-subtle">claimed_by {row.claimedBy}</p>
-                  ) : null}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        <button
+          type="button"
+          aria-expanded={booksOpen}
+          onClick={() => setBooksOpen((open) => !open)}
+          className="flex w-full items-center justify-between gap-3 text-left"
+        >
+          <h2 className="font-display text-xl font-semibold uppercase tracking-wide text-fg">Books</h2>
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border text-base leading-none text-fg">
+            {booksOpen ? "−" : "+"}
+          </span>
+        </button>
+        {booksOpen ? (
+          books === null ? (
+            <p className="mt-3 text-sm text-muted">Loading…</p>
+          ) : (
+            <ul className="mt-3 divide-y divide-border/60">
+              {books.map((row) => (
+                <li key={row.id} className="flex items-start gap-3 py-2.5">
+                  <img src={avatarById(row.avatarId).src} alt="" className="size-9 shrink-0 rounded-md object-cover" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-display text-sm font-semibold uppercase tracking-wide text-fg">
+                      {row.name} · ${row.coins} · {avatarById(row.avatarId).name}
+                    </p>
+                    <p className="break-all text-[11px] tabular-nums text-muted">{row.id}</p>
+                    {row.claimedBy ? (
+                      <p className="mt-0.5 break-all text-[11px] text-subtle">claimed_by {row.claimedBy}</p>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )
+        ) : null}
       </section>
 
       <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
@@ -443,9 +468,7 @@ function LiveBankCard() {
   if (!data) return <p className="text-sm text-muted">Bank watch is locked.</p>;
   return (
     <div className="grid gap-6">
-      <div>
-        <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-fg">Live bank</h2>
-        <ul className="mt-3 divide-y divide-border/60">
+      <ul className="divide-y divide-border/60">
           {data.banks.map((row) => (
             <li key={row.id} className="flex items-baseline justify-between gap-3 py-2">
               <Link
@@ -465,7 +488,6 @@ function LiveBankCard() {
             </li>
           ))}
         </ul>
-      </div>
       <div>
         <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-fg">Recent</h2>
         {data.changes.length === 0 ? (
