@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { BookSlice, CareerOpponent } from "@/lib/game/stats";
 import { ACHIEVEMENT_IDS, ACHIEVEMENT_UNLOCKS } from "@/lib/game/avatars";
 
@@ -86,25 +87,41 @@ export function SliceStats({
         <Stat label="High / Low" value={highLow(slice.highest, slice.lowest)} />
         <Stat label="Achievements" value={feats} />
       </dl>
-      {opponents && opponents.length > 0 ? (
-        <div className="mt-5 border-t border-border pt-4">
-          <p className="font-display text-xs font-semibold uppercase tracking-[0.18em] text-subtle">
-            Most played
-          </p>
-          <ul className="mt-2 grid gap-1.5">
-            {opponents.map((opp) => (
-              <li key={opp.name} className="flex items-baseline justify-between gap-3 text-sm">
-                <span className="truncate font-medium text-fg">{opp.name}</span>
-                <span className="shrink-0 tabular-nums text-muted">
-                  {opp.wins}–{opp.losses}
-                  <span className="text-subtle"> · {opp.games}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      {opponents && opponents.length > 0 ? <MostPlayed opponents={opponents} /> : null}
     </>
+  );
+}
+
+function MostPlayed({ opponents }: { opponents: CareerOpponent[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-5 border-t border-border pt-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="font-display text-xs font-semibold uppercase tracking-[0.18em] text-subtle">Most played</p>
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-label={open ? "Hide most played" : "Show most played"}
+          onClick={() => setOpen((on) => !on)}
+          className="flex size-7 shrink-0 items-center justify-center rounded-full border border-border text-base leading-none text-fg"
+        >
+          {open ? "−" : "+"}
+        </button>
+      </div>
+      {open ? (
+        <ul className="mt-2 grid gap-1.5">
+          {opponents.map((opp) => (
+            <li key={opp.name} className="flex items-baseline justify-between gap-3 text-sm">
+              <span className="truncate font-medium text-fg">{opp.name}</span>
+              <span className="shrink-0 tabular-nums text-muted">
+                {opp.wins}–{opp.losses}
+                <span className="text-subtle"> · {opp.games}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
   );
 }
 
