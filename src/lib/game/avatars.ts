@@ -85,6 +85,8 @@ export const AVATARS = [
   { id: "balloon", name: "Balloon", src: "/avatars/balloon.jpg?v=1" },
   { id: "aquarium", name: "Aquarium", src: "/avatars/aquarium.jpg?v=1" },
   { id: "pizza", name: "Pizza", src: "/avatars/pizza.jpg?v=1" },
+  { id: "sunflower", name: "Sunflower", src: "/avatars/sunflower.jpg?v=1" },
+  { id: "crab", name: "Crab", src: "/avatars/crab.jpg?v=1" },
   { id: "commish", name: "Commish", src: "/avatars/commish.jpg?v=1" },
   { id: "jail", name: "Jail", src: "/avatars/jail.jpg?v=1" },
   { id: "crypepe", name: "Crying", src: "/avatars/crypepe.jpg?v=2" },
@@ -449,7 +451,7 @@ export const PRIZE_AVATARS = AVATARS.filter(
 );
 
 /** Mystery Box only — never a scratch-ticket prize. Still in PRIZE_AVATARS / pickPrize. */
-export const BOX_ONLY_IDS = ["jacked", "inflated", "electrocuted", "spider", "butler", "lion", "balloon", "aquarium", "pizza"] as const satisfies readonly AvatarId[];
+export const BOX_ONLY_IDS = ["jacked", "inflated", "electrocuted", "spider", "butler", "lion", "balloon", "aquarium", "pizza", "sunflower", "crab"] as const satisfies readonly AvatarId[];
 
 export const PRIZE_IDS = new Set<string>(PRIZE_AVATARS.map((avatar) => avatar.id));
 
