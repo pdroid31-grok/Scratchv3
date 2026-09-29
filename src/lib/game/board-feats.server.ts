@@ -8,6 +8,7 @@ export {
   maybeGrantLost,
   maybeGrantTwinDay,
   maybeGrantComebackPair,
+  maybeGrantPoop,
 } from "./board-feats/place-daily";
 export {
   maybeGrantHeavyHitter,

@@ -92,6 +92,7 @@ export const AVATARS = [
   { id: "doubletrouble", name: "Double Trouble", src: "/avatars/doubletrouble.jpg?v=4" },
   { id: "bullseye", name: "Bullseye", src: "/avatars/bullseye.jpg?v=1" },
   { id: "rainyday", name: "Rainy Day", src: "/avatars/rainyday.jpg?v=1" },
+  { id: "poop", name: "Poop", src: "/avatars/poop.jpg?v=1" },
   { id: "earlybird", name: "Early Bird", src: "/avatars/earlybird.jpg?v=1" },
   { id: "heavyhitter", name: "Heavy Hitter", src: "/avatars/heavyhitter.jpg?v=1" },
   { id: "lost", name: "Lost", src: "/avatars/lost.jpg?v=1" },
@@ -196,6 +197,8 @@ export const BULLSEYE_ID = "bullseye" as const satisfies AvatarId;
 
 export const RAINY_DAY_ID = "rainyday" as const satisfies AvatarId;
 
+export const POOP_ID = "poop" as const satisfies AvatarId;
+
 export const EARLY_BIRD_ID = "earlybird" as const satisfies AvatarId;
 
 export const HEAVY_HITTER_ID = "heavyhitter" as const satisfies AvatarId;
@@ -282,6 +285,8 @@ export const FEAT_TRACK_FROM = "2026-09-17";
 
 export const EARLY_BIRD_NEED = 10;
 
+export const POOP_NEED = 10;
+
 export const NIGHT_OWL_NEED = 10;
 
 export const LOST_GAP_DAYS = 10;
@@ -354,6 +359,7 @@ export const FEAT_IDS = new Set<string>([
   DOUBLE_TROUBLE_ID,
   BULLSEYE_ID,
   RAINY_DAY_ID,
+  POOP_ID,
   EARLY_BIRD_ID,
   HEAVY_HITTER_ID,
   LOST_ID,
@@ -402,6 +408,7 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: DOUBLE_TROUBLE_ID, how: "Win Daily and Weekly on the same day." },
   { id: BULLSEYE_ID, how: "Score exactly 100.0 in a Daily or Weekly Match." },
   { id: RAINY_DAY_ID, how: "Finish last in Daily two days in a row." },
+  { id: POOP_ID, how: "Finish last in Daily 10 times." },
   { id: EARLY_BIRD_ID, how: "Be the first to submit a Daily Match 10 times." },
   { id: HEAVY_HITTER_ID, how: "Draft a player who scores 50+ in a Weekly Match." },
   { id: LOST_ID, how: "Go 10+ days between Daily submissions." },

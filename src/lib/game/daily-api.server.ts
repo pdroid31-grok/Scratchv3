@@ -160,11 +160,12 @@ async function settleYesterday(sql: Sql, today: string): Promise<void> {
       /* payouts table may not exist yet */
     }
     try {
-      const { maybeGrantComebackPair, maybeGrantDailyContestFeats, maybeGrantTwinDay, maybeGrantThriftyDaily } = await import("./board-feats.server");
+      const { maybeGrantComebackPair, maybeGrantDailyContestFeats, maybeGrantTwinDay, maybeGrantThriftyDaily, maybeGrantPoop } = await import("./board-feats.server");
       await maybeGrantComebackPair(sql, yday);
       await maybeGrantDailyContestFeats(sql, yday);
       await maybeGrantTwinDay(sql, yday);
       await maybeGrantThriftyDaily(sql, yday);
+      await maybeGrantPoop(sql, yday);
     } catch (err) {
       console.error("[darkness] comeback pair failed", err);
     }
@@ -188,11 +189,12 @@ async function settleYesterday(sql: Sql, today: string): Promise<void> {
       await syncDailyStarsFromPayouts(sql, row.user_id);
     }
     try {
-      const { maybeGrantComebackPair, maybeGrantDailyContestFeats, maybeGrantTwinDay, maybeGrantThriftyDaily } = await import("./board-feats.server");
+      const { maybeGrantComebackPair, maybeGrantDailyContestFeats, maybeGrantTwinDay, maybeGrantThriftyDaily, maybeGrantPoop } = await import("./board-feats.server");
       await maybeGrantComebackPair(sql, yday);
       await maybeGrantDailyContestFeats(sql, yday);
       await maybeGrantTwinDay(sql, yday);
       await maybeGrantThriftyDaily(sql, yday);
+      await maybeGrantPoop(sql, yday);
     } catch (err) {
       console.error("[darkness] comeback pair failed", err);
     }
@@ -283,11 +285,12 @@ async function settleYesterday(sql: Sql, today: string): Promise<void> {
     console.error("[darkness] double trouble daily failed", err);
   }
   try {
-    const { maybeGrantRainyDay, maybeGrantComebackPair, maybeGrantDailyContestFeats, maybeGrantTwinDay } = await import("./board-feats.server");
+    const { maybeGrantRainyDay, maybeGrantComebackPair, maybeGrantDailyContestFeats, maybeGrantTwinDay, maybeGrantPoop } = await import("./board-feats.server");
     await maybeGrantRainyDay(sql, yday);
     await maybeGrantComebackPair(sql, yday);
     await maybeGrantDailyContestFeats(sql, yday);
     await maybeGrantTwinDay(sql, yday);
+    await maybeGrantPoop(sql, yday);
   } catch (err) {
     console.error("[darkness] rainy day failed", err);
   }

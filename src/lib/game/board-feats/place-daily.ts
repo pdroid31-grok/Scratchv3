@@ -7,6 +7,8 @@ import {
   freeFallHit,
   BULLSEYE_ID,
   RAINY_DAY_ID,
+  POOP_ID,
+  POOP_NEED,
   EARLY_BIRD_ID,
   LOST_ID,
   NIGHT_OWL_ID,
@@ -243,5 +245,31 @@ export async function maybeGrantComebackPair(sql: Sql, day: string): Promise<voi
     }
   } catch (err) {
     console.error("[darkness] comeback pair grant failed", err);
+  }
+}
+
+/** Last visible score on 10 distinct awarded Daily days from 2026-09-17. Ties share last. */
+export async function maybeGrantPoop(sql: Sql, day: string): Promise<void> {
+  try {
+    if (!day || day < FEAT_TRACK_FROM) return;
+    if (!(await dayAwarded(sql, day))) return;
+    const days = await sql.query<{ day: string }>(
+      `select day::text as day
+         from darkness_daily_days
+        where awarded is true and day >= $1::date
+        order by 1`,
+      [FEAT_TRACK_FROM],
+    );
+    const counts = new Map<string, number>();
+    for (const row of days) {
+      const stamp = String(row.day).slice(0, 10);
+      const last = await visiblePlaceIds(sql, stamp, "min");
+      for (const userId of new Set(last)) counts.set(userId, (counts.get(userId) ?? 0) + 1);
+    }
+    for (const [userId, n] of counts) {
+      if (n >= POOP_NEED) await grantFeat(sql, userId, POOP_ID);
+    }
+  } catch (err) {
+    console.error("[darkness] poop grant failed", err);
   }
 }
