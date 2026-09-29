@@ -194,7 +194,7 @@ function PlayerSettings({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-bg/90 p-5 pt-16"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-bg/90 p-5 pt-16"
       role="dialog"
       aria-modal="true"
       aria-label="Player Settings"
@@ -209,62 +209,68 @@ function PlayerSettings({
         <X className="size-5" strokeWidth={2} />
       </button>
       <div
-        className="w-full max-w-sm rounded-xl bg-surface p-5 shadow-[var(--shadow-border)]"
+        className="grid w-full max-w-sm gap-4"
         onClick={(event) => event.stopPropagation()}
       >
         <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-fg">Player Settings</h2>
-        <form
-          className="mt-5 grid gap-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const next = draft.trim().slice(0, 16);
-            if (!next) return;
-            setSaving(true);
-            void Promise.resolve(rename(next)).finally(() => setSaving(false));
-          }}
-        >
-          <label htmlFor="gm-name" className="text-sm font-medium text-fg">
-            Display Name
-          </label>
-          <Input
-            id="gm-name"
-            name="gm-name"
-            autoComplete="nickname"
-            maxLength={16}
-            placeholder="Your name"
-            aria-label="Display name"
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-          />
-          <Button
-            type="submit"
-            size="lg"
-            className="font-display uppercase tracking-wider"
-            disabled={saving || !draft.trim() || draft.trim() === name}
-          >
-            {saving ? "Saving…" : "Save"}
-          </Button>
-        </form>
-        <label className="mt-5 flex items-center justify-between gap-4 text-sm font-medium text-fg">
-          Hide unlocks in News
-          <input
-            type="checkbox"
-            role="switch"
-            className="size-4 accent-fg"
-            checked={hideUnlocks}
-            onChange={(event) => {
-              const next = event.target.checked;
-              setHideUnlocks(next);
-              try {
-                localStorage.setItem(NEWS_HIDE_UNLOCKS_KEY, next ? "1" : "0");
-              } catch {
-                /* private mode */
-              }
+        <section className="rounded-xl bg-surface p-4 shadow-[var(--shadow-border)] sm:p-5">
+          <h3 className="font-display text-lg font-semibold uppercase tracking-wide text-fg">Profile</h3>
+          <form
+            className="mt-4 grid gap-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const next = draft.trim().slice(0, 16);
+              if (!next) return;
+              setSaving(true);
+              void Promise.resolve(rename(next)).finally(() => setSaving(false));
             }}
-          />
-        </label>
-        <div className="mt-5">
-          <p className="text-sm font-medium text-fg">Pepe Closet View Width</p>
+          >
+            <Input
+              id="gm-name"
+              name="gm-name"
+              autoComplete="nickname"
+              maxLength={16}
+              placeholder="Your name"
+              aria-label="Display name"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+            />
+            <p className="text-xs text-muted">16 characters.</p>
+            <Button
+              type="submit"
+              size="lg"
+              className="font-display uppercase tracking-wider"
+              disabled={saving || !draft.trim() || draft.trim() === name}
+            >
+              {saving ? "Saving…" : "Save"}
+            </Button>
+          </form>
+        </section>
+        <section className="rounded-xl bg-surface p-4 shadow-[var(--shadow-border)] sm:p-5">
+          <h3 className="font-display text-lg font-semibold uppercase tracking-wide text-fg">News</h3>
+          <label className="mt-4 flex items-center justify-between gap-4 text-sm font-medium text-fg">
+            Hide unlocks in News
+            <input
+              type="checkbox"
+              role="switch"
+              className="size-4 accent-fg"
+              checked={hideUnlocks}
+              onChange={(event) => {
+                const next = event.target.checked;
+                setHideUnlocks(next);
+                try {
+                  localStorage.setItem(NEWS_HIDE_UNLOCKS_KEY, next ? "1" : "0");
+                } catch {
+                  /* private mode */
+                }
+              }}
+            />
+          </label>
+          <p className="mt-1 text-xs text-muted">hides feat / star unlock rows on this device.</p>
+        </section>
+        <section className="rounded-xl bg-surface p-4 shadow-[var(--shadow-border)] sm:p-5">
+          <h3 className="font-display text-lg font-semibold uppercase tracking-wide text-fg">Closet</h3>
+          <p className="mt-4 text-sm font-medium text-fg">Closet columns</p>
           <div className="mt-2 grid grid-cols-3 gap-1">
             {([3, 4, 5] as const).map((cols) => (
               <button
@@ -281,7 +287,7 @@ function PlayerSettings({
               </button>
             ))}
           </div>
-        </div>
+        </section>
       </div>
     </div>
   );
