@@ -115,6 +115,9 @@ export const AVATARS = [
   { id: "advancedhunter", name: "Advanced Hunter", src: "/avatars/advancedhunter.jpg?v=1" },
   { id: "megahunter", name: "Mega Hunter", src: "/avatars/megahunter.jpg?v=1" },
   { id: "alienhunter", name: "Alien Hunter", src: "/avatars/alienhunter.jpg?v=1" },
+  { id: "gianthunter", name: "Giant Hunter", src: "/avatars/gianthunter.jpg?v=1" },
+  { id: "titanhunter", name: "Titan Hunter", src: "/avatars/titanhunter.jpg?v=1" },
+  { id: "ultrahunter", name: "Ultra Hunter", src: "/avatars/ultrahunter.jpg?v=1" },
   { id: "threeheaded", name: "3 Headed", src: "/avatars/threeheaded.jpg?v=1" },
   { id: "tripledonut", name: "Triple Donut", src: "/avatars/tripledonut.jpg?v=1" },
   { id: "penny", name: "Penny", src: "/avatars/penny.jpg?v=1" },
@@ -240,6 +243,12 @@ export const MEGA_HUNTER_ID = "megahunter" as const satisfies AvatarId;
 
 export const ALIEN_HUNTER_ID = "alienhunter" as const satisfies AvatarId;
 
+export const GIANT_HUNTER_ID = "gianthunter" as const satisfies AvatarId;
+
+export const TITAN_HUNTER_ID = "titanhunter" as const satisfies AvatarId;
+
+export const ULTRA_HUNTER_ID = "ultrahunter" as const satisfies AvatarId;
+
 export const THREE_HEADED_ID = "threeheaded" as const satisfies AvatarId;
 
 export const TRIPLE_DONUT_ID = "tripledonut" as const satisfies AvatarId;
@@ -363,6 +372,9 @@ export const FEAT_IDS = new Set<string>([
   ADVANCED_HUNTER_ID,
   MEGA_HUNTER_ID,
   ALIEN_HUNTER_ID,
+  GIANT_HUNTER_ID,
+  TITAN_HUNTER_ID,
+  ULTRA_HUNTER_ID,
   THREE_HEADED_ID,
   TRIPLE_DONUT_ID,
   PENNY_ID,
@@ -407,6 +419,9 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: ADVANCED_HUNTER_ID, how: "Own 20 Achievements." },
   { id: MEGA_HUNTER_ID, how: "Own 25 Achievements." },
   { id: ALIEN_HUNTER_ID, how: "Own 30 Achievements." },
+  { id: GIANT_HUNTER_ID, how: "Own 35 Achievements." },
+  { id: TITAN_HUNTER_ID, how: "Own 40 Achievements." },
+  { id: ULTRA_HUNTER_ID, how: "Own 45 Achievements." },
   { id: THREE_HEADED_ID, how: "Start 3 players from the same NFL team in a Daily or Weekly Match." },
   { id: TRIPLE_DONUT_ID, how: "Start three or more players who score 0 in a Daily or Weekly Match." },
   { id: PENNY_ID, how: "Spend $10 or less on a Daily lineup." },
@@ -431,6 +446,9 @@ export const HUNTER_LADDER = [
   { id: ADVANCED_HUNTER_ID, need: 20 },
   { id: MEGA_HUNTER_ID, need: 25 },
   { id: ALIEN_HUNTER_ID, need: 30 },
+  { id: GIANT_HUNTER_ID, need: 35 },
+  { id: TITAN_HUNTER_ID, need: 40 },
+  { id: ULTRA_HUNTER_ID, need: 45 },
 ] as const satisfies readonly { id: AvatarId; need: number }[];
 
 export const ACHIEVEMENT_IDS = new Set<string>(ACHIEVEMENT_UNLOCKS.map((row) => row.id));
