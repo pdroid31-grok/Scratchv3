@@ -36,6 +36,7 @@ export function ProfileTab() {
   const [saving, setSaving] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [playerSettings, setPlayerSettings] = useState(false);
+  const [nameEdit, setNameEdit] = useState(false);
 
   useEffect(() => {
     setDraft(shown);
@@ -98,6 +99,18 @@ export function ProfileTab() {
                   <span className="truncate font-display text-2xl font-semibold uppercase tracking-wide text-fg">
                     {shown || "GM"}
                   </span>
+                  <button
+                    type="button"
+                    aria-expanded={nameEdit}
+                    aria-label={nameEdit ? "Close display name" : "Edit display name"}
+                    onClick={() => setNameEdit((open) => !open)}
+                    className="inline-flex shrink-0 items-center gap-1.5 font-display text-xs font-semibold uppercase tracking-wider text-muted hover:text-fg"
+                  >
+                    <span className="flex size-7 items-center justify-center rounded-full border border-border text-base leading-none text-fg">
+                      {nameEdit ? "−" : "+"}
+                    </span>
+                    Edit
+                  </button>
                   <span className="inline-flex shrink-0 items-center gap-2.5 font-display text-2xl font-semibold tabular-nums tracking-wide text-fg">
                     <span>${coins}</span>
                     <span className="inline-flex items-center gap-1 leading-none">
@@ -114,6 +127,7 @@ export function ProfileTab() {
             </div>
           </section>
 
+          {nameEdit ? (
           <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
             <h2 className="font-display text-2xl font-semibold uppercase tracking-tight text-fg">
               Display Name
@@ -150,6 +164,7 @@ export function ProfileTab() {
               </Button>
             </form>
           </section>
+          ) : null}
 
           <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
             {isBankCommish(shown) ? (
