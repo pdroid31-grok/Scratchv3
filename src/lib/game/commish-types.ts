@@ -36,6 +36,7 @@ export const COMMISH_AVATAR_PROGRESS = [
   { id: "thrifty", label: "Thrifty", hint: "Lowest winning lineup cost (need ≤ $30)" },
   { id: "penny", label: "Penny", hint: "$1 slots on last done Daily" },
   { id: "silvermedal", label: "Silver Medal", hint: "Daily 2nd-place days / 5" },
+  { id: "poop", label: "Poop", hint: "Awarded Daily last-place days / 10" },
   { id: "boxaddict", label: "Box Addict", hint: "Owned box-pool looks / 25" },
   { id: "vegas", label: "Vegas", hint: "0 or 1 (has claimed a scratch)" },
   { id: "boxlunch", label: "Box Lunch", hint: "0 or 1 (box + scratch same ET day)" },

@@ -7,6 +7,7 @@ import {
   EARLY_BIRD_NEED,
   FEAT_TRACK_FROM,
   NIGHT_OWL_NEED,
+  POOP_NEED,
   SILVER_SECOND_NEED,
   boxPoolOwnedCount,
   earlyBirdDayCount,
@@ -271,6 +272,39 @@ async function progressFor(sql: Sql, id: CommishAvatarProgressId, people: Person
       }];
     });
     return fill(people, (userId) => `${silverSecondDayCount(shaped, userId)}/${SILVER_SECOND_NEED}`);
+  }
+  if (id === "poop") {
+    const rows = await sql.query<{ day: string; user_id: string; score: number | string; name: string | null }>(
+      `select r.day::text as day, r.user_id, r.score, ${NAME_SQL} as name
+         from darkness_daily_runs r
+         join darkness_daily_days d on d.day = r.day
+         left join player_profiles p on p.user_id = r.user_id
+         left join "user" u on u.id = r.user_id
+        where r.status = 'done'
+          and r.score is not null
+          and d.awarded is true
+          and r.day >= $1::date`,
+      [FEAT_TRACK_FROM],
+    );
+    const byDay = new Map<string, { userId: string; score: number }[]>();
+    for (const row of rows) {
+      if (skipBoardRow(row.user_id, row.name) || skipBoardRow(row.user_id, clipGm(row.name ?? ""))) continue;
+      const score = Number(row.score);
+      if (!Number.isFinite(score)) continue;
+      const day = String(row.day).slice(0, 10);
+      const list = byDay.get(day) ?? [];
+      list.push({ userId: row.user_id, score });
+      byDay.set(day, list);
+    }
+    const counts = new Map<string, number>();
+    for (const list of byDay.values()) {
+      if (list.length < 2) continue;
+      const min = Math.min(...list.map((row) => row.score));
+      for (const userId of new Set(list.filter((row) => row.score === min).map((row) => row.userId))) {
+        counts.set(userId, (counts.get(userId) ?? 0) + 1);
+      }
+    }
+    return fill(people, (userId) => `${counts.get(userId) ?? 0}/${POOP_NEED}`);
   }
   if (id === "boxaddict") {
     return fill(people, (userId) => {
