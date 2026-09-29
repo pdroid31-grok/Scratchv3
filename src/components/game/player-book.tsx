@@ -6,7 +6,7 @@ import { SliceStats } from "@/components/game/book-slice";
 import type { RankTabId } from "@/components/game/rank-tabs";
 import { AvatarPeek } from "@/components/game/avatar-peek";
 import { closetGridClass, useClosetCols } from "@/components/game/closet-cols";
-import { CLOSET_AVATARS, SHIRT_AVATARS, avatarById, isShirtAvatar, isUnlocked, lookSource, remainingToUnlock } from "@/lib/game/avatars";
+import { ACHIEVEMENT_IDS, CLOSET_AVATARS, SHIRT_AVATARS, STAR_IDS, avatarById, isShirtAvatar, isUnlocked, lookSource, remainingToUnlock } from "@/lib/game/avatars";
 import type { PublicBook } from "@/lib/game/stats";
 
 export function PlayerBook({ book, board: start }: { book: PublicBook; board: RankTabId }) {
@@ -94,7 +94,7 @@ function UnlockedCloset({ owned, wearing }: { owned: string[]; wearing: string }
                 />
                 {on ? <span className="pointer-events-none absolute inset-0 ring-2 ring-inset ring-accent" /> : null}
               </div>
-              <p className="truncate px-2 py-1.5 text-center font-display text-xs font-semibold uppercase tracking-wide text-fg">
+              <p className={`truncate px-2 py-1.5 text-center font-display text-xs font-semibold uppercase tracking-wide ${lookNameTone(avatar.id)}`}>
                 {shirt ? "Shirt" : avatar.name}
               </p>
             </li>
@@ -103,4 +103,10 @@ function UnlockedCloset({ owned, wearing }: { owned: string[]; wearing: string }
       </ul>
     </div>
   );
+}
+
+function lookNameTone(id: string): string {
+  if (STAR_IDS.has(id)) return "text-[#f8e7a0]";
+  if (ACHIEVEMENT_IDS.has(id)) return "text-[#d4e8ff]";
+  return "text-fg";
 }

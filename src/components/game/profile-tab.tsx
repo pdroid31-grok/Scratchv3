@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Gavel, Settings, Star, X } from "lucide-react";
-import { CLOSET_AVATARS, SHIRT_AVATARS, avatarById, isShirtAvatar, isUnlocked, lookSource, ownsAvatar, remainingToUnlock, type AvatarId } from "@/lib/game/avatars";
+import { ACHIEVEMENT_IDS, CLOSET_AVATARS, SHIRT_AVATARS, STAR_IDS, avatarById, isShirtAvatar, isUnlocked, lookSource, ownsAvatar, remainingToUnlock, type AvatarId } from "@/lib/game/avatars";
 import { useProfile } from "@/lib/game/profile-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { authEnabled, signOut } from "@/lib/auth/client";
@@ -337,7 +337,7 @@ function Closet({
                   onEquip={user ? () => void pick(shownLook.id) : undefined}
                 />
                 <span className="px-2 py-2">
-                  <span className="block truncate font-display text-sm font-semibold uppercase tracking-wide text-fg">
+                  <span className={`block truncate font-display text-sm font-semibold uppercase tracking-wide ${lookNameTone(avatar.id)}`}>
                     {shirt ? "Shirt" : avatar.name}
                   </span>
                   <span className="mt-0.5 block text-xs tabular-nums text-muted">
@@ -536,4 +536,10 @@ function formatBankWhen(iso: string): string {
     hour: "numeric",
     minute: "2-digit",
   }).format(stamp);
+}
+
+function lookNameTone(id: string): string {
+  if (STAR_IDS.has(id)) return "text-[#f8e7a0]";
+  if (ACHIEVEMENT_IDS.has(id)) return "text-[#d4e8ff]";
+  return "text-fg";
 }
