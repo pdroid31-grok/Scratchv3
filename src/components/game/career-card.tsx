@@ -75,6 +75,7 @@ export function CareerCard() {
       <BookFormats
         slices={{ total: book.total, auction: book.auction, elimination: book.elimination }}
         opponents={book.opponentsBy}
+        owned={book.owned}
       />
     </section>
   );

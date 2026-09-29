@@ -169,6 +169,7 @@ export function ProfileTab() {
                   <BookFormats
                     slices={{ total: book.total, auction: book.auction, elimination: book.elimination }}
                     opponents={book.opponentsBy}
+                    owned={owned}
                   />
                 )}
               </>
@@ -426,6 +427,7 @@ function PatBookTabs({
               <BookFormats
                 slices={{ total: book.total, auction: book.auction, elimination: book.elimination }}
                 opponents={book.opponentsBy}
+                owned={book.owned}
               />
             )}
             <div className="mt-6">{closet}</div>

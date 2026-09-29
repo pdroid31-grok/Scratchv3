@@ -47,7 +47,7 @@ export function PlayerBook({ book, board: start }: { book: PublicBook; board: Ra
         </Link>
       </div>
       <div className="mt-4">
-        <SliceStats slice={book.total} empty="No matches on the book yet." />
+        <SliceStats slice={book.total} empty="No matches on the book yet." owned={book.owned} />
       </div>
       <UnlockedCloset owned={book.owned ?? ["poor"]} wearing={book.avatarId} />
       <Link

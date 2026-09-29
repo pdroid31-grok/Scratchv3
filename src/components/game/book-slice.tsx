@@ -1,6 +1,7 @@
 "use client";
 
 import type { BookSlice, CareerOpponent } from "@/lib/game/stats";
+import { ACHIEVEMENT_IDS, ACHIEVEMENT_UNLOCKS } from "@/lib/game/avatars";
 
 export function bookHasScores(book: {
   games: number;
@@ -13,12 +14,29 @@ export function bookHasScores(book: {
   return book.total?.highest != null || book.total?.lowest != null;
 }
 
+function mark(n: number | null | undefined): string {
+  return n == null ? "—" : String(n);
+}
+
+function highLow(high: number | null | undefined, low: number | null | undefined): string {
+  return `${mark(high)} / ${mark(low)}`;
+}
+
+function achievementCount(owned: readonly string[] | undefined): string {
+  const have = new Set(owned ?? []);
+  let n = 0;
+  for (const id of have) if (ACHIEVEMENT_IDS.has(id)) n += 1;
+  return `${n} / ${ACHIEVEMENT_UNLOCKS.length}`;
+}
+
 export function BookFormats({
   slices,
   opponents,
+  owned,
 }: {
   slices: { total: BookSlice; auction?: BookSlice; elimination?: BookSlice };
   opponents?: { total?: CareerOpponent[] };
+  owned?: readonly string[];
 }) {
   return (
     <div className="mt-4">
@@ -26,6 +44,7 @@ export function BookFormats({
         slice={slices.total}
         empty="No matches on the book yet."
         opponents={opponents?.total}
+        owned={owned}
       />
     </div>
   );
@@ -35,20 +54,23 @@ export function SliceStats({
   slice,
   empty,
   opponents,
+  owned,
 }: {
   slice: BookSlice;
   empty: string;
   opponents?: CareerOpponent[];
+  owned?: readonly string[];
 }) {
   const hasMark = slice.highest != null || slice.lowest != null;
+  const feats = achievementCount(owned);
   if (!hasMark && slice.games === 0 && slice.wins === 0 && slice.losses === 0 && !opponents?.length) {
     void empty;
     return (
       <dl className="grid grid-cols-2 gap-3">
         <Stat label="Record" value="0–0" hint="0 nights" />
         <Stat label="Nights" value="0" />
-        <Stat label="High" value="—" />
-        <Stat label="Low" value="—" />
+        <Stat label="High / Low" value="— / —" />
+        <Stat label="Achievements" value={feats} />
       </dl>
     );
   }
@@ -61,8 +83,8 @@ export function SliceStats({
           hint={slice.ties ? `${slice.ties} draw${slice.ties === 1 ? "" : "s"}` : `${slice.games} nights`}
         />
         <Stat label="Nights" value={String(slice.games)} />
-        <Stat label="High" value={slice.highest == null ? "—" : String(slice.highest)} />
-        <Stat label="Low" value={slice.lowest == null ? "—" : String(slice.lowest)} />
+        <Stat label="High / Low" value={highLow(slice.highest, slice.lowest)} />
+        <Stat label="Achievements" value={feats} />
       </dl>
       {opponents && opponents.length > 0 ? (
         <div className="mt-5 border-t border-border pt-4">
