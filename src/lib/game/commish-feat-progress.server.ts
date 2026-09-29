@@ -22,7 +22,7 @@ import { dailyBestToneCount } from "./board-feats.server";
 import { asTime } from "./board-feats/place-weekly";
 import { skipBoardRow } from "./board-feats/grant";
 import { dailyDayStamp } from "./daily";
-import { clipGm } from "./stats-shared";
+import { clipGm, isAwardSkippedName, isHiddenBoardId } from "./stats-shared";
 import { weeklyAwardEtDay } from "./double-trouble.server";
 import {
   COMMISH_AVATAR_PROGRESS,
@@ -249,16 +249,27 @@ async function progressFor(sql: Sql, id: CommishAvatarProgressId, people: Person
     });
   }
   if (id === "silvermedal") {
-    const rows = await sql.query<{ day: string; user_id: string; score: number | string }>(
-      `select day::text as day, user_id, score
-         from darkness_daily_runs
-        where status = 'done' and score is not null`,
+    const rows = await sql.query<{ day: string; user_id: string; score: number | string; name: string | null }>(
+      `select r.day::text as day, r.user_id, r.score,
+              coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name
+         from darkness_daily_runs r
+         join darkness_daily_days d on d.day = r.day
+         left join player_profiles p on p.user_id = r.user_id
+         left join "user" u on u.id = r.user_id
+        where r.status = 'done'
+          and r.score is not null
+          and d.awarded is true
+          and r.day >= $1::date`,
+      [FEAT_TRACK_FROM],
     );
-    const shaped = rows.map((row) => ({
-      day: String(row.day).slice(0, 10),
-      userId: row.user_id,
-      score: Number(row.score) || 0,
-    }));
+    const shaped = rows.flatMap((row) => {
+      if (isHiddenBoardId(row.user_id) || isAwardSkippedName(row.name)) return [];
+      return [{
+        day: String(row.day).slice(0, 10),
+        userId: row.user_id,
+        score: Number(row.score) || 0,
+      }];
+    });
     return fill(people, (userId) => `${silverSecondDayCount(shaped, userId)}/${SILVER_SECOND_NEED}`);
   }
   if (id === "boxaddict") {
