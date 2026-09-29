@@ -138,7 +138,7 @@ export function mondayNightTeams(
   return out;
 }
 
-/** If the packed board missed every MNF team, put the highest-PPR one into their slot. */
+/** If the board missed every MNF team, swap in the best unpacked Monday player at the closest projection. */
 export function withMondayNightPlayer(
   pack: WeeklyPackedBoard,
   pools: WeeklyPackedBoard,
@@ -146,26 +146,31 @@ export function withMondayNightPlayer(
 ): WeeklyPackedBoard {
   if (!teams.size) return pack;
   const slots = ["QB", "RB", "WR", "TE", "K", "D"] as ElimPos[];
+  const packedIds = new Set<string>();
   for (const pos of slots) {
-    if ((pack[pos] ?? []).some((row) => teams.has(row.team))) return pack;
+    for (const row of pack[pos] ?? []) {
+      packedIds.add(row.id);
+      if (teams.has(row.team)) return pack;
+    }
   }
   let best: WeeklyPackedPlayer | null = null;
   for (const pos of slots) {
     for (const row of pools[pos] ?? []) {
-      if (!teams.has(row.team)) continue;
+      if (!teams.has(row.team) || packedIds.has(row.id)) continue;
       if (!best || row.ppr > best.ppr || (row.ppr === best.ppr && row.id < best.id)) best = row;
     }
   }
   if (!best) return pack;
   const pos = best.pos;
   const current = [...(pack[pos] ?? [])];
-  if (current.some((row) => row.id === best.id)) return pack;
   if (!current.length) return { ...pack, [pos]: [{ ...best, cost: 1 }] };
-  let low = 0;
+  let pick = 0;
   for (let i = 1; i < current.length; i += 1) {
-    if (current[i]!.ppr < current[low]!.ppr) low = i;
+    const gap = Math.abs(current[i]!.ppr - best.ppr);
+    const bestGap = Math.abs(current[pick]!.ppr - best.ppr);
+    if (gap < bestGap || (gap === bestGap && current[i]!.ppr < current[pick]!.ppr)) pick = i;
   }
-  current[low] = { ...best };
+  current[pick] = { ...best };
   const n = current.length;
   return {
     ...pack,

@@ -150,33 +150,31 @@ describe("weekly scoring", () => {
     assert.equal(earlier.games.length, 1);
   });
 
-  it("adds the highest MNF player only when the cut dropped all of them", () => {
-    const pool = {
-      QB: [
-        { id: "q-phi", sid: "1", name: "Hurts", pos: "QB" as const, team: "PHI" as const, cost: 1, ppr: 12 },
-        { id: "q-kc", sid: "2", name: "Mahomes", pos: "QB" as const, team: "KC" as const, cost: 10, ppr: 24 },
-      ],
-      RB: [],
-      WR: [],
-      TE: [],
-      K: [],
-      D: [],
-    };
-    const packed = {
-      ...pool,
-      QB: [pool.QB[1]!],
-    };
+  it("swaps the closest projection at the Monday player's position", () => {
+    const qb = (id: string, team: "PHI" | "KC" | "DAL" | "GB", ppr: number) => ({
+      id,
+      sid: id,
+      name: id,
+      pos: "QB" as const,
+      team,
+      cost: 1,
+      ppr,
+    });
+    const phi = qb("q-phi", "PHI", 12);
+    const cheap = qb("q-cheap", "DAL", 8);
+    const close = qb("q-close", "GB", 13);
+    const star = qb("q-star", "KC", 24);
+    const pool = { QB: [phi, cheap, close, star], RB: [], WR: [], TE: [], K: [], D: [] };
+    const packed = { ...pool, QB: [star, close, cheap] };
     const forced = withMondayNightPlayer(packed, pool, new Set(["PHI", "NYG"]));
-    assert.equal(forced.QB.some((row) => row.team === "PHI"), true);
-    assert.equal(forced.QB.some((row) => row.id === "q-kc"), false);
-    const already = withMondayNightPlayer(
-      { ...pool, QB: [pool.QB[0]!] },
-      pool,
-      new Set(["PHI"]),
-    );
-    assert.equal(already.QB.length, 1);
-    assert.equal(already.QB[0]?.id, "q-phi");
-    assert.equal(withMondayNightPlayer(packed, pool, new Set()).QB[0]?.id, "q-kc");
+    assert.equal(forced.QB.some((row) => row.id === "q-phi"), true);
+    assert.equal(forced.QB.some((row) => row.id === "q-close"), false);
+    assert.equal(forced.QB.some((row) => row.id === "q-cheap"), true);
+    assert.equal(forced.QB.some((row) => row.id === "q-star"), true);
+    const already = withMondayNightPlayer({ ...pool, QB: [phi, star] }, pool, new Set(["PHI"]));
+    assert.equal(already.QB.some((row) => row.id === "q-phi"), true);
+    assert.equal(already.QB.some((row) => row.id === "q-star"), true);
+    assert.equal(withMondayNightPlayer(packed, pool, new Set()).QB.map((row) => row.id).join(), "q-star,q-close,q-cheap");
   });
 });
 
