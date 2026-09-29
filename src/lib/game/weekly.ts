@@ -12,14 +12,19 @@ export const WEEKLY_TZ = "America/New_York";
 export const WEEK1_TNF_TEAMS = new Set(["SEA", "NE"]);
 
 /**
- * REMOVE AFTER 2026-W2.
- * This live week only: drop Thursday BUF–DET from the slate and lock Sunday
- * 1:00 PM America/New_York instead of Thursday kickoff. Week 3+ uses normal
- * lock/slate — do not copy this into later weeks.
+ * 2026-W2 only: drop Thursday BUF–DET and lock Sunday 1:00 PM ET.
+ * Do not apply that team pair to any other week. Already-locked W1–W3
+ * runs stay on the clock they were saved with.
  */
 export const WEEKLY_MIGRATION_WEEK = { season: 2026, week: 2 } as const;
 const WEEKLY_MIGRATION_SKIP = new Set(["BUF", "DET"]);
-const WEEKLY_MIGRATION_LOCK = "13:00";
+
+/** Standing slate from 2026-W4 on. One lock: that week's Sunday 1:00 PM ET. */
+export const SUNDAY_SLATE_FROM = { season: 2026, week: 4 } as const;
+
+export function isSundaySlateWeek(season: number, week: number): boolean {
+  return season > SUNDAY_SLATE_FROM.season || (season === SUNDAY_SLATE_FROM.season && week >= SUNDAY_SLATE_FROM.week);
+}
 
 export function isWeeklyMigrationWeek(season: number, week: number): boolean {
   return season === WEEKLY_MIGRATION_WEEK.season && week === WEEKLY_MIGRATION_WEEK.week;
@@ -36,22 +41,139 @@ export function weeklyMigrationSkipTeam(season: number, week: number, team: stri
   return isWeeklyMigrationWeek(season, week) && WEEKLY_MIGRATION_SKIP.has(String(team || "").toUpperCase());
 }
 
-function migrationEtStamp(ymd: string, hhmm: string): number {
+function etStamp(ymd: string, hhmm: string): number {
   const month = Number(ymd.slice(5, 7));
   const off = month >= 3 && month <= 10 ? "-04:00" : "-05:00";
   return Date.parse(`${ymd}T${hhmm}:00${off}`);
 }
 
-/** First Sunday 1:00 PM ET on this week's schedule dates, or null if not the migration week. */
-export function weeklyMigrationSundayLockMs(season: number, week: number, dates: readonly string[]): number | null {
-  if (!isWeeklyMigrationWeek(season, week)) return null;
+function etYmd(ms: number): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: WEEKLY_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(ms));
+}
+
+function etWeekday(ms: number): string {
+  return new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: WEEKLY_TZ }).format(new Date(ms));
+}
+
+/** First Sunday 1:00 PM ET among these YYYY-MM-DD dates. */
+export function firstSundayLockMs(dates: readonly string[]): number | null {
   const sunday = [...dates].filter((ymd) => /^\d{4}-\d{2}-\d{2}$/.test(ymd)).sort().find((ymd) => {
     const label = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: WEEKLY_TZ }).format(
-      new Date(migrationEtStamp(ymd, "12:00")),
+      new Date(etStamp(ymd, "12:00")),
     );
     return label === "Sun";
   });
-  return sunday ? migrationEtStamp(sunday, WEEKLY_MIGRATION_LOCK) : null;
+  return sunday ? etStamp(sunday, "13:00") : null;
+}
+
+/** W2 only. Same Sunday 1:00 stamp. Later weeks use keepSundaySlate. */
+export function weeklyMigrationSundayLockMs(season: number, week: number, dates: readonly string[]): number | null {
+  if (!isWeeklyMigrationWeek(season, week)) return null;
+  return firstSundayLockMs(dates);
+}
+
+/** Sunday 1:00 PM ET on the earliest Sunday kickoff in the set. */
+export function sundayOnePmLock(kickoffs: readonly number[]): number | null {
+  const ymds = kickoffs
+    .filter((ms) => Number.isFinite(ms) && etWeekday(ms) === "Sun")
+    .map((ms) => etYmd(ms))
+    .sort();
+  return ymds.length ? etStamp(ymds[0]!, "13:00") : null;
+}
+
+export type SlateKickGame = {
+  home: string;
+  away: string;
+  date: string;
+  status?: string;
+  kickoff?: number;
+};
+
+/** Drop kickoffs before Sunday 1:00 PM ET. Weeks before 2026-W4 are unchanged. */
+export function keepSundaySlate<T extends SlateKickGame>(
+  games: readonly T[],
+  season: number,
+  week: number,
+): { games: T[]; lockAt: number | null } {
+  if (!isSundaySlateWeek(season, week)) return { games: [...games], lockAt: null };
+  const kickoffs = games.flatMap((game) =>
+    typeof game.kickoff === "number" && Number.isFinite(game.kickoff) ? [game.kickoff] : [],
+  );
+  const lockAt =
+    sundayOnePmLock(kickoffs) ??
+    firstSundayLockMs(games.map((game) => game.date).filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date)));
+  if (lockAt == null) return { games: [...games], lockAt: null };
+  const sunday = etYmd(lockAt);
+  const kept = games.filter((game) => {
+    if (typeof game.kickoff === "number" && Number.isFinite(game.kickoff)) return game.kickoff >= lockAt;
+    return Boolean(game.date) && game.date >= sunday;
+  });
+  return { games: kept, lockAt };
+}
+
+/** Monday games still on the slate. No Monday kickoff → empty. Does not invent one. */
+export function mondayNightTeams(
+  games: readonly { home: string; away: string; date?: string; kickoff?: number }[],
+  lockAt: number,
+): Set<string> {
+  const sunday = etYmd(lockAt);
+  const out = new Set<string>();
+  for (const game of games) {
+    const kick = game.kickoff;
+    const monday =
+      typeof kick === "number" && Number.isFinite(kick)
+        ? etWeekday(kick) === "Mon" && kick >= lockAt
+        : Boolean(game.date && game.date > sunday);
+    if (!monday) continue;
+    const home = String(game.home || "").toUpperCase();
+    const away = String(game.away || "").toUpperCase();
+    if (home) out.add(home);
+    if (away) out.add(away);
+  }
+  return out;
+}
+
+/** If the packed board missed every MNF team, put the highest-PPR one into their slot. */
+export function withMondayNightPlayer(
+  pack: WeeklyPackedBoard,
+  pools: WeeklyPackedBoard,
+  teams: ReadonlySet<string>,
+): WeeklyPackedBoard {
+  if (!teams.size) return pack;
+  const slots = ["QB", "RB", "WR", "TE", "K", "D"] as ElimPos[];
+  for (const pos of slots) {
+    if ((pack[pos] ?? []).some((row) => teams.has(row.team))) return pack;
+  }
+  let best: WeeklyPackedPlayer | null = null;
+  for (const pos of slots) {
+    for (const row of pools[pos] ?? []) {
+      if (!teams.has(row.team)) continue;
+      if (!best || row.ppr > best.ppr || (row.ppr === best.ppr && row.id < best.id)) best = row;
+    }
+  }
+  if (!best) return pack;
+  const pos = best.pos;
+  const current = [...(pack[pos] ?? [])];
+  if (current.some((row) => row.id === best.id)) return pack;
+  if (!current.length) return { ...pack, [pos]: [{ ...best, cost: 1 }] };
+  let low = 0;
+  for (let i = 1; i < current.length; i += 1) {
+    if (current[i]!.ppr < current[low]!.ppr) low = i;
+  }
+  current[low] = { ...best };
+  const n = current.length;
+  return {
+    ...pack,
+    [pos]: current
+      .slice()
+      .sort((a, b) => b.ppr - a.ppr || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+      .map((row, i) => ({ ...row, cost: n - i })),
+  };
 }
 
 export function applyWeeklyMigrationBoard(pack: WeeklyPackedBoard, season: number, week: number): WeeklyPackedBoard {

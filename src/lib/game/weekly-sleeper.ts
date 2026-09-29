@@ -1,5 +1,5 @@
 import type { ElimPlayer, ElimPos } from "./elim-data";
-import { WEEKLY_TZ, WEEKLY_SPREAD_EXTRA, WEEKLY_SPREAD_KEEP, spreadPpr, skipWeeklyMigrationGame, weeklyMigrationSkipTeam, weeklyMigrationSundayLockMs, type WeeklyPackedBoard, type WeeklyPackedPlayer } from "./weekly";
+import { WEEKLY_TZ, WEEKLY_SPREAD_EXTRA, WEEKLY_SPREAD_KEEP, spreadPpr, skipWeeklyMigrationGame, weeklyMigrationSkipTeam, weeklyMigrationSundayLockMs, isSundaySlateWeek, keepSundaySlate, sundayOnePmLock, firstSundayLockMs, mondayNightTeams, withMondayNightPlayer, type WeeklyPackedBoard, type WeeklyPackedPlayer } from "./weekly";
 import type { TeamId } from "./types";
 
 const UA = "DarknessWeekly/1.0";
@@ -100,6 +100,7 @@ export type NflGame = {
   status: string;
   home: string;
   away: string;
+  kickoff?: number;
 };
 
 export function weekOpponents(games: NflGame[]): Record<string, TeamId> {
@@ -181,6 +182,8 @@ export function stampsInWeek(stamps: number[], firstDate?: string, lastDate?: st
 }
 
 async function espnKickoffs(season: number, week: number): Promise<number[]> {
+  const slate = await espnSlate(season, week);
+  if (slate.length) return slate.map((game) => game.kickoff);
   try {
     const url = `https://cdn.espn.com/core/nfl/schedule?xhr=1&year=${season}&seasontype=2&week=${week}`;
     const raw = await getJson<unknown>(url, 10 * 60_000);
@@ -192,20 +195,93 @@ async function espnKickoffs(season: number, week: number): Promise<number[]> {
   }
 }
 
+type EspnSlateGame = { home: string; away: string; kickoff: number };
+
+export function parseEspnSlate(raw: unknown): EspnSlateGame[] {
+  const schedule = (raw as { content?: { schedule?: unknown } } | null)?.content?.schedule;
+  if (!schedule || typeof schedule !== "object") return [];
+  const out: EspnSlateGame[] = [];
+  for (const day of Object.values(schedule as Record<string, { games?: unknown }>)) {
+    const games = day?.games;
+    if (!Array.isArray(games)) continue;
+    for (const game of games) {
+      if (!game || typeof game !== "object") continue;
+      const row = game as { date?: string; competitions?: { date?: string; competitors?: { homeAway?: string; team?: { abbreviation?: string } }[] }[] };
+      const comp = row.competitions?.[0];
+      const kickoff = Date.parse(String(comp?.date || row.date || ""));
+      if (!Number.isFinite(kickoff)) continue;
+      let home = "";
+      let away = "";
+      for (const side of comp?.competitors ?? []) {
+        const abbr = String(side?.team?.abbreviation || "");
+        if (side?.homeAway === "home") home = abbr;
+        else if (side?.homeAway === "away") away = abbr;
+      }
+      if (home && away) out.push({ home, away, kickoff });
+    }
+  }
+  return out;
+}
+
+async function espnSlate(season: number, week: number): Promise<EspnSlateGame[]> {
+  try {
+    const url = `https://cdn.espn.com/core/nfl/schedule?xhr=1&year=${season}&seasontype=2&week=${week}`;
+    return parseEspnSlate(await getJson<unknown>(url, 10 * 60_000));
+  } catch {
+    return [];
+  }
+}
+
+function withKickoffs(games: NflGame[], espn: readonly EspnSlateGame[]): NflGame[] {
+  const map = new Map<string, number>();
+  for (const row of espn) {
+    const home = teamOf(row.home);
+    const away = teamOf(row.away);
+    if (!home || !away) continue;
+    map.set(`${away}|${home}`, row.kickoff);
+  }
+  return games.map((game) => {
+    const home = teamOf(game.home);
+    const away = teamOf(game.away);
+    const kickoff = home && away ? map.get(`${away}|${home}`) : undefined;
+    return kickoff ? { ...game, kickoff } : game;
+  });
+}
+
 export async function weekWindow(
   season: number,
   week: number,
 ): Promise<{ lockAt: number; endAt: number; games: NflGame[]; open: boolean; live: boolean; done: boolean }> {
-  const games = (await nflSchedule(season))
-    .filter((game) => Number(game.week) === week)
-    .filter((game) => !skipWeeklyMigrationGame(season, week, game.home, game.away));
+  let games = (await nflSchedule(season)).filter((game) => Number(game.week) === week);
+  let lockAt = 0;
+  if (isSundaySlateWeek(season, week)) {
+    const slate = keepSundaySlate(withKickoffs(games, await espnSlate(season, week)), season, week);
+    games = slate.games;
+    const dates = games.map((game) => String(game.date || "")).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+    lockAt = slate.lockAt ?? (dates[0] ? atEt(dates[0], "13:00") : Date.now() + 86400000);
+    const lastKick = games.reduce((max, game) => {
+      const stamp =
+        typeof game.kickoff === "number" && Number.isFinite(game.kickoff)
+          ? game.kickoff
+          : game.date
+            ? atEt(game.date, "20:15")
+            : 0;
+      return Math.max(max, stamp);
+    }, 0);
+    const endAt = (lastKick || lockAt) + 4 * 60 * 60 * 1000;
+    const now = Date.now();
+    const statuses = games.map((game) => String(game.status || "").toLowerCase());
+    const allDone = games.length > 0 && statuses.every((status) => DONE.has(status) || status === "complete");
+    const phase = weekPhase(now, lockAt, endAt, statuses);
+    return { lockAt, endAt, games, open: phase.open, live: phase.live, done: phase.done || allDone };
+  }
+  games = games.filter((game) => !skipWeeklyMigrationGame(season, week, game.home, game.away));
   const dates = games.map((game) => String(game.date || "")).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
   const espn = stampsInWeek(await espnKickoffs(season, week), dates[0], dates[dates.length - 1]);
   const firstDate = dates[0];
   const lastDate = dates[dates.length - 1];
   const migratedLock = weeklyMigrationSundayLockMs(season, week, dates);
-  const lockAt =
-    migratedLock ?? (espn.length ? Math.min(...espn) : firstDate ? atEt(firstDate, "20:20") : Date.now() + 86400000);
+  lockAt = migratedLock ?? (espn.length ? Math.min(...espn) : firstDate ? atEt(firstDate, "20:20") : Date.now() + 86400000);
   const lastKick = espn.length ? Math.max(...espn) : lastDate ? atEt(lastDate, "20:15") : lockAt;
   const endAt = lastKick + 4 * 60 * 60 * 1000;
   const now = Date.now();
@@ -325,7 +401,24 @@ export function buildWeeklyBoard(
     const ranked = [...byPos[pos]].sort((a, b) => b.ppr - a.ppr);
     pack[pos] = packPosition(ranked, pos === "K" || pos === "D");
   }
-  return pack;
+  if (!isSundaySlateWeek(season, week)) return pack;
+  const kickoffs = games.flatMap((game) =>
+    typeof game.kickoff === "number" && Number.isFinite(game.kickoff) ? [game.kickoff] : [],
+  );
+  const lockAt =
+    sundayOnePmLock(kickoffs) ??
+    firstSundayLockMs(games.map((game) => String(game.date || "")).filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date)));
+  if (lockAt == null) return pack;
+  const teams = mondayNightTeams(
+    games.map((game) => ({
+      home: teamOf(game.home) ?? "",
+      away: teamOf(game.away) ?? "",
+      date: game.date,
+      kickoff: game.kickoff,
+    })),
+    lockAt,
+  );
+  return withMondayNightPlayer(pack, byPos, teams);
 }
 
 export async function weeklyProjections(season: number, week: number): Promise<WeeklyPackedBoard> {
@@ -336,12 +429,13 @@ export async function weeklyProjections(season: number, week: number): Promise<W
     ),
     nflSchedule(season),
   ]);
-  return buildWeeklyBoard(
-    Array.isArray(raw) ? raw : [],
-    season,
-    week,
-    schedule.filter((game) => Number(game.week) === week).filter((game) => !skipWeeklyMigrationGame(season, week, game.home, game.away)),
-  );
+  let games = schedule.filter((game) => Number(game.week) === week);
+  if (isSundaySlateWeek(season, week)) {
+    games = keepSundaySlate(withKickoffs(games, await espnSlate(season, week)), season, week).games;
+  } else {
+    games = games.filter((game) => !skipWeeklyMigrationGame(season, week, game.home, game.away));
+  }
+  return buildWeeklyBoard(Array.isArray(raw) ? raw : [], season, week, games);
 }
 
 type StatsSql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };

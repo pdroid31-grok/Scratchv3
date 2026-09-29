@@ -27,6 +27,9 @@ import {
   weeklyMigrationSundayLockMs,
   applyWeeklyMigrationBoard,
   isWeeklyMigrationWeek,
+  isSundaySlateWeek,
+  keepSundaySlate,
+  withMondayNightPlayer,
 } from "./weekly";
 import { stampsInWeek, weekOpponents, fillPackedOpponents, ymdInTz, buildWeeklyBoard, isInjuredForWeekly, weekPhase } from "./weekly-sleeper";
 
@@ -113,6 +116,67 @@ describe("weekly scoring", () => {
     assert.equal(pack.QB.length, 1);
     assert.equal(pack.QB[0]?.team, "KC");
     assert.equal(pack.D.length, 0);
+  });
+
+  it("locks 2026-W4 and later at Sunday 1:00 ET and drops earlier kickoffs", () => {
+    assert.equal(isSundaySlateWeek(2026, 3), false);
+    assert.equal(isSundaySlateWeek(2026, 4), true);
+    assert.equal(isSundaySlateWeek(2027, 1), true);
+    const thursday = Date.parse("2026-10-02T00:15:00Z");
+    const london = Date.parse("2026-10-04T13:30:00Z");
+    const sunday = Date.parse("2026-10-04T17:00:00Z");
+    const monday = Date.parse("2026-10-06T00:15:00Z");
+    const slate = keepSundaySlate(
+      [
+        { home: "KC", away: "BUF", date: "2026-10-01", kickoff: thursday },
+        { home: "JAX", away: "DEN", date: "2026-10-04", kickoff: london },
+        { home: "DAL", away: "GB", date: "2026-10-04", kickoff: sunday },
+        { home: "PHI", away: "NYG", date: "2026-10-05", kickoff: monday },
+      ],
+      2026,
+      4,
+    );
+    assert.equal(slate.lockAt, Date.parse("2026-10-04T13:00:00-04:00"));
+    assert.deepEqual(
+      slate.games.map((game) => game.home),
+      ["DAL", "PHI"],
+    );
+    const earlier = keepSundaySlate(
+      [{ home: "KC", away: "BUF", date: "2026-09-24", kickoff: Date.parse("2026-09-25T00:15:00Z") }],
+      2026,
+      3,
+    );
+    assert.equal(earlier.lockAt, null);
+    assert.equal(earlier.games.length, 1);
+  });
+
+  it("adds the highest MNF player only when the cut dropped all of them", () => {
+    const pool = {
+      QB: [
+        { id: "q-phi", sid: "1", name: "Hurts", pos: "QB" as const, team: "PHI" as const, cost: 1, ppr: 12 },
+        { id: "q-kc", sid: "2", name: "Mahomes", pos: "QB" as const, team: "KC" as const, cost: 10, ppr: 24 },
+      ],
+      RB: [],
+      WR: [],
+      TE: [],
+      K: [],
+      D: [],
+    };
+    const packed = {
+      ...pool,
+      QB: [pool.QB[1]!],
+    };
+    const forced = withMondayNightPlayer(packed, pool, new Set(["PHI", "NYG"]));
+    assert.equal(forced.QB.some((row) => row.team === "PHI"), true);
+    assert.equal(forced.QB.some((row) => row.id === "q-kc"), false);
+    const already = withMondayNightPlayer(
+      { ...pool, QB: [pool.QB[0]!] },
+      pool,
+      new Set(["PHI"]),
+    );
+    assert.equal(already.QB.length, 1);
+    assert.equal(already.QB[0]?.id, "q-phi");
+    assert.equal(withMondayNightPlayer(packed, pool, new Set()).QB[0]?.id, "q-kc");
   });
 });
 
