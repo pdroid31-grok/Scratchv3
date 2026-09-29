@@ -466,6 +466,13 @@ export async function claimScratchCard(sql: Sql, userId: string, cardId: number)
         } catch (err) {
           console.error("[darkness] scratch feat news failed", err);
         }
+        if (fresh === "crypepe") {
+          try {
+            await grantFeatScratchPoints(sql, userId, fresh);
+          } catch (err) {
+            console.error("[darkness] crying scratch points failed", err);
+          }
+        }
       }
     }
     await syncDailyStarsFromPayouts(sql, userId);

@@ -412,6 +412,7 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: PENNY_ID, how: "Spend $10 or less on a Daily lineup." },
   { id: BLUE_STREAK_ID, how: "Start 4 or more players who score in the blue in one Daily." },
   { id: COLD_STREAK_ID, how: "Finish 15 Daily Matches in a row with no Daily win." },
+  { id: CRYPEPE_ID, how: "Hit Nothing on a scratch ticket." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];
 
 export const PRIZE_AVATARS = AVATARS.filter(

@@ -979,7 +979,7 @@ describe("avatars", () => {
     assert.equal(lookSource("doubledonut"), "From Achievement: Start two or more players who score 0 in a Daily or Weekly Match.");
     assert.equal(lookSource("negative"), "From Achievement: Start a player who finishes with negative points in a Daily Match.");
     assert.equal(lookSource("farmer"), "From the Mystery Box");
-    assert.equal(lookSource("crypepe"), "From a scratch ticket");
+    assert.equal(lookSource("crypepe"), "From Achievement: Hit Nothing on a scratch ticket.");
     assert.equal(lookSource("joker"), "From a scratch ticket");
     assert.equal(lookSource("not-a-look"), null);
     assert.equal(justUnlockedBanana(["poor"], ["poor", "banana"]), true);

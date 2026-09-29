@@ -1,4 +1,4 @@
-import { parseOwned, huntersToGrant, VEGAS_ID, COLD_STREAK_FROM, THREE_HEADED_FROM, threeHeadedHit, pennyHit, PENNY_ID } from "../avatars";
+import { parseOwned, huntersToGrant, VEGAS_ID, COLD_STREAK_FROM, THREE_HEADED_FROM, threeHeadedHit, pennyHit, PENNY_ID, CRYPEPE_ID } from "../avatars";
 import { dailyDayStamp } from "../daily";
 import { grantFeat, skipWho, type Sql } from "./grant";
 import {
@@ -197,4 +197,33 @@ export async function grantPennyCap10TodayOnce(sql: Sql): Promise<void> {
     await grantFeat(sql, row.user_id, PENNY_ID);
   }
   await sql.query(`insert into darkness_feat_flags (key) values ($1) on conflict do nothing`, [PENNY_CAP10_FLAG]);
+}
+
+const CRY_SCRATCH_FLAG = "cry-scratch-points-v1";
+
+/** One silent pass. Existing Crying owners get the feat scratch points. No News, no toast. */
+export async function grantCryScratchPointsOnce(sql: Sql): Promise<void> {
+  await sql.query(`
+    create table if not exists darkness_feat_flags (
+      key text primary key,
+      created_at timestamptz not null default now()
+    )`);
+  const already = await sql.query<{ key: string }>(
+    `select key from darkness_feat_flags where key = $1`,
+    [CRY_SCRATCH_FLAG],
+  );
+  if (already[0]) return;
+  const rows = await sql.query<{ user_id: string; owned: unknown; name: string | null }>(
+    `select p.user_id, p.owned,
+            coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name
+       from player_profiles p
+       left join "user" u on u.id = p.user_id`,
+  );
+  for (const row of rows) {
+    if (skipWho(row.user_id, row.name)) continue;
+    if (!parseOwned(row.owned).includes(CRYPEPE_ID)) continue;
+    const { grantFeatScratchPoints } = await import("../scratch.server");
+    await grantFeatScratchPoints(sql, row.user_id, CRYPEPE_ID);
+  }
+  await sql.query(`insert into darkness_feat_flags (key) values ($1) on conflict do nothing`, [CRY_SCRATCH_FLAG]);
 }
