@@ -28,7 +28,9 @@ export function PlayerBook({ book, board: start }: { book: PublicBook; board: Ra
             <h1 className="mt-1 truncate font-display text-3xl font-semibold uppercase tracking-wide text-fg">
               {book.name}
             </h1>
-            <p className="mt-1 text-sm text-muted">{avatar.name}</p>
+            <p className="mt-1 text-sm text-muted">
+              <span className={lookNameTone(avatar.id) || undefined}>{avatar.name}</span>
+            </p>
             <p className="mt-1 flex items-center gap-2 font-display text-lg font-semibold tabular-nums text-fg">
               <span>${book.coins ?? 0}</span>
               <span className="inline-flex items-center gap-1">
@@ -94,7 +96,7 @@ function UnlockedCloset({ owned, wearing }: { owned: string[]; wearing: string }
                 />
                 {on ? <span className="pointer-events-none absolute inset-0 ring-2 ring-inset ring-accent" /> : null}
               </div>
-              <p className={`truncate px-2 py-1.5 text-center font-display text-xs font-semibold uppercase tracking-wide ${lookNameTone(avatar.id)}`}>
+              <p className={`truncate px-2 py-1.5 text-center font-display text-xs font-semibold uppercase tracking-wide ${lookNameTone(avatar.id) || "text-fg"}`}>
                 {shirt ? "Shirt" : avatar.name}
               </p>
             </li>
@@ -107,6 +109,6 @@ function UnlockedCloset({ owned, wearing }: { owned: string[]; wearing: string }
 
 function lookNameTone(id: string): string {
   if (STAR_IDS.has(id)) return "text-[#f8e7a0]";
-  if (ACHIEVEMENT_IDS.has(id)) return "text-[#d4e8ff]";
-  return "text-fg";
+  if (ACHIEVEMENT_IDS.has(id)) return "text-[#3b82f6]";
+  return "";
 }

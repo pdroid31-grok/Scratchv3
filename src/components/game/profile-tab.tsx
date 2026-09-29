@@ -107,7 +107,7 @@ export function ProfileTab() {
                   </span>
                 </h2>
                 <p className="mt-1 text-sm text-muted">
-                  {selected.name}
+                  <span className={lookNameTone(selected.id) || undefined}>{selected.name}</span>
                   {wins === 1 ? " · 1 win" : ` · ${wins} wins`}
                 </p>
               </div>
@@ -337,7 +337,7 @@ function Closet({
                   onEquip={user ? () => void pick(shownLook.id) : undefined}
                 />
                 <span className="px-2 py-2">
-                  <span className={`block truncate font-display text-sm font-semibold uppercase tracking-wide ${lookNameTone(avatar.id)}`}>
+                  <span className={`block truncate font-display text-sm font-semibold uppercase tracking-wide ${lookNameTone(avatar.id) || "text-fg"}`}>
                     {shirt ? "Shirt" : avatar.name}
                   </span>
                   <span className="mt-0.5 block text-xs tabular-nums text-muted">
@@ -540,6 +540,6 @@ function formatBankWhen(iso: string): string {
 
 function lookNameTone(id: string): string {
   if (STAR_IDS.has(id)) return "text-[#f8e7a0]";
-  if (ACHIEVEMENT_IDS.has(id)) return "text-[#d4e8ff]";
-  return "text-fg";
+  if (ACHIEVEMENT_IDS.has(id)) return "text-[#3b82f6]";
+  return "";
 }
