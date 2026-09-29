@@ -32,15 +32,8 @@ export function ProfileTab() {
   const dailyStars = book?.dailyStars ?? 0;
   const left = remainingToUnlock(owned);
   const shown = displayName || user?.displayName || "";
-  const [draft, setDraft] = useState(shown);
-  const [saving, setSaving] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [playerSettings, setPlayerSettings] = useState(false);
-  const [nameEdit, setNameEdit] = useState(false);
-
-  useEffect(() => {
-    setDraft(shown);
-  }, [shown]);
 
   if (isPending) {
     return <div className="mt-5 h-64 animate-pulse rounded-xl bg-surface/90" />;
@@ -99,18 +92,6 @@ export function ProfileTab() {
                   <span className="truncate font-display text-2xl font-semibold uppercase tracking-wide text-fg">
                     {shown || "GM"}
                   </span>
-                  <button
-                    type="button"
-                    aria-expanded={nameEdit}
-                    aria-label={nameEdit ? "Close display name" : "Edit display name"}
-                    onClick={() => setNameEdit((open) => !open)}
-                    className="inline-flex shrink-0 items-center gap-1.5 font-display text-xs font-semibold uppercase tracking-wider text-muted hover:text-fg"
-                  >
-                    <span className="flex size-7 items-center justify-center rounded-full border border-border text-base leading-none text-fg">
-                      {nameEdit ? "−" : "+"}
-                    </span>
-                    Edit
-                  </button>
                   <span className="inline-flex shrink-0 items-center gap-2.5 font-display text-2xl font-semibold tabular-nums tracking-wide text-fg">
                     <span>${coins}</span>
                     <span className="inline-flex items-center gap-1 leading-none">
@@ -126,45 +107,6 @@ export function ProfileTab() {
               </div>
             </div>
           </section>
-
-          {nameEdit ? (
-          <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
-            <h2 className="font-display text-2xl font-semibold uppercase tracking-tight text-fg">
-              Display Name
-            </h2>
-            <form
-              className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const next = draft.trim().slice(0, 16);
-                if (!next) return;
-                setSaving(true);
-                void rename(next).finally(() => setSaving(false));
-              }}
-            >
-              <div className="grid gap-2">
-                <Input
-                  id="gm-name"
-                  name="gm-name"
-                  autoComplete="nickname"
-                  maxLength={16}
-                  placeholder="Your name"
-                  aria-label="Display name"
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                />
-              </div>
-              <Button
-                type="submit"
-                size="lg"
-                className="font-display uppercase tracking-wider"
-                disabled={saving || !draft.trim() || draft.trim() === shown}
-              >
-                {saving ? "Saving…" : "Save"}
-              </Button>
-            </form>
-          </section>
-          ) : null}
 
           <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
             {isBankCommish(shown) ? (
@@ -211,15 +153,27 @@ export function ProfileTab() {
           {signingOut ? "Signing out…" : "Sign out"}
         </button>
       ) : null}
-      {playerSettings && user ? <PlayerSettings onClose={() => setPlayerSettings(false)} /> : null}
+      {playerSettings && user ? (
+        <PlayerSettings name={shown} rename={rename} onClose={() => setPlayerSettings(false)} />
+      ) : null}
     </div>
   );
 }
 
 const NEWS_HIDE_UNLOCKS_KEY = "news-hide-unlocks";
 
-function PlayerSettings({ onClose }: { onClose: () => void }) {
+function PlayerSettings({
+  name,
+  rename,
+  onClose,
+}: {
+  name: string;
+  rename: (next: string) => void | Promise<unknown>;
+  onClose: () => void;
+}) {
   const [hideUnlocks, setHideUnlocks] = useState(false);
+  const [draft, setDraft] = useState(name);
+  const [saving, setSaving] = useState(false);
   const closetCols = useClosetCols();
 
   useEffect(() => {
@@ -259,6 +213,38 @@ function PlayerSettings({ onClose }: { onClose: () => void }) {
         onClick={(event) => event.stopPropagation()}
       >
         <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-fg">Player Settings</h2>
+        <form
+          className="mt-5 grid gap-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const next = draft.trim().slice(0, 16);
+            if (!next) return;
+            setSaving(true);
+            void Promise.resolve(rename(next)).finally(() => setSaving(false));
+          }}
+        >
+          <label htmlFor="gm-name" className="text-sm font-medium text-fg">
+            Display Name
+          </label>
+          <Input
+            id="gm-name"
+            name="gm-name"
+            autoComplete="nickname"
+            maxLength={16}
+            placeholder="Your name"
+            aria-label="Display name"
+            value={draft}
+            onChange={(event) => setDraft(event.target.value)}
+          />
+          <Button
+            type="submit"
+            size="lg"
+            className="font-display uppercase tracking-wider"
+            disabled={saving || !draft.trim() || draft.trim() === name}
+          >
+            {saving ? "Saving…" : "Save"}
+          </Button>
+        </form>
         <label className="mt-5 flex items-center justify-between gap-4 text-sm font-medium text-fg">
           Hide unlocks in News
           <input
