@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Gavel, Settings, Star, X } from "lucide-react";
 import { ACHIEVEMENT_IDS, CLOSET_AVATARS, SHIRT_AVATARS, STAR_IDS, avatarById, isShirtAvatar, isUnlocked, lookSource, ownsAvatar, remainingToUnlock, type AvatarId } from "@/lib/game/avatars";
@@ -12,9 +12,7 @@ import { Input } from "@/components/ui/input";
 import { BookFormats, bookHasScores } from "@/components/game/book-slice";
 import { AvatarPeek } from "@/components/game/avatar-peek";
 import { closetGridClass, useClosetCols, writeClosetCols } from "@/components/game/closet-cols";
-import { isBankCommish } from "@/lib/game/stats-shared";
 import { isCommishSettingsUser } from "@/lib/game/commish";
-import type { CareerBook } from "@/lib/game/stats";
 import { cn } from "@/lib/utils";
 
 export function ProfileTab() {
@@ -109,37 +107,25 @@ export function ProfileTab() {
           </section>
 
           <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
-            {isBankCommish(shown) ? (
-              <PatBookTabs
-                loaded={loaded}
-                book={book}
-                closet={<Closet owned={owned} avatarId={avatarId} user={Boolean(user)} pick={pick} left={left} />}
-              />
+            <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-fg">Your book</h2>
+            {!loaded || !book ? (
+              <p className="mt-3 text-sm text-muted">Loading nights…</p>
+            ) : !bookHasScores(book) ? (
+              <p className="mt-3 text-sm text-muted">No nights yet. Finish a match and it lands here.</p>
             ) : (
-              <>
-                <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-fg">Your book</h2>
-                {!loaded || !book ? (
-                  <p className="mt-3 text-sm text-muted">Loading nights…</p>
-                ) : !bookHasScores(book) ? (
-                  <p className="mt-3 text-sm text-muted">No nights yet. Finish a match and it lands here.</p>
-                ) : (
-                  <BookFormats
-                    slices={{ total: book.total, auction: book.auction, elimination: book.elimination }}
-                    opponents={book.opponentsBy}
-                    owned={owned}
-                  />
-                )}
-              </>
+              <BookFormats
+                slices={{ total: book.total, auction: book.auction, elimination: book.elimination }}
+                opponents={book.opponentsBy}
+                owned={owned}
+              />
             )}
           </section>
         </>
       )}
 
-      {isBankCommish(shown) ? null : (
       <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
         <Closet owned={owned} avatarId={avatarId} user={Boolean(user)} pick={pick} left={left} />
       </section>
-      )}
       {user && authEnabled ? (
         <button
           type="button"
@@ -386,163 +372,6 @@ function Closet({
       </ul>
     </>
   );
-}
-
-function PatBookTabs({
-  loaded,
-  book,
-  closet,
-}: {
-  loaded: boolean;
-  book: CareerBook | null;
-  closet: ReactNode;
-}) {
-  const [tab, setTab] = useState<"book" | "bank">("book");
-  return (
-    <>
-      <div className="grid grid-cols-2 gap-1 rounded-lg bg-bg p-1">
-        {(
-          [
-            ["book", "Book"],
-            ["bank", "Bank"],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setTab(id)}
-            className={cn(
-              "h-11 rounded-md font-display text-xs font-semibold uppercase tracking-wider sm:text-sm",
-              tab === id ? "bg-surface-2 text-fg" : "text-muted hover:text-fg",
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <div className="mt-4">
-        {tab === "bank" ? (
-          <BankWatchPanel />
-        ) : (
-          <>
-            <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-fg">Your book</h2>
-            {!loaded || !book ? (
-              <p className="mt-3 text-sm text-muted">Loading nights…</p>
-            ) : !bookHasScores(book) ? (
-              <p className="mt-3 text-sm text-muted">No nights yet. Finish a match and it lands here.</p>
-            ) : (
-              <BookFormats
-                slices={{ total: book.total, auction: book.auction, elimination: book.elimination }}
-                opponents={book.opponentsBy}
-                owned={book.owned}
-              />
-            )}
-            <div className="mt-6">{closet}</div>
-          </>
-        )}
-      </div>
-    </>
-  );
-}
-
-function BankWatchPanel() {
-  const [data, setData] = useState<import("@/lib/game/bank-watch").BankWatch | null | "load">("load");
-  useEffect(() => {
-    let live = true;
-    void import("@/lib/game/bank-watch")
-      .then(({ getBankWatch }) => getBankWatch())
-      .then((row) => {
-        if (live) setData(row);
-      })
-      .catch(() => {
-        if (live) setData(null);
-      });
-    return () => {
-      live = false;
-    };
-  }, []);
-  if (data === "load") return <p className="text-sm text-muted">Loading banks…</p>;
-  if (!data) return <p className="text-sm text-muted">Bank watch is locked.</p>;
-  return (
-    <div className="grid gap-6">
-      <div>
-        <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-fg">Live bank</h2>
-        <ul className="mt-3 divide-y divide-border/60">
-          {data.banks.map((row) => (
-            <li key={row.id} className="flex items-baseline justify-between gap-3 py-2">
-              <Link
-                to="/player/$id"
-                params={{ id: row.id }}
-                className="min-w-0 truncate font-display text-sm font-semibold uppercase tracking-wide text-fg hover:text-turf"
-              >
-                {row.name}
-              </Link>
-              <span className="shrink-0 font-display text-sm font-semibold tabular-nums text-fg">
-                ${row.coins}
-                <span className="ml-2 text-muted">
-                  {row.wins}w
-                  {row.stars ? ` · ${row.stars}★` : ""}
-                </span>
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div>
-        <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-fg">Recent</h2>
-        {data.changes.length === 0 ? (
-          <p className="mt-3 text-sm text-muted">No bank moves logged yet. Next pay or box will land here.</p>
-        ) : (
-          <ul className="mt-3 divide-y divide-border/60">
-            {data.changes.map((row) => (
-              <li key={row.id} className="flex items-baseline justify-between gap-3 py-2">
-                <span className="min-w-0">
-                  <span className="block truncate font-display text-sm font-semibold uppercase tracking-wide text-fg">
-                    {row.name}
-                  </span>
-                  <span className="text-xs tabular-nums text-muted">{formatBankWhen(row.at)}</span>
-                  {bankReasonLabel(row.reason) ? (
-                    <span className="block text-xs text-muted">{bankReasonLabel(row.reason)}</span>
-                  ) : null}
-                </span>
-                <span className="shrink-0 text-right font-display text-sm font-semibold tabular-nums text-fg">
-                  <span className={row.delta >= 0 ? "text-turf" : "text-muted"}>
-                    {row.delta >= 0 ? "+" : "−"}${Math.abs(row.delta)}
-                  </span>
-                  <span className="mt-0.5 block text-xs text-muted">
-                    ${row.before} → ${row.after}
-                  </span>
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function bankReasonLabel(reason: string | null): string {
-  if (reason === "daily_win") return "Daily win";
-  if (reason === "daily_score") return "Daily score";
-  if (reason === "weekly_win") return "Weekly win";
-  if (reason === "weekly_score") return "Weekly over 100";
-  if (reason === "scratch") return "Scratch";
-  if (reason === "box") return "Mystery Box";
-  if (reason === "match") return "Match";
-  return "";
-}
-
-function formatBankWhen(iso: string): string {
-  const stamp = new Date(iso);
-  if (Number.isNaN(stamp.getTime())) return "";
-  return new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    month: "numeric",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(stamp);
 }
 
 function lookNameTone(id: string): string {

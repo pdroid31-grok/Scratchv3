@@ -124,6 +124,10 @@ export function CommishSettingsPage() {
         <>
 
       <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
+        <LiveBankCard />
+      </section>
+
+      <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
         <h2 className="font-display text-xl font-semibold uppercase tracking-wide text-fg">Inspector QA</h2>
         <p className="mt-1 text-sm text-muted">Inspector1 only. Hidden list and awards stay put.</p>
         <div className="mt-3 grid gap-2">
@@ -417,4 +421,104 @@ function NamedPasswordPanel({
       )}
     </section>
   );
+}
+
+function LiveBankCard() {
+  const [data, setData] = useState<import("@/lib/game/bank-watch").BankWatch | null | "load">("load");
+  useEffect(() => {
+    let live = true;
+    void import("@/lib/game/bank-watch")
+      .then(({ getBankWatch }) => getBankWatch())
+      .then((row) => {
+        if (live) setData(row);
+      })
+      .catch(() => {
+        if (live) setData(null);
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
+  if (data === "load") return <p className="text-sm text-muted">Loading banks…</p>;
+  if (!data) return <p className="text-sm text-muted">Bank watch is locked.</p>;
+  return (
+    <div className="grid gap-6">
+      <div>
+        <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-fg">Live bank</h2>
+        <ul className="mt-3 divide-y divide-border/60">
+          {data.banks.map((row) => (
+            <li key={row.id} className="flex items-baseline justify-between gap-3 py-2">
+              <Link
+                to="/player/$id"
+                params={{ id: row.id }}
+                className="min-w-0 truncate font-display text-sm font-semibold uppercase tracking-wide text-fg hover:text-turf"
+              >
+                {row.name}
+              </Link>
+              <span className="shrink-0 font-display text-sm font-semibold tabular-nums text-fg">
+                ${row.coins}
+                <span className="ml-2 text-muted">
+                  {row.wins}w
+                  {row.stars ? ` · ${row.stars}★` : ""}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div>
+        <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-fg">Recent</h2>
+        {data.changes.length === 0 ? (
+          <p className="mt-3 text-sm text-muted">No bank moves logged yet. Next pay or box will land here.</p>
+        ) : (
+          <ul className="mt-3 divide-y divide-border/60">
+            {data.changes.map((row) => (
+              <li key={row.id} className="flex items-baseline justify-between gap-3 py-2">
+                <span className="min-w-0">
+                  <span className="block truncate font-display text-sm font-semibold uppercase tracking-wide text-fg">
+                    {row.name}
+                  </span>
+                  <span className="text-xs tabular-nums text-muted">{formatBankWhen(row.at)}</span>
+                  {bankReasonLabel(row.reason) ? (
+                    <span className="block text-xs text-muted">{bankReasonLabel(row.reason)}</span>
+                  ) : null}
+                </span>
+                <span className="shrink-0 text-right font-display text-sm font-semibold tabular-nums text-fg">
+                  <span className={row.delta >= 0 ? "text-turf" : "text-muted"}>
+                    {row.delta >= 0 ? "+" : "−"}${Math.abs(row.delta)}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-muted">
+                    ${row.before} → ${row.after}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function bankReasonLabel(reason: string | null): string {
+  if (reason === "daily_win") return "Daily win";
+  if (reason === "daily_score") return "Daily score";
+  if (reason === "weekly_win") return "Weekly win";
+  if (reason === "weekly_score") return "Weekly over 100";
+  if (reason === "scratch") return "Scratch";
+  if (reason === "box") return "Mystery Box";
+  if (reason === "match") return "Match";
+  return "";
+}
+
+function formatBankWhen(iso: string): string {
+  const stamp = new Date(iso);
+  if (Number.isNaN(stamp.getTime())) return "";
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(stamp);
 }
