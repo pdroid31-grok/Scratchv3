@@ -435,7 +435,10 @@ export const HUNTER_LADDER = [
 
 export const ACHIEVEMENT_IDS = new Set<string>(ACHIEVEMENT_UNLOCKS.map((row) => row.id));
 
-export const CLOSET_AVATARS = AVATARS.filter((avatar) => avatar.id === "holy" || !("shirt" in avatar));
+export const CLOSET_AVATARS = AVATARS.filter((avatar) => avatar.id === "holy" || !("shirt" in avatar)).sort((a, b) => {
+  const rank = (id: string) => (STAR_IDS.has(id) ? 1 : ACHIEVEMENT_IDS.has(id) || FEAT_IDS.has(id) ? 2 : 0);
+  return rank(a.id) - rank(b.id);
+});
 
 /** Scratch-point rungs. +3 from 12 through 100, skipping any star that already unlocks a look. */
 export const STAR_SCRATCH_FROM = 12;
