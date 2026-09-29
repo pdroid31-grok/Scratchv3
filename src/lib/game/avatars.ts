@@ -68,6 +68,7 @@ export const AVATARS = [
   { id: "thanos", name: "Thanos", src: "/avatars/thanos.jpg?v=2" },
   { id: "boxaddict", name: "Box Addict", src: "/avatars/boxaddict.jpg?v=1" },
   { id: "lockedin", name: "Locked In", src: "/avatars/lockedin.jpg?v=2" },
+  { id: "focused", name: "Focused", src: "/avatars/focused.jpg?v=1" },
   { id: "sniper", name: "Sniper", src: "/avatars/sniper.jpg?v=1" },
   { id: "silvermedal", name: "Silver Medal", src: "/avatars/silvermedal.jpg?v=2" },
   { id: "8ball", name: "8-Ball", src: "/avatars/8ball.jpg?v=2" },
@@ -179,6 +180,8 @@ export const JAIL_ID = "jail" as const satisfies AvatarId;
 
 export const LOCKED_IN_ID = "lockedin" as const satisfies AvatarId;
 
+export const FOCUSED_ID = "focused" as const satisfies AvatarId;
+
 export const SNIPER_ID = "sniper" as const satisfies AvatarId;
 
 export const SILVER_MEDAL_ID = "silvermedal" as const satisfies AvatarId;
@@ -265,6 +268,8 @@ export const CROSSWORD_STREAK_NEED = 10;
 
 export const LOCKED_IN_STREAK_NEED = 100;
 
+export const FOCUSED_STREAK_NEED = 50;
+
 export const THANOS_OWN_NEED = 50;
 
 export const BOX_ADDICT_POOL_NEED = 25;
@@ -339,6 +344,7 @@ export const FEAT_IDS = new Set<string>([
   THANOS_ID,
   BOX_ADDICT_ID,
   LOCKED_IN_ID,
+  FOCUSED_ID,
   SNIPER_ID,
   SILVER_MEDAL_ID,
   COMMISH_ID,
@@ -390,6 +396,7 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: THANOS_ID, how: "Own 50 unique avatars." },
   { id: BOX_ADDICT_ID, how: "Open 25 mystery boxes." },
   { id: LOCKED_IN_ID, how: "100 consecutive calendar days with a Daily Match submitted." },
+  { id: FOCUSED_ID, how: "50 consecutive calendar days with a Daily Match submitted." },
   { id: SNIPER_ID, how: "Win a Weekly Match by less than 1 point over 2nd Place." },
   { id: SILVER_MEDAL_ID, how: "Finish 2nd on 5 separate Daily boards." },
   { id: DOUBLE_TROUBLE_ID, how: "Win Daily and Weekly on the same day." },

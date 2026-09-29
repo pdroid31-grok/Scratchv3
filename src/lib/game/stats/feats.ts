@@ -13,6 +13,8 @@ import {
   CROSSWORD_STREAK_NEED,
   LOCKED_IN_ID,
   LOCKED_IN_STREAK_NEED,
+  FOCUSED_ID,
+  FOCUSED_STREAK_NEED,
   SNIPER_ID,
   SILVER_MEDAL_ID,
   SILVER_SECOND_NEED,
@@ -87,6 +89,24 @@ async function hitLockedIn(
   }
 }
 
+async function hitFocused(
+  sql: { query: <T>(text: string, params?: unknown[]) => Promise<T[]> },
+  userId: string,
+): Promise<boolean> {
+  try {
+    const rows = await sql.query<{ day: string }>(
+      `select distinct day::text as day
+         from darkness_daily_runs
+        where user_id = $1 and status = 'done' and day >= $2::date
+        order by 1`,
+      [userId, FEAT_TRACK_FROM],
+    );
+    return longestDayStreak(rows.map((row) => row.day.slice(0, 10))) >= FOCUSED_STREAK_NEED;
+  } catch {
+    return false;
+  }
+}
+
 async function hitSniper(
   sql: { query: <T>(text: string, params?: unknown[]) => Promise<T[]> },
   userId: string,
@@ -154,6 +174,7 @@ export async function grantEarnedFeats(
   if (!owned.includes(BANANA_ID) && (await hitBanana(sql, userId))) add.push(BANANA_ID);
   if (!owned.includes(CROSSWORD_ID) && (await hitCrossword(sql, userId))) add.push(CROSSWORD_ID);
   if (!owned.includes(LOCKED_IN_ID) && (await hitLockedIn(sql, userId))) add.push(LOCKED_IN_ID);
+  if (!owned.includes(FOCUSED_ID) && (await hitFocused(sql, userId))) add.push(FOCUSED_ID);
   if (!owned.includes(SNIPER_ID) && (await hitSniper(sql, userId))) add.push(SNIPER_ID);
   if (!owned.includes(SILVER_MEDAL_ID) && (await hitSilver(sql, userId))) add.push(SILVER_MEDAL_ID);
   const unique = new Set(owned).size;
