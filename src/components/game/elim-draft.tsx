@@ -177,20 +177,22 @@ export function ElimDraftScreen() {
         ))}
       </div>
 
-      <p className="mt-2 shrink-0 truncate text-sm text-muted">
-        {holding && lastPick ? (
-          <>
-            <span className="font-medium text-fg">{names[elim.picks.flat().find((pick) => pick.player.id === lastPick.id)?.seat ?? currentBidder]}</span>
-            {" drafts "}
-            <span className="font-medium text-fg">{lastPick.name}</span>
-          </>
-        ) : (
-          <>
-            <span className="font-medium text-fg">{names[currentBidder]}</span>
-            {mine ? " is on the clock \u2014 plus takes the name." : " is on the clock. Wait your turn."}
-          </>
-        )}
-      </p>
+      {mode === "daily" || mode === "weekly" ? (
+        <p className="mt-2 shrink-0 truncate text-sm text-muted">
+          {holding && lastPick ? (
+            <>
+              <span className="font-medium text-fg">{names[elim.picks.flat().find((pick) => pick.player.id === lastPick.id)?.seat ?? currentBidder]}</span>
+              {" drafts "}
+              <span className="font-medium text-fg">{lastPick.name}</span>
+            </>
+          ) : (
+            <>
+              <span className="font-medium text-fg">{names[currentBidder]}</span>
+              {mine ? " is on the clock \u2014 plus takes the name." : " is on the clock. Wait your turn."}
+            </>
+          )}
+        </p>
+      ) : null}
 
       <ul className="mt-2 min-h-0 flex-1 overflow-y-auto grid content-start gap-1.5 pr-0.5">
         {elim.board.map((player) => {
