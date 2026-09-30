@@ -130,11 +130,12 @@ export async function importLegacyThenSettle(sql: Sql, today: string): Promise<v
   }
   await settleYesterdaySafe(sql, today);
   try {
-    const { maybeGrantDailyContestFeats, maybeGrantTwinDay, grantRosterFeatsOnce, grantCryScratchPointsOnce } = await import("./board-feats.server");
+    const { maybeGrantDailyContestFeats, maybeGrantTwinDay, grantRosterFeatsOnce, grantCryScratchPointsOnce, grantStarPepeOnce } = await import("./board-feats.server");
     await maybeGrantDailyContestFeats(sql, today);
     await maybeGrantTwinDay(sql, today);
     await grantRosterFeatsOnce(sql);
     await grantCryScratchPointsOnce(sql);
+    await grantStarPepeOnce(sql);
   } catch (err) {
     console.error("[darkness] daily contest feats failed", err);
   }

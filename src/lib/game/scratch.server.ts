@@ -510,6 +510,12 @@ export async function claimScratchCard(sql: Sql, userId: string, cardId: number)
     } catch (err) {
       console.error("[darkness] three leaf scratch failed", err);
     }
+    try {
+      const { maybeGrantStarPepe } = await import("./board-feats.server");
+      await maybeGrantStarPepe(sql, userId, prize.key);
+    } catch (err) {
+      console.error("[darkness] star pepe scratch failed", err);
+    }
   }
   const book = await sql.query<{
     coins: number | string | null;

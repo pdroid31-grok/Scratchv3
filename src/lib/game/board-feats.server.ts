@@ -41,6 +41,7 @@ export {
   maybeGrantVegas,
   maybeGrantThreeLeaf,
   maybeGrantBoxLunch,
+  maybeGrantStarPepe,
   grantPatBoxLunchOnce,
 } from "./board-feats/shop";
-export { grantHunterLadderOnce, grantVegasCatchupOnce, grantRosterFeatsOnce, grantPennyCap10TodayOnce, grantCryScratchPointsOnce } from "./board-feats/once";
+export { grantHunterLadderOnce, grantVegasCatchupOnce, grantRosterFeatsOnce, grantPennyCap10TodayOnce, grantCryScratchPointsOnce, grantStarPepeOnce } from "./board-feats/once";

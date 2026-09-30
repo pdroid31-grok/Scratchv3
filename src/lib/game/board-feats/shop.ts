@@ -5,6 +5,7 @@ import {
   VEGAS_ID,
   THREE_LEAF_ID,
   BOX_LUNCH_ID,
+  STARPEPE_ID,
   FEAT_TRACK_FROM,
 } from "../avatars";
 import { dailyDayStamp } from "../daily";
@@ -23,6 +24,15 @@ export async function maybeGrantHunters(sql: Sql, userId: string): Promise<void>
   if (!row || skipWho(userId, row.name)) return;
   for (const id of huntersToGrant(parseOwned(row.owned))) {
     await grantFeat(sql, userId, id);
+  }
+}
+
+export async function maybeGrantStarPepe(sql: Sql, userId: string, prizeKey: string): Promise<void> {
+  if (prizeKey !== "star" && prizeKey !== "combo") return;
+  try {
+    await grantFeat(sql, userId, STARPEPE_ID);
+  } catch (err) {
+    console.error("[darkness] star pepe grant failed", err);
   }
 }
 

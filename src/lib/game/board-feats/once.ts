@@ -1,4 +1,4 @@
-import { parseOwned, huntersToGrant, VEGAS_ID, COLD_STREAK_FROM, THREE_HEADED_FROM, threeHeadedHit, pennyHit, PENNY_ID, CRYPEPE_ID } from "../avatars";
+import { parseOwned, huntersToGrant, VEGAS_ID, COLD_STREAK_FROM, THREE_HEADED_FROM, threeHeadedHit, pennyHit, PENNY_ID, CRYPEPE_ID, STARPEPE_ID } from "../avatars";
 import { dailyDayStamp } from "../daily";
 import { grantFeat, skipWho, type Sql } from "./grant";
 import {
@@ -226,4 +226,35 @@ export async function grantCryScratchPointsOnce(sql: Sql): Promise<void> {
     await grantFeatScratchPoints(sql, row.user_id, CRYPEPE_ID);
   }
   await sql.query(`insert into darkness_feat_flags (key) values ($1) on conflict do nothing`, [CRY_SCRATCH_FLAG]);
+}
+
+const STAR_PEPE_FLAG = "starpepe-scratch-v1";
+
+/** One pass. Past star and combo scratches own Star. News + toast. */
+export async function grantStarPepeOnce(sql: Sql): Promise<void> {
+  await sql.query(`
+    create table if not exists darkness_feat_flags (
+      key text primary key,
+      created_at timestamptz not null default now()
+    )`);
+  const already = await sql.query<{ key: string }>(
+    `select key from darkness_feat_flags where key = $1`,
+    [STAR_PEPE_FLAG],
+  );
+  if (already[0]) return;
+  const rows = await sql.query<{ user_id: string; owned: unknown; name: string | null }>(
+    `select distinct p.user_id, p.owned,
+            coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name
+       from darkness_scratch_cards c
+       join player_profiles p on p.user_id = c.user_id
+       left join "user" u on u.id = p.user_id
+      where c.scratched_at is not null
+        and c.prize in ('star', 'combo')`,
+  );
+  for (const row of rows) {
+    if (skipWho(row.user_id, row.name)) continue;
+    if (parseOwned(row.owned).includes(STARPEPE_ID)) continue;
+    await grantFeat(sql, row.user_id, STARPEPE_ID);
+  }
+  await sql.query(`insert into darkness_feat_flags (key) values ($1) on conflict do nothing`, [STAR_PEPE_FLAG]);
 }

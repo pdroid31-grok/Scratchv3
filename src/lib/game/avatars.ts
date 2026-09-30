@@ -90,6 +90,7 @@ export const AVATARS = [
   { id: "commish", name: "Commish", src: "/avatars/commish.jpg?v=1" },
   { id: "jail", name: "Jail", src: "/avatars/jail.jpg?v=1" },
   { id: "crypepe", name: "Crying", src: "/avatars/crypepe.jpg?v=2" },
+  { id: "starpepe", name: "Star", src: "/avatars/starpepe.jpg?v=1" },
   { id: "joker", name: "Joker", src: "/avatars/joker.jpg?v=2" },
   { id: "doubletrouble", name: "Double Trouble", src: "/avatars/doubletrouble.jpg?v=4" },
   { id: "bullseye", name: "Bullseye", src: "/avatars/bullseye.jpg?v=1" },
@@ -190,6 +191,8 @@ export const SNIPER_ID = "sniper" as const satisfies AvatarId;
 export const SILVER_MEDAL_ID = "silvermedal" as const satisfies AvatarId;
 
 export const CRYPEPE_ID = "crypepe" as const satisfies AvatarId;
+
+export const STARPEPE_ID = "starpepe" as const satisfies AvatarId;
 
 export const JOKER_ID = "joker" as const satisfies AvatarId;
 
@@ -357,6 +360,7 @@ export const FEAT_IDS = new Set<string>([
   COMMISH_ID,
   JAIL_ID,
   CRYPEPE_ID,
+  STARPEPE_ID,
   JOKER_ID,
   DOUBLE_TROUBLE_ID,
   BULLSEYE_ID,
@@ -444,6 +448,7 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: BLUE_STREAK_ID, how: "Start 4 or more players who score in the blue in one Daily." },
   { id: COLD_STREAK_ID, how: "Finish 15 Daily Matches in a row with no Daily win." },
   { id: CRYPEPE_ID, how: "Hit Nothing on a scratch ticket." },
+  { id: STARPEPE_ID, how: "Scratch a star." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];
 
 export const PRIZE_AVATARS = AVATARS.filter(
