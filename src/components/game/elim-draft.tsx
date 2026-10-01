@@ -194,7 +194,12 @@ export function ElimDraftScreen() {
         </p>
       ) : null}
 
-      <ul className="mt-2 min-h-0 flex-1 overflow-y-auto grid content-start gap-1.5 pr-0.5">
+      <ul
+        className={cn(
+          "mt-2 min-h-0 flex-1 overflow-y-auto grid content-start gap-1.5",
+          elim.solo ? "pr-0.5" : "px-2 pt-3 pb-2",
+        )}
+      >
         {elim.board.map((player) => {
           const owner = takenBy(player.id);
           const tooMuch = owner === null && !legal.has(player.id);
