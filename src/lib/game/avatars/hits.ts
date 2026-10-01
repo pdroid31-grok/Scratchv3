@@ -208,10 +208,11 @@ export function blueStreakHit(bestCount: number): boolean {
   return bestCount >= BLUE_STREAK_NEED;
 }
 
-/** Done Daily runs since `from`. A win resets to 0. A missed day does not. */
+/** Done Daily runs since `from`. Only a no-win done day adds 1. A Daily win resets to 0. A day with no submitted Daily is ignored. */
 export function coldStreakHit(
   rows: readonly { day: string; won: boolean }[],
   from = COLD_STREAK_FROM,
+  need = COLD_STREAK_NEED,
 ): boolean {
   const won = new Map<string, boolean>();
   for (const row of rows) {
@@ -226,7 +227,7 @@ export function coldStreakHit(
       continue;
     }
     run += 1;
-    if (run >= COLD_STREAK_NEED) return true;
+    if (run >= need) return true;
   }
   return false;
 }

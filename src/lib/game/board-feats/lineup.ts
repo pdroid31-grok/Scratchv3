@@ -10,10 +10,12 @@ import {
   PENNY_ID,
   BLUE_STREAK_ID,
   COLD_STREAK_ID,
+  ICE_COLD_STREAK_ID,
   TRIPLE_DONUT_FROM,
   PENNY_FROM,
   BLUE_STREAK_FROM,
   COLD_STREAK_FROM,
+  ICE_COLD_STREAK_NEED,
   threeHeadedHit,
   tripleDonutHit,
   pennyHit,
@@ -357,8 +359,8 @@ export async function maybeGrantColdStreak(sql: Sql, userId: string): Promise<vo
       [userId, COLD_STREAK_FROM],
     );
     const played = rows.map((row) => ({ day: String(row.day).slice(0, 10), won: Boolean(row.payout_win) }));
-    if (!coldStreakHit(played)) return;
-    await grantFeat(sql, userId, COLD_STREAK_ID);
+    if (coldStreakHit(played)) await grantFeat(sql, userId, COLD_STREAK_ID);
+    if (coldStreakHit(played, COLD_STREAK_FROM, ICE_COLD_STREAK_NEED)) await grantFeat(sql, userId, ICE_COLD_STREAK_ID);
   } catch (err) {
     console.error("[darkness] cold streak grant failed", err);
   }

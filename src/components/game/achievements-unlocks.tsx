@@ -37,6 +37,7 @@ const SHEET_ORDER = [
   "penny",
   "bluestreak",
   "coldstreak",
+  "icecoldstreak",
   "club200",
   "bullseye",
   "doubledonut",
