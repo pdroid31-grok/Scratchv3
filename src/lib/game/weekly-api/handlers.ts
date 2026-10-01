@@ -16,7 +16,7 @@ import {
   weeklyDraftOpensAt,
   type WeeklyPackedBoard,
 } from "../weekly";
-import { fillPackedOpponents, sidMap, weekOpponents, weeklyLiveStats } from "../weekly-sleeper";
+import { fillPackedOpponents, playersFromPack, sidMap, weekOpponents, weeklyLiveStats } from "../weekly-sleeper";
 import type { WeeklyMeta, WeeklyPickPayload, WeeklyResume, WeeklyStatus } from "../weekly-api-types";
 import { currentWeek, mswanLateOk } from "./clock";
 import { asNum, asTime, parseBoard, runStatus, type RunRow, type WeekRow } from "./shared";

@@ -32,7 +32,7 @@ import { ensureWeeklyTables, getSql, loadRun, loadWeek } from "./tables";
 
 function rankWeeklyBoard(a: WeeklyBoardRow, b: WeeklyBoardRow, byScore: boolean): number {
   if (byScore) {
-    const score = b.score - a.score;
+    const score = (b.score ?? 0) - (a.score ?? 0);
     if (score) return score;
     const floor = Number(Boolean(a.floor)) - Number(Boolean(b.floor));
     if (floor) return floor;
@@ -128,7 +128,7 @@ export async function listWeeklyBoardHandler({ data }: { data: { season: number;
           ? asNum(row.score)
           : window.live
             ? weeklyTotal(picks)
-            : 0;
+            : null;
         const name = clipDisplayName(row.name ?? "") || "GM";
         if (window.live) {
           void import("../board-feats.server")
@@ -162,7 +162,7 @@ export async function listWeeklyBoardHandler({ data }: { data: { season: number;
               sql,
               season,
               weekNo,
-              ranked.map((row) => ({ userId: row.id, score: row.score })),
+              ranked.flatMap((row) => (typeof row.score === "number" ? [{ userId: row.id, score: row.score }] : [])),
             ),
             maybeGrantMirrorWeek(sql, season, weekNo),
           ]),
@@ -171,7 +171,7 @@ export async function listWeeklyBoardHandler({ data }: { data: { season: number;
     }
     if (await weekFinishedOwn(Boolean(week.awarded), season, weekNo, clock, window)) {
       const seasonRuns = await loadSeasonDoneRuns(sql, season);
-      const floorScore = weekFloorMin(ranked);
+      const floorScore = weekFloorMin(ranked.filter((row): row is WeeklyBoardRow & { score: number } => typeof row.score === "number"));
       if (floorScore != null) {
         const onBoard = new Set([...ranked.map((row) => row.id), ...weekBoardIds(seasonRuns, weekNo)]);
         for (const row of seasonRuns) {

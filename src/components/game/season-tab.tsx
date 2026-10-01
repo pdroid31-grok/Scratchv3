@@ -274,7 +274,7 @@ function WeekRowBody({ row, place }: { row: WeeklyBoardRow; place: number }) {
           {row.name}
         </span>
         <span className="mt-0.5 block text-xs tabular-nums text-muted">
-          {row.score.toFixed(1)}
+          {row.score == null ? "" : row.score.toFixed(1)}
           {row.floor ? "*" : ""}
         </span>
       </span>
@@ -334,6 +334,7 @@ function SeasonTeamPager({
   const current = rows[Math.min(page, max)];
 
   if (!current) return <p className="text-sm text-muted">No locked lineups this week.</p>;
+  const headerScore = cards[current.id]?.score ?? current.score;
 
   return (
     <div
@@ -365,7 +366,8 @@ function SeasonTeamPager({
           <div className="min-w-0">
             <p className="truncate font-display text-lg font-semibold uppercase tracking-wide text-fg">{current.name}</p>
             <p className="text-[0.9625rem] tabular-nums leading-tight text-white">
-              #{page + 1} · {(cards[current.id]?.score ?? current.score).toFixed(1)}
+              #{page + 1}
+              {headerScore == null ? "" : ` · ${headerScore.toFixed(1)}`}
             </p>
           </div>
         </div>

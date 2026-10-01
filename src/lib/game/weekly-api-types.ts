@@ -23,7 +23,7 @@ export type WeeklyBoardRow = {
   id: string;
   name: string;
   avatarId: AvatarId;
-  score: number;
+  score: number | null;
   paid: boolean;
   winner: boolean;
   stars: number;

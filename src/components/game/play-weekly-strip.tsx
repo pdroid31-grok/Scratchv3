@@ -122,12 +122,11 @@ export function PlayWeeklyStrip({ onOpen }: { onOpen?: () => void }) {
 
   const live = weekLive;
   const lockedIn = meta?.status === "done";
-  const mineScore = live ? (meta?.score ?? 0) : 0;
   const name = displayName.trim() || user?.displayName?.trim() || "GM";
   const mine = avatarById(avatarId);
 
   let mineLabel = "Submit lineup";
-  if (lockedIn) mineLabel = mineScore.toFixed(1);
+  if (lockedIn) mineLabel = live ? (meta?.score ?? 0).toFixed(1) : "Waiting";
   else if (gated && meta) mineLabel = `Opens ${formatWeeklyCountdown(meta.opensAt - now)}`;
 
   return (
