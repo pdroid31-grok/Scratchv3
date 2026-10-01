@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, X } from "lucide-react";
+import { WeeklyUpdateDialog } from "@/components/game/weekly-update-notice";
 import { ACHIEVEMENT_UNLOCKS, avatarById, starNeed } from "@/lib/game/avatars";
 import { formatNewsTime, type NewsFace, type NewsItem } from "@/lib/game/news";
 import { listNews, markNewsSeen, peekNewsUnseen } from "@/lib/game/news-api";
@@ -63,6 +64,7 @@ export function NewsFeed({ onPlay }: { onPlay: () => void }) {
   const [rows, setRows] = useState<NewsItem[] | null>(null);
   const [peek, setPeek] = useState<LookPeek | null>(null);
   const [hideUnlocks, setHideUnlocks] = useState(false);
+  const [notice, setNotice] = useState(false);
   const startX = useRef<number | null>(null);
   const startY = useRef<number | null>(null);
 
@@ -140,7 +142,7 @@ export function NewsFeed({ onPlay }: { onPlay: () => void }) {
               <p className="font-display text-[10px] font-semibold uppercase tracking-wider text-muted">
                 {formatNewsTime(row.at)}
               </p>
-              <NewsLine item={row} onPeek={setPeek} hideUnlocks={hideUnlocks} />
+              <NewsLine item={row} onPeek={setPeek} hideUnlocks={hideUnlocks} onNotice={() => setNotice(true)} />
             </li>
           ))}
         </ol>
@@ -148,6 +150,7 @@ export function NewsFeed({ onPlay }: { onPlay: () => void }) {
       </section>
     </div>
     {peek ? <NewsLookPeek look={peek} onClose={() => setPeek(null)} /> : null}
+    {notice ? <WeeklyUpdateDialog onClose={() => setNotice(false)} /> : null}
     </>
   );
 }
@@ -269,12 +272,21 @@ function NewsLine({
   item,
   onPeek,
   hideUnlocks,
+  onNotice,
 }: {
   item: NewsItem;
   onPeek: (look: LookPeek) => void;
   hideUnlocks: boolean;
+  onNotice: () => void;
 }) {
   const a = item.faces[0];
+  if (item.kind === "weekly_update") {
+    return (
+      <button type="button" className="mt-1 text-left text-sm text-fg" onClick={onNotice}>
+        Weekly Update notice - Click Here to View
+      </button>
+    );
+  }
   if (item.kind === "box" && a) {
     return (
       <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-fg">

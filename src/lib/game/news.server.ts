@@ -2,7 +2,7 @@
 import { clipGm, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
 import { avatarById, clampAvatar, type AvatarId } from "./avatars";
 import { prizeByKey } from "./scratch";
-import { formatNewsScore, newsFace, newsLookbackDay, dailyWinEventAt, weeklyWinEventAt, type NewsItem, type NewsKind } from "./news";
+import { formatNewsScore, newsFace, newsLookbackDay, dailyWinEventAt, weeklyWinEventAt, etOnDay, type NewsItem, type NewsKind } from "./news";
 
 type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
 
@@ -293,6 +293,21 @@ function rankNews(rows: (NewsItem & { created_at: number })[]): NewsItem[] {
   return rows.slice(0, 50).map(({ created_at: _c, ...item }) => item);
 }
 
+/** Visible from deploy until this week's Sunday 1:00 PM ET. Not stored, so it cannot linger in the lookback. */
+function withWeeklyUpdate(items: NewsItem[]): NewsItem[] {
+  const until = etOnDay("2026-10-04", 13, 0);
+  if (Date.now() >= until) return items.filter((row) => row.kind !== "weekly_update");
+  const at = etOnDay("2026-10-01", 9, 0);
+  const notice: NewsItem = {
+    id: 0,
+    at,
+    event_at: at,
+    kind: "weekly_update",
+    faces: [],
+  };
+  return [notice, ...items.filter((row) => row.kind !== "weekly_update")];
+}
+
 async function backfillWindow(sql: Sql, startDay: string, startEt: string): Promise<NewsItem[]> {
   const out: (NewsItem & { created_at: number })[] = [];
   const seen = new Set<string>();
@@ -496,7 +511,7 @@ export async function listNewsHandler(): Promise<NewsItem[]> {
   const startDay = newsLookbackDay();
   const startEt = `${startDay} 00:00:00`;
   try {
-    return await backfillWindow(sql, startDay, startEt);
+    return withWeeklyUpdate(await backfillWindow(sql, startDay, startEt));
   } catch (err) {
     console.error("[darkness] news backfill failed", err);
     const weeks = await loadWeekStamps(sql);
@@ -521,7 +536,7 @@ export async function listNewsHandler(): Promise<NewsItem[]> {
       if (!item) continue;
       out.push(item);
     }
-    return rankNews(out);
+    return withWeeklyUpdate(rankNews(out));
   }
 }
 

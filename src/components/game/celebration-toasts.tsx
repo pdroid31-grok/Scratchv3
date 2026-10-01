@@ -6,6 +6,7 @@ import { ACHIEVEMENT_UNLOCKS, avatarById } from "@/lib/game/avatars";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { formatToastDay, listToasts, seenToast, type ToastItem, type ToastPick } from "@/lib/game/toasts-api";
 import { Button } from "@/components/ui/button";
+import { WeeklyUpdateCopy } from "@/components/game/weekly-update-notice";
 
 function LineupRows({ picks }: { picks: ToastPick[] }) {
   if (!picks.length) return <p className="text-sm text-muted">No lineup saved.</p>;
@@ -125,6 +126,7 @@ function featHow(id?: string): string {
 
 function ToastBody({ item }: { item: ToastItem }) {
   const p = item.payload;
+  if (item.kind === "weekly_update") return <WeeklyUpdateCopy />;
   if (item.kind === "scratch_ready") {
     return (
       <>

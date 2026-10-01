@@ -183,6 +183,7 @@ function asTime(value: unknown): number {
 
 export async function listUnseenToasts(sql: Sql, userId: string): Promise<ToastItem[]> {
   await ensureToastsTable(sql);
+  await ensureWeeklyUpdateNotice(sql, userId);
   await seedInspector1TestToastsIfSelf(sql, userId);
   const rows = await sql.query<{ source_key: string; kind: string; payload: unknown; created_at: Date | string }>(
     `select source_key, kind, payload, created_at
@@ -210,6 +211,20 @@ export async function listUnseenToasts(sql: Sql, userId: string): Promise<ToastI
     });
   }
   return sortToasts(items);
+}
+
+const WEEKLY_UPDATE_KEY = "weekly-update-notice-v1";
+
+/** One unseen notice per signed-in user. Includes QA names. Does not rewrite a seen row. */
+export async function ensureWeeklyUpdateNotice(sql: Sql, userId: string): Promise<void> {
+  if (!userId) return;
+  await ensureToastsTable(sql);
+  await sql.query(
+    `insert into darkness_toasts (user_id, kind, source_key, payload)
+     values ($1, 'weekly_update', $2, $3::jsonb)
+     on conflict (source_key) do nothing`,
+    [userId, `${WEEKLY_UPDATE_KEY}:${userId}`, JSON.stringify({ kind: "weekly_update" })],
+  );
 }
 
 async function inspectorScratchFace(
