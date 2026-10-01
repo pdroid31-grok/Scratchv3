@@ -147,6 +147,12 @@ export async function lockWeeklyHandler({ context, data }: { context: { userId: 
     await ensureWeeklyTables(sql);
     const { week, window } = await currentWeek(sql);
     const run = await loadRun(sql, week.season, week.week, context.userId);
+    const beforeOpen =
+      isSundaySlateWeek(week.season, week.week) && Date.now() < weeklyDraftOpensAt(asTime(week.lock_at));
+    if (beforeOpen) {
+      const status = run?.status === "done" || run?.status === "forfeit" ? run.status : "open";
+      return metaFrom(week, status, run, window.live);
+    }
     const late = mswanLateOk(week.season, week.week, context.userId, run);
     const open = (window.open || late) && !week.awarded;
     if (runStatus(run, open) === "done") return metaFrom(week, "done", run, window.live);
