@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Banknote, CalendarRange, Lock, MousePointerClick, Star, type LucideIcon } from "lucide-react";
+import { Banknote, CalendarRange, Lock, MousePointerClick, Star, X, type LucideIcon } from "lucide-react";
 import { AuthBar, useGmPrefill } from "@/components/game/auth-bar";
 import { Button } from "@/components/ui/button";
 import { DailyUnlocksButton } from "@/components/game/daily-unlocks";
@@ -11,13 +11,20 @@ import { WEEKLY_SCORE_LINE, WEEKLY_WIN_PAY, WEEKLY_WIN_STARS, formatWeeklyCountd
 import { useGame } from "@/lib/game/store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 
-const RULES: { icon: LucideIcon; text: string }[] = [
-  { icon: Lock, text: "Lock your lineup before kickoff. Leave mid-draft and come back — the week is not spent until you lock." },
-  { icon: Banknote, text: "Snake the board with $35. Last pick can go down to $1." },
-  { icon: MousePointerClick, text: "Select players names to see their current season stats." },
+const RULES: { icon: LucideIcon; key: string; text: React.ReactNode }[] = [
+  { icon: Lock, key: "open", text: "Draft Board opens Friday mornings and locks with the Sunday 1:00 slate." },
+  { icon: Banknote, key: "cash", text: "Snake the board with $35. Last pick can go down to $1." },
+  { icon: MousePointerClick, key: "stats", text: "Select players names to see their current season stats." },
   {
     icon: Star,
-    text: `Score over ${WEEKLY_SCORE_LINE} pays $1. First place wins $${WEEKLY_WIN_PAY}, ${WEEKLY_WIN_STARS} Daily Stars, and +200 scratch points. Ties all collect.`,
+    key: "pay",
+    text: (
+      <>
+        Score over {WEEKLY_SCORE_LINE} pays $1. First place wins ${WEEKLY_WIN_PAY}, {WEEKLY_WIN_STARS}{" "}
+        <Star className="inline size-[1.15em] shrink-0 align-[-0.15em] text-fg" fill="currentColor" />, and +200
+        scratch points. Ties all collect.
+      </>
+    ),
   },
 ];
 
@@ -94,7 +101,15 @@ export function WeeklyStartScreen({
         <AuthBar className="shrink-0" />
       </header>
 
-      <section className="mt-8 rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
+      <section className="relative mt-8 rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
+        <button
+          type="button"
+          className="absolute right-3 top-3 flex size-11 items-center justify-center rounded-full bg-bg text-fg shadow-[var(--shadow-border)]"
+          aria-label="Close"
+          onClick={onClose}
+        >
+          <X className="size-5" strokeWidth={2} />
+        </button>
         <p className="text-center font-display text-xs font-semibold uppercase tracking-[0.24em] text-subtle">
           This week’s season
         </p>
@@ -108,7 +123,7 @@ export function WeeklyStartScreen({
 
         <ul className="mt-6 grid gap-3">
           {RULES.map((line) => (
-            <li key={line.text} className="flex gap-3">
+            <li key={line.key} className="flex gap-3">
               <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md bg-surface-2 text-accent">
                 <line.icon className="size-4" strokeWidth={1.75} />
               </span>
@@ -134,8 +149,21 @@ export function WeeklyStartScreen({
                 {meta.awarded && meta.paid ? " · $1 banked" : ""}
                 {meta.awarded && meta.winner
                   ? meta.season > 2026 || (meta.season === 2026 && meta.week >= 3)
-                    ? ` · 1st +$${WEEKLY_WIN_PAY} · ${WEEKLY_WIN_STARS} ★ · +200 scratch points`
-                    : ` · 1st +$${WEEKLY_WIN_PAY} · ${WEEKLY_WIN_STARS} stars`
+                    ? (
+                      <>
+                        {" "}
+                        · 1st +${WEEKLY_WIN_PAY} · {WEEKLY_WIN_STARS}{" "}
+                        <Star className="inline size-[1.15em] shrink-0 align-[-0.15em] text-fg" fill="currentColor" /> ·
+                        +200 scratch points
+                      </>
+                    )
+                    : (
+                      <>
+                        {" "}
+                        · 1st +${WEEKLY_WIN_PAY} · {WEEKLY_WIN_STARS}{" "}
+                        <Star className="inline size-[1.15em] shrink-0 align-[-0.15em] text-fg" fill="currentColor" />
+                      </>
+                    )
                   : ""}.
               </>
             ) : (
