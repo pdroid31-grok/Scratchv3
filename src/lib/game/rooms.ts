@@ -6,7 +6,7 @@ import type { GameAction } from "./engine";
 import type { LobbyListing } from "./lobby-list";
 import type { MatchHistoryRow, RoomResult, RoomView, WatchResult } from "./rooms-types";
 
-export type { MatchHistoryRow, RoomFail, RoomResult, RoomView, WatchResult, WatchView } from "./rooms-types";
+export type { MatchHistoryRow, RoomFail, RoomResult, RoomView, RoomViewer, WatchResult, WatchView } from "./rooms-types";
 
 const ACTION_TYPES = new Set<GameAction["type"]>([
   "placeBid",
@@ -113,13 +113,25 @@ export const syncNight = createServerFn({ method: "POST" })
 
 export const watchNight = createServerFn({ method: "POST" })
   .middleware([optionalAuthMiddleware])
-  .validator((data: { code: string; claim?: boolean }) => ({
+  .validator((data: { code: string; claim?: boolean; ping?: boolean }) => ({
     code: clipCode(data.code),
     claim: Boolean(data.claim),
+    ping: Boolean(data.ping),
   }))
   .handler(async ({ data, context }): Promise<WatchResult> => {
     const { watchNightHandler } = await import("./rooms.server");
     return watchNightHandler({ data, context });
+  });
+
+export const watchChat = createServerFn({ method: "POST" })
+  .middleware([optionalAuthMiddleware])
+  .validator((data: { code: string; text: string }) => ({
+    code: clipCode(data.code),
+    text: String(data.text ?? "").replace(/\s+/g, " ").trim().slice(0, 120),
+  }))
+  .handler(async ({ data, context }): Promise<{ ok: true } | { ok: false; error: string }> => {
+    const { watchChatHandler } = await import("./rooms.server");
+    return watchChatHandler({ data, context });
   });
 
 export const actNight = createServerFn({ method: "POST" })

@@ -4,16 +4,19 @@ import { useEffect, useRef, useState } from "react";
 import { MessageCircle, Send, X } from "lucide-react";
 import { avatarById } from "@/lib/game/avatars";
 import { useGame } from "@/lib/game/store";
+import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { cn } from "@/lib/utils";
 
 export function GameChat() {
   const mode = useGame((s) => s.mode);
+  const kind = useGame((s) => s.kind);
   const phase = useGame((s) => s.phase);
   const chat = useGame((s) => s.chat) ?? [];
   const names = useGame((s) => s.names);
   const avatars = useGame((s) => s.avatars);
   const mySeat = useGame((s) => s.mySeat);
   const sendChat = useGame((s) => s.sendChat);
+  const { user } = useCurrentUserState();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [seen, setSeen] = useState(0);
@@ -50,10 +53,11 @@ export function GameChat() {
     };
   }, [open]);
 
-  if (mode !== "online" || phase === "setup") return null;
+  const watchChat = mode === "watch" && kind === "elimination" && Boolean(user);
+  if (phase === "setup") return null;
+  if (mode === "watch" ? !watchChat : mode !== "online") return null;
 
   const unread = open ? 0 : Math.max(0, chat.length - seen);
-  const mine = mySeat ?? 0;
 
   return (
     <div
@@ -78,17 +82,20 @@ export function GameChat() {
           </div>
           <ol className="grid max-h-44 gap-2 overflow-y-auto px-3 py-2">
             {chat.map((line, i) => {
-                const self = line.seat === mine;
+                const watch = line.watch;
+                const self = watch ? watch.userId === user?.id : mySeat !== null && line.seat === mySeat;
+                const avatar = watch?.avatarId ?? (line.seat !== undefined ? avatars?.[line.seat] : "poor");
+                const label = watch?.name || (line.seat !== undefined ? names[line.seat] : "") || "GM";
                 return (
                   <li key={`${line.at}-${i}`} className={cn("flex gap-2", self && "flex-row-reverse")}>
                     <img
-                      src={avatarById(avatars?.[line.seat] ?? "poor").src}
+                      src={avatarById(avatar ?? "poor").src}
                       alt=""
                       className="mt-0.5 size-6 shrink-0 rounded-md object-cover shadow-[var(--shadow-border)]"
                     />
                     <div className={cn("min-w-0 max-w-[80%]", self && "text-right")}>
                       <p className="font-display text-[10px] font-semibold uppercase tracking-wider text-subtle">
-                        {names[line.seat] || "GM"}
+                        {label}
                       </p>
                       <p className="text-sm leading-snug text-fg">{line.text}</p>
                     </div>

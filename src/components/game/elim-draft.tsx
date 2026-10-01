@@ -8,6 +8,8 @@ import { TeamMarks } from "@/components/game/team-logo";
 import { SeasonCard } from "@/components/game/season-card";
 import { Button } from "@/components/ui/button";
 import { slotLabel, type ElimPlayer, type ElimSlot } from "@/lib/game/elim-data";
+import { avatarById } from "@/lib/game/avatars";
+import { useRoomViewers } from "@/lib/game/room-viewers";
 import { elimLineup, legalElimPicks, maxElimCost, pickAt, pickClockLeft, ELIM_PICK_CLOCK_MS, type ElimPick } from "@/lib/game/elim";
 import { isOnClock, useGame } from "@/lib/game/store";
 import { weeklyVsLabel } from "@/lib/game/weekly";
@@ -24,6 +26,7 @@ export function ElimDraftScreen() {
   const timeoutElim = useGame((s) => s.timeoutElim);
   const reset = useGame((s) => s.reset);
   const mode = useGame((s) => s.mode);
+  const viewers = useRoomViewers();
   const weeklyLocked = useGame((s) => Boolean(s.weekly?.locked));
   const acting = useGame((s) => s.acting);
   const mine = isOnClock(useGame((s) => s));
@@ -106,13 +109,40 @@ export function ElimDraftScreen() {
     setScout(null);
   };
 
+  const hostedTwo = !elim.solo && (mode === "online" || mode === "watch");
+  const eyes = viewers.slice(0, 5);
+  const extraEyes = Math.max(0, viewers.length - eyes.length);
+
   return (
     <main className="elim-board">
       <div className="mx-auto flex h-full min-h-0 w-full max-w-lg flex-col">
       <header className="flex shrink-0 items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-display text-xs font-semibold uppercase tracking-[0.28em] text-turf">
-            {elim.solo ? (mode === "weekly" ? "Weekly Elimination" : "Daily Elimination") : "Elimination"}
+          <p className="flex min-h-4 items-center gap-1.5 font-display text-xs font-semibold text-turf">
+            {elim.solo ? (
+              <span className="uppercase tracking-[0.28em]">
+                {mode === "weekly" ? "Weekly Elimination" : "Daily Elimination"}
+              </span>
+            ) : hostedTwo ? (
+              eyes.length ? (
+                <>
+                  <span className="uppercase tracking-[0.28em]">Viewing</span>
+                  {eyes.map((eye) => (
+                    <img
+                      key={eye.userId}
+                      src={avatarById(eye.avatarId).src}
+                      alt=""
+                      className="size-5 rounded-full object-cover"
+                    />
+                  ))}
+                  {extraEyes > 0 ? (
+                    <span className="text-[10px] tabular-nums tracking-normal text-muted">+{extraEyes}</span>
+                  ) : null}
+                </>
+              ) : null
+            ) : (
+              <span className="uppercase tracking-[0.28em]">Elimination</span>
+            )}
           </p>
           <p className="mt-1 font-display text-4xl font-semibold leading-none tabular-nums tracking-tight text-fg sm:text-5xl">
             {elim.year}

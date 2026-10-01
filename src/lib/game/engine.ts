@@ -82,9 +82,10 @@ export interface GameState {
 }
 
 export type ChatLine = {
-  seat: Seat;
+  seat?: Seat;
   text: string;
   at: number;
+  watch?: { userId: string; name: string; avatarId: AvatarId };
 };
 
 export type GameAction =

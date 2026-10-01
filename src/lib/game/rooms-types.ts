@@ -1,6 +1,12 @@
 import type { GameState } from "./engine";
 import type { Seat } from "./types";
 
+export type RoomViewer = {
+  userId: string;
+  name: string;
+  avatarId: string;
+};
+
 export type RoomView = {
   ok: true;
   code: string;
@@ -9,6 +15,7 @@ export type RoomView = {
   version: number;
   state: GameState;
   filled: boolean;
+  viewers?: RoomViewer[];
 };
 
 export type RoomFail = { ok: false; error: string };
@@ -20,6 +27,7 @@ export type WatchView = {
   version: number;
   state: GameState;
   filled: boolean;
+  viewers?: RoomViewer[];
 };
 export type WatchResult = WatchView | RoomFail;
 

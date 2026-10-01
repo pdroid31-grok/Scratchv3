@@ -1,6 +1,7 @@
 import { applyAction, shouldEnterHalftime, type GameAction, type GameKind, type GameState } from "../engine";
 import { hasHalftimeBoxes, sealedHalftime } from "../halftime";
-import { actNight, hostNight, joinNight, leaveNight, syncNight, watchNight, type RoomView, type WatchView } from "../rooms";
+import { actNight, hostNight, joinNight, leaveNight, syncNight, watchChat, watchNight, type RoomView, type WatchView } from "../rooms";
+import { clearRoomViewers, noteRoomViewers } from "../room-viewers";
 import {
   type ClientState,
   type StoreGet,
@@ -18,6 +19,7 @@ import {
 } from "./persist";
 
 export function applyRemote(state: ClientState, view: RoomView): ClientState {
+  noteRoomViewers(view.viewers);
   const remote = view.state;
   const halftime =
     remote.phase === "halftime"
@@ -69,6 +71,7 @@ export function applyWatch(state: ClientState, view: WatchView): ClientState {
     version: view.version,
     state: view.state,
     filled: view.filled,
+    viewers: view.viewers,
   });
   return { ...next, mode: "watch", token: null, mySeat: null, acting: false, busy: false };
 }
@@ -110,12 +113,13 @@ export async function joinOnline(get: StoreGet, set: StoreSet, code: string, nam
 export async function watchOnline(get: StoreGet, set: StoreSet, code: string) {
   set({ busy: true, netError: null });
   try {
-    const result = await watchNight({ data: { code, claim: true } });
+    const result = await watchNight({ data: { code, claim: true, ping: true } });
     if (!result.ok) {
       set({ busy: false, netError: result.error });
       return;
     }
     set(applyWatch(get(), result));
+    if (get().kind === "elimination") takeEyePing(code, "elimination");
     void import("../profile-store").then(({ useProfile }) => useProfile.getState().load());
   } catch {
     set({ busy: false, netError: "Could not view that night." });
@@ -125,20 +129,24 @@ export async function watchOnline(get: StoreGet, set: StoreSet, code: string) {
 export async function pullRemote(get: StoreGet, set: StoreSet) {
   const state = get();
   if (state.mode === "watch" && state.roomCode) {
+    const ping = takeEyePing(state.roomCode, state.kind);
     try {
-      const result = await watchNight({ data: { code: state.roomCode } });
+      const result = await watchNight({ data: { code: state.roomCode, ping } });
       const latest = get();
       if (latest.mode !== "watch" || latest.roomCode !== state.roomCode) return;
       if (!result.ok) {
+        clearRoomViewers();
         set({ ...initialState, hydrated: true, netError: result.error });
         return;
       }
+      noteRoomViewers(result.viewers ?? []);
       if (result.version === latest.version && syncKey(result.state) === syncKey(latest)) {
         if (latest.busy) set({ busy: false });
         return;
       }
       set(applyWatch(latest, result));
     } catch {
+      if (ping) eyeAt = 0;
       /* next poll retries */
     }
     return;
@@ -150,6 +158,7 @@ export async function pullRemote(get: StoreGet, set: StoreSet) {
     if (latest.mode !== "online" || latest.roomCode !== state.roomCode || !latest.token) return;
     if (!result.ok) {
       if (latest.acting) return;
+      clearRoomViewers();
       const cleared: ClientState = { ...initialState, hydrated: true, netError: result.error };
       persistNet(cleared);
       persistLocal(cleared);
@@ -169,6 +178,7 @@ export async function pullRemote(get: StoreGet, set: StoreSet) {
       Boolean(result.filled || result.state.names?.[1]?.trim()) ===
       Boolean(latest.roomFilled || latest.names[1]?.trim());
     if (sameVersion && sameKey && sameGuest) {
+      noteRoomViewers(result.viewers ?? []);
       if (latest.busy && !latest.acting) set({ busy: false });
       return;
     }
@@ -195,8 +205,22 @@ export function cancelRematch(get: StoreGet, set: StoreSet) {
 export function sendChat(get: StoreGet, set: StoreSet, text: string) {
   const clean = text.replace(/\s+/g, " ").trim();
   if (!clean) return;
-  if (get().mode === "online") void sendAction(get, set, { type: "chat", text: clean });
+  const state = get();
+  if (state.mode === "online") void sendAction(get, set, { type: "chat", text: clean });
+  else if (state.mode === "watch") void sendWatchChat(get, set, clean);
   else commitLocal(get, set, { type: "chat", text: clean });
+}
+
+async function sendWatchChat(get: StoreGet, set: StoreSet, text: string) {
+  const state = get();
+  if (state.mode !== "watch" || state.kind !== "elimination" || !state.roomCode) return;
+  try {
+    const result = await watchChat({ data: { code: state.roomCode, text } });
+    if (!result.ok) return;
+    await pullRemote(get, set);
+  } catch {
+    /* next poll retries */
+  }
 }
 
 export async function sendAction(get: StoreGet, set: StoreSet, action: GameAction) {
@@ -292,12 +316,26 @@ export function resetGame(get: StoreGet, set: StoreSet) {
   persistLocal(next);
   persistNet(next);
   lockJoinPrefill();
+  clearRoomViewers();
   set(next);
   if (state.mode === "online" && state.roomCode && state.token) {
     void leaveNight({ data: { code: state.roomCode, token: state.token } }).catch(() => {
       /* already left */
     });
   }
+}
+
+const EYE_MS = 9_000;
+let eyeCode = "";
+let eyeAt = 0;
+
+function takeEyePing(code: string, kind: string | undefined): boolean {
+  if (kind !== "elimination") return false;
+  const now = Date.now();
+  if (code === eyeCode && now - eyeAt < EYE_MS) return false;
+  eyeCode = code;
+  eyeAt = now;
+  return true;
 }
 
 function phaseRank(phase: GameState["phase"]): number {

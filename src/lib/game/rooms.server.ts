@@ -5,10 +5,11 @@ import { isElimEra } from "./elim-data";
 import { redactHalftime } from "./halftime";
 import { hostedMatchView, historyLineScore } from "./hosted-match";
 import { clampAvatar, isAvatarId, parseOwned, type AvatarId } from "./avatars";
+import type { Sql } from "@/lib/db";
 import { clipDisplayName } from "./stats-shared";
 import { listingFromRoom, type LobbyListing } from "./lobby-list";
 import type { Seat } from "./types";
-import type { MatchHistoryRow, RoomResult, RoomView, WatchResult } from "./rooms-types";
+import type { MatchHistoryRow, RoomResult, RoomView, RoomViewer, WatchResult } from "./rooms-types";
 export type { MatchHistoryRow, RoomFail, RoomResult, RoomView, WatchResult, WatchView } from "./rooms-types";
 
 const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
@@ -203,6 +204,128 @@ function view(row: RoomRow, seat: Seat, token: string): RoomView {
     state: redactHalftime(parseState(row.state)),
     filled: Boolean(row.guest_token),
   };
+}
+
+const EYE_STALE_S = 20;
+let eyesReady = false;
+
+async function ensureEyes(sql: Sql): Promise<void> {
+  if (eyesReady) return;
+  await sql.query(
+    `create table if not exists darkness_room_eyes (
+      code text not null,
+      user_id text not null,
+      name text not null,
+      avatar_id text not null,
+      seen_at timestamptz not null default now(),
+      primary key (code, user_id)
+    )`,
+  );
+  await sql.query(
+    `create table if not exists darkness_room_watch_chat (
+      id bigserial primary key,
+      code text not null,
+      user_id text not null,
+      name text not null,
+      avatar_id text not null,
+      body text not null,
+      created_at timestamptz not null default now()
+    )`,
+  );
+  eyesReady = true;
+}
+
+function playerIds(row: RoomRow): Set<string> {
+  const state = parseState(row.state);
+  const ids = [row.host_user_id, row.guest_user_id, state.userIds?.[0], state.userIds?.[1]];
+  return new Set(ids.filter((id): id is string => Boolean(id)));
+}
+
+async function roomViewers(row: RoomRow): Promise<RoomViewer[]> {
+  const state = parseState(row.state);
+  if (state.kind !== "elimination") return [];
+  try {
+    const { getSql } = await import("@/lib/db");
+    const sql = await getSql();
+    await ensureEyes(sql);
+    await sql.query(
+      `delete from darkness_room_eyes where code = $1 and seen_at < now() - interval '${EYE_STALE_S} seconds'`,
+      [row.code],
+    );
+    const rows = await sql.query<{ user_id: string; name: string; avatar_id: string }>(
+      `select user_id, name, avatar_id
+         from darkness_room_eyes
+        where code = $1 and seen_at >= now() - interval '${EYE_STALE_S} seconds'
+        order by seen_at desc`,
+      [row.code],
+    );
+    const playing = playerIds(row);
+    return rows
+      .filter((eye) => eye.user_id && !playing.has(eye.user_id))
+      .map((eye) => ({
+        userId: eye.user_id,
+        name: eye.name || "Fan",
+        avatarId: clipAvatar(eye.avatar_id),
+      }));
+  } catch (err) {
+    console.error("[darkness] room viewers failed", err);
+    return [];
+  }
+}
+
+async function present(row: RoomRow, seat: Seat, token: string): Promise<RoomView> {
+  const base = view(row, seat, token);
+  const state = await mergeWatchChat(row.code, base.state);
+  return { ...base, state, viewers: await roomViewers(row) };
+}
+
+async function mergeWatchChat(code: string, state: GameState): Promise<GameState> {
+  if (state.kind !== "elimination") return state;
+  try {
+    const { getSql } = await import("@/lib/db");
+    const sql = await getSql();
+    await ensureEyes(sql);
+    const rows = await sql.query<{ user_id: string; name: string; avatar_id: string; body: string; created_at: string | Date }>(
+      `select user_id, name, avatar_id, body, created_at
+         from darkness_room_watch_chat
+        where code = $1
+        order by created_at asc`,
+      [code],
+    );
+    if (!rows.length) return state;
+    const extra = rows.map((row) => ({
+      text: row.body,
+      at: new Date(row.created_at).getTime(),
+      watch: { userId: row.user_id, name: row.name || "Fan", avatarId: clipAvatar(row.avatar_id) },
+    }));
+    const chat = [...(state.chat ?? []), ...extra].sort((a, b) => a.at - b.at).slice(-40);
+    return { ...state, chat };
+  } catch (err) {
+    console.error("[darkness] watch chat merge failed", err);
+    return state;
+  }
+}
+
+async function touchEye(row: RoomRow, userId: string): Promise<void> {
+  const state = parseState(row.state);
+  if (state.kind !== "elimination") return;
+  if (!userId || playerIds(row).has(userId)) return;
+  const ident = await seatedIdentity("poor", userId);
+  const name = ident.displayName || "Fan";
+  try {
+    const { getSql } = await import("@/lib/db");
+    const sql = await getSql();
+    await ensureEyes(sql);
+    await sql.query(
+      `insert into darkness_room_eyes (code, user_id, name, avatar_id, seen_at)
+       values ($1, $2, $3, $4, now())
+       on conflict (code, user_id) do update
+         set name = excluded.name, avatar_id = excluded.avatar_id, seen_at = now()`,
+      [row.code, userId, name, ident.avatarId],
+    );
+  } catch (err) {
+    console.error("[darkness] room eye failed", err);
+  }
 }
 
 async function stampSeatUser(state: GameState, seat: Seat, knownId?: string | null): Promise<GameState> {
@@ -613,10 +736,10 @@ export async function syncNightHandler({ data, context }: { data: { code: string
       await sql.query("update darkness_rooms set updated_at = now() where code = $1", [data.code]);
     }
     await creditRoom(row, seat, context.userId);
-    return view(row, seat, data.token);
+    return present(row, seat, data.token);
 }
 
-export async function watchNightHandler({ data, context }: { data: { code: string; claim: boolean }; context: { userId: string | null } }): Promise<WatchResult> {
+export async function watchNightHandler({ data, context }: { data: { code: string; claim: boolean; ping?: boolean }; context: { userId: string | null } }): Promise<WatchResult> {
     const row = await loadRoom(data.code);
     if (!row) return { ok: false, error: "This night ended." };
     if (!row.guest_token) return { ok: false, error: "That night hasn't started." };
@@ -635,13 +758,59 @@ export async function watchNightHandler({ data, context }: { data: { code: strin
         console.error("[darkness] peeping grant failed", err);
       }
     }
+    if (data.ping && context.userId) await touchEye(row, context.userId);
+    const shown = await mergeWatchChat(row.code, state);
     return {
       ok: true,
       code: row.code,
       version: Number(row.version) || 0,
-      state,
+      state: shown,
       filled: true,
+      viewers: await roomViewers(row),
     };
+}
+
+export async function watchChatHandler({
+  data,
+  context,
+}: {
+  data: { code: string; text: string };
+  context: { userId: string | null };
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (!context.userId) return { ok: false, error: "Sign in to chat." };
+  const text = data.text.trim().slice(0, 120);
+  if (!text) return { ok: false, error: "Empty." };
+  const row = await loadRoom(data.code);
+  if (!row) return { ok: false, error: "This night ended." };
+  const state = parseState(row.state);
+  if (state.kind !== "elimination") return { ok: false, error: "Chat is closed." };
+  if (context.userId === row.host_user_id || context.userId === row.guest_user_id) {
+    return { ok: false, error: "Use your seat chat." };
+  }
+  if ((state.userIds ?? []).includes(context.userId)) return { ok: false, error: "Use your seat chat." };
+  const ident = await seatedIdentity("poor", context.userId);
+  try {
+    const { getSql } = await import("@/lib/db");
+    const sql = await getSql();
+    await ensureEyes(sql);
+    await sql.query(
+      `insert into darkness_room_watch_chat (code, user_id, name, avatar_id, body)
+       values ($1, $2, $3, $4, $5)`,
+      [row.code, context.userId, ident.displayName || "Fan", ident.avatarId, text],
+    );
+    await sql.query(
+      `delete from darkness_room_watch_chat
+        where code = $1
+          and id not in (
+            select id from darkness_room_watch_chat where code = $1 order by created_at desc limit 40
+          )`,
+      [row.code],
+    );
+    return { ok: true };
+  } catch (err) {
+    console.error("[darkness] watch chat failed", err);
+    return { ok: false, error: "Try again." };
+  }
 }
 
 export async function actNightHandler({ data, context }: { data: { code: string; token: string; version: number; action: GameAction }; context: { userId: string | null } }): Promise<RoomResult> {
@@ -658,7 +827,7 @@ export async function actNightHandler({ data, context }: { data: { code: string;
     if (context.userId) await bindRoomUser(data.code, seat, context.userId);
     if (next === current) {
       await creditRoom(row, seat, context.userId);
-      return view(row, seat, data.token);
+      return present(row, seat, data.token);
     }
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
@@ -674,10 +843,10 @@ export async function actNightHandler({ data, context }: { data: { code: string;
       const fresh = await loadRoom(data.code);
       if (!fresh) return { ok: false, error: "This night ended." };
       await creditRoom(fresh, seat, context.userId);
-      return view(fresh, seat, data.token);
+      return present(fresh, seat, data.token);
     }
     await creditRoom(saved, seat, context.userId);
-    return view(saved, seat, data.token);
+    return present(saved, seat, data.token);
 }
 
 export async function leaveNightHandler({ data, context }: { data: { code: string; token: string }; context: { userId: string | null } }): Promise<{ ok: true }> {
