@@ -3,10 +3,80 @@
 import { useEffect, useState } from "react";
 import { Trophy, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ACHIEVEMENT_UNLOCKS, avatarById } from "@/lib/game/avatars";
+import { ACHIEVEMENT_UNLOCKS, avatarById, type AvatarId } from "@/lib/game/avatars";
 import { useProfile } from "@/lib/game/profile-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { cn } from "@/lib/utils";
+
+/** Sheet order only. Unnamed rows stay after this, in their current order. Joker is not a row. */
+const SHEET_ORDER = [
+  "crypepe",
+  "starpepe",
+  "vegas",
+  "threeleafclover",
+  "boxlunch",
+  "banana",
+  "crossword",
+  "focused",
+  "lockedin",
+  "silvermedal",
+  "rainyday",
+  "poop",
+  "trending",
+  "canceled",
+  "easydollar",
+  "hero",
+  "robbed",
+  "earlybird",
+  "lost",
+  "nightowl",
+  "comebackkid",
+  "freefall",
+  "lumpedup",
+  "negative",
+  "penny",
+  "bluestreak",
+  "coldstreak",
+  "club200",
+  "bullseye",
+  "doubledonut",
+  "tripledonut",
+  "thrifty",
+  "threeheaded",
+  "sniper",
+  "heavyhitter",
+  "flash",
+  "ironboot",
+  "doubletrouble",
+  "overhead",
+  "mirror",
+  "twin",
+  "peeping",
+  "spotlight",
+  "news",
+  "boxaddict",
+  "thanos",
+  "tinyhunter",
+  "hunter",
+  "bighunter",
+  "advancedhunter",
+  "megahunter",
+  "alienhunter",
+  "gianthunter",
+  "titanhunter",
+  "ultrahunter",
+] as const satisfies readonly AvatarId[];
+
+function sheetRows() {
+  const byId = new Map(ACHIEVEMENT_UNLOCKS.map((row) => [row.id, row]));
+  const named = new Set<string>(SHEET_ORDER);
+  const ordered = SHEET_ORDER.flatMap((id) => {
+    const row = byId.get(id);
+    return row ? [row] : [];
+  });
+  const rest = ACHIEVEMENT_UNLOCKS.filter((row) => !named.has(row.id) && row.id !== "joker");
+  return [...ordered, ...rest];
+}
 
 export function AchievementsButton({ className, compact }: { className?: string; compact?: boolean }) {
   const [open, setOpen] = useState(false);
@@ -87,7 +157,7 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
           </button>
         </div>
         <ul className="grid gap-2 overflow-y-auto p-4">
-          {ACHIEVEMENT_UNLOCKS.map((row) => {
+          {sheetRows().map((row) => {
             const avatar = avatarById(row.id);
             const unlocked = owned.includes(row.id);
             return (
