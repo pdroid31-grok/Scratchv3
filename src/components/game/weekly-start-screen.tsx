@@ -7,7 +7,7 @@ import { AuthBar, useGmPrefill } from "@/components/game/auth-bar";
 import { Button } from "@/components/ui/button";
 import { DailyUnlocksButton } from "@/components/game/daily-unlocks";
 import { getWeekly, type WeeklyMeta } from "@/lib/game/weekly-api";
-import { WEEKLY_SCORE_LINE, WEEKLY_WIN_PAY, WEEKLY_WIN_STARS, formatWeeklyLock } from "@/lib/game/weekly";
+import { WEEKLY_SCORE_LINE, WEEKLY_WIN_PAY, WEEKLY_WIN_STARS, formatWeeklyCountdown, formatWeeklyLock } from "@/lib/game/weekly";
 import { useGame } from "@/lib/game/store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 
@@ -34,6 +34,7 @@ export function WeeklyStartScreen({
   const { user, isPending } = useCurrentUserState();
   const gm = useGmPrefill();
   const [meta, setMeta] = useState<WeeklyMeta | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     let live = true;
@@ -50,9 +51,36 @@ export function WeeklyStartScreen({
   }, [user?.id]);
 
   const signedIn = Boolean(user) && !isPending;
-  const canStart = signedIn && (meta?.status === "open" || meta?.status === "playing");
+  const closed = meta?.status === "gated" || Boolean(meta?.gated && meta.opensAt > now);
+  const canStart = signedIn && !closed && (meta?.status === "open" || meta?.status === "playing");
   const canSee = meta?.status === "done";
   const lockedOut = meta?.status === "locked" || meta?.status === "forfeit";
+
+  useEffect(() => {
+    if (!closed) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [closed]);
+
+  useEffect(() => {
+    if (!meta?.opensAt || meta.status !== "gated") return;
+    let live = true;
+    const pull = () => {
+      void getWeekly({ data: {} })
+        .then((next) => {
+          if (live) setMeta(next);
+        })
+        .catch(() => {
+          /* keep the countdown until the next tick */
+        });
+    };
+    const wait = Math.max(0, meta.opensAt - Date.now()) + 250;
+    const id = window.setTimeout(pull, wait);
+    return () => {
+      live = false;
+      window.clearTimeout(id);
+    };
+  }, [meta?.opensAt, meta?.status, user?.id]);
 
   return (
     <main className="relative mx-auto flex min-h-full w-full max-w-lg flex-1 flex-col px-5 py-6 sm:py-8">
@@ -132,6 +160,19 @@ export function WeeklyStartScreen({
           >
             See results
           </Button>
+        ) : closed && meta ? (
+          <>
+            <p className="mt-4 text-center text-sm text-fg">Week {meta.week} Draft opens in</p>
+            <Button
+              type="button"
+              size="lg"
+              className="mt-3 w-full font-display uppercase tracking-wider"
+              disabled
+            >
+              <CalendarRange className="size-4" />
+              {formatWeeklyCountdown(meta.opensAt - now)}
+            </Button>
+          </>
         ) : signedIn ? (
           <Button
             type="button"
@@ -141,7 +182,7 @@ export function WeeklyStartScreen({
             onClick={() => void startWeekly()}
           >
             <CalendarRange className="size-4" />
-            {busy ? "Starting…" : meta?.status === "playing" ? "Resume match" : "Start match"}
+            {busy ? "Starting…" : meta?.status === "playing" ? "Resume match" : `Draft Week ${meta?.week ?? ""}`}
           </Button>
         ) : (
           <Link

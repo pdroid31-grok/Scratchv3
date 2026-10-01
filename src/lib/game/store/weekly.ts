@@ -21,7 +21,13 @@ export async function startWeekly(get: StoreGet, set: StoreSet) {
       set({ busy: false });
       return;
     }
-    if (claimed.status === "forfeit" || claimed.status === "locked" || claimed.status === "signed_out") {
+    if (
+      claimed.gated ||
+      claimed.status === "gated" ||
+      claimed.status === "forfeit" ||
+      claimed.status === "locked" ||
+      claimed.status === "signed_out"
+    ) {
       set({
         busy: false,
         netError: claimed.status === "signed_out" ? "Sign in to play Weekly Elimination." : null,

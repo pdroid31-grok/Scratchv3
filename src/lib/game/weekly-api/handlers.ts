@@ -12,6 +12,8 @@ import {
   weeklyTeamBlocked,
   weeklyTotal,
   withPackedProjections,
+  isSundaySlateWeek,
+  weeklyDraftOpensAt,
   type WeeklyPackedBoard,
 } from "../weekly";
 import { fillPackedOpponents, sidMap, weekOpponents, weeklyLiveStats } from "../weekly-sleeper";
@@ -21,12 +23,23 @@ import { asNum, asTime, parseBoard, runStatus, type RunRow, type WeekRow } from 
 import { ensureWeeklyTables, getSql, loadRun } from "./tables";
 
 function metaFrom(week: WeekRow, status: WeeklyStatus, run: RunRow | null, live: boolean): WeeklyMeta {
+  const lockAt = asTime(week.lock_at);
+  const opensAt = isSundaySlateWeek(week.season, week.week) ? weeklyDraftOpensAt(lockAt) : 0;
+  const gated =
+    opensAt > 0 &&
+    Date.now() < opensAt &&
+    status !== "done" &&
+    status !== "playing" &&
+    status !== "forfeit" &&
+    status !== "locked";
   return {
     season: week.season,
     week: week.week,
-    status,
-    lockAt: asTime(week.lock_at),
+    status: gated ? "gated" : status,
+    lockAt,
     endAt: asTime(week.end_at),
+    opensAt,
+    gated,
     live,
     awarded: Boolean(week.awarded),
     score: run?.score == null ? null : asNum(run.score),
@@ -56,7 +69,8 @@ export async function claimWeeklyHandler({ context }: { context: { userId: strin
     if (status === "done" || status === "forfeit" || status === "locked") {
       return metaFrom(week, status, run, window.live);
     }
-    if (status === "open") {
+    const gated = isSundaySlateWeek(week.season, week.week) && Date.now() < weeklyDraftOpensAt(asTime(week.lock_at));
+    if (status === "open" && !gated) {
       await sql.query(
         `insert into darkness_weekly_runs (season, week, user_id, status)
          values ($1, $2, $3, 'playing')

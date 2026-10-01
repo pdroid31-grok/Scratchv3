@@ -1,12 +1,24 @@
 /** Weekly clock, week row, and W1 reopen. Move-only from weekly-api.server. */
 import { nflClock, weekWindow, weeklyProjections } from "../weekly-sleeper";
-import { asTime, type RunRow, type Sql, type WeekRow } from "./shared";
+import { isSundaySlateWeek, weeklyDraftOpensAt } from "../weekly";
+import { asTime, parseBoard, type RunRow, type Sql, type WeekRow } from "./shared";
 import { settleSafe } from "./settle";
 import { loadWeek } from "./tables";
+
+async function activeRuns(sql: Sql, season: number, week: number): Promise<number> {
+  const rows = await sql.query<{ n: string }>(
+    `select count(*)::text as n
+       from darkness_weekly_runs
+      where season = $1 and week = $2 and status in ('done', 'playing')`,
+    [season, week],
+  );
+  return Number(rows[0]?.n) || 0;
+}
 
 async function ensureWeek(sql: Sql, season: number, week: number): Promise<WeekRow> {
   const existing = await loadWeek(sql, season, week);
   const window = await weekWindow(season, week);
+  if (isSundaySlateWeek(season, week)) return ensureSundayWeek(sql, season, week, existing, window);
   if (existing) {
     if (!existing.awarded) {
       const lockAt = asTime(existing.lock_at);
@@ -40,6 +52,82 @@ async function ensureWeek(sql: Sql, season: number, week: number): Promise<WeekR
     return existing;
   }
   const board = await weeklyProjections(season, week);
+  await sql.query(
+    `insert into darkness_weekly_weeks (season, week, lock_at, end_at, board)
+     values ($1, $2, to_timestamp($3 / 1000.0), to_timestamp($4 / 1000.0), $5::jsonb)
+     on conflict (season, week) do nothing`,
+    [season, week, window.lockAt, window.endAt, JSON.stringify(board)],
+  );
+  const saved = await loadWeek(sql, season, week);
+  if (!saved) throw new Error("weekly week missing");
+  return saved;
+}
+
+/** Sunday-slate weeks wait until Friday 08:00 ET. First request after that freezes the board. */
+async function ensureSundayWeek(
+  sql: Sql,
+  season: number,
+  week: number,
+  existing: WeekRow | null,
+  window: Awaited<ReturnType<typeof weekWindow>>,
+): Promise<WeekRow> {
+  const opensAt = weeklyDraftOpensAt(window.lockAt);
+  const now = Date.now();
+  const awarded = Boolean(existing?.awarded);
+  const draftOpen = opensAt > 0 && now >= opensAt && window.open && !awarded;
+  const beforeOpen = opensAt > 0 && now < opensAt && !awarded;
+  const active = await activeRuns(sql, season, week);
+  if (beforeOpen && active === 0) {
+    if (!existing) {
+      await sql.query(
+        `insert into darkness_weekly_weeks (season, week, lock_at, end_at, board)
+         values ($1, $2, to_timestamp($3 / 1000.0), to_timestamp($4 / 1000.0), '{}'::jsonb)
+         on conflict (season, week) do nothing`,
+        [season, week, window.lockAt, window.endAt],
+      );
+    } else if (!existing.awarded) {
+      await sql.query(
+        `update darkness_weekly_weeks
+            set board = '{}'::jsonb,
+                lock_at = to_timestamp($3 / 1000.0),
+                end_at = to_timestamp($4 / 1000.0)
+          where season = $1 and week = $2 and awarded = false`,
+        [season, week, window.lockAt, window.endAt],
+      );
+    }
+    const saved = await loadWeek(sql, season, week);
+    if (!saved) throw new Error("weekly week missing");
+    return saved;
+  }
+  if (existing) {
+    if (!existing.awarded) {
+      const lockAt = asTime(existing.lock_at);
+      const endAt = asTime(existing.end_at);
+      const drift = Math.abs(lockAt - window.lockAt) > 60_000 || Math.abs(endAt - window.endAt) > 60_000;
+      if (!parseBoard(existing.board) && draftOpen) {
+        const board = await weeklyProjections(season, week);
+        await sql.query(
+          `update darkness_weekly_weeks
+              set board = $3::jsonb,
+                  lock_at = to_timestamp($4 / 1000.0),
+                  end_at = to_timestamp($5 / 1000.0)
+            where season = $1 and week = $2 and awarded = false`,
+          [season, week, JSON.stringify(board), window.lockAt, window.endAt],
+        );
+      } else if (drift) {
+        await sql.query(
+          `update darkness_weekly_weeks
+              set lock_at = to_timestamp($3 / 1000.0), end_at = to_timestamp($4 / 1000.0)
+            where season = $1 and week = $2 and awarded = false`,
+          [season, week, window.lockAt, window.endAt],
+        );
+      }
+      const latest = await loadWeek(sql, season, week);
+      if (latest) return latest;
+    }
+    return existing;
+  }
+  const board = draftOpen ? await weeklyProjections(season, week) : {};
   await sql.query(
     `insert into darkness_weekly_weeks (season, week, lock_at, end_at, board)
      values ($1, $2, to_timestamp($3 / 1000.0), to_timestamp($4 / 1000.0), $5::jsonb)

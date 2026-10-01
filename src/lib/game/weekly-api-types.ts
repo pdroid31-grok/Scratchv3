@@ -1,7 +1,7 @@
 import type { AvatarId } from "./avatars";
 import type { WeeklyPackedBoard, WeeklyPickSnap } from "./weekly";
 
-export type WeeklyStatus = "signed_out" | "open" | "playing" | "done" | "forfeit" | "locked";
+export type WeeklyStatus = "signed_out" | "open" | "playing" | "done" | "forfeit" | "locked" | "gated";
 
 export type WeeklyMeta = {
   season: number;
@@ -9,6 +9,8 @@ export type WeeklyMeta = {
   status: WeeklyStatus;
   lockAt: number;
   endAt: number;
+  opensAt: number;
+  gated: boolean;
   live: boolean;
   awarded: boolean;
   score: number | null;

@@ -13,6 +13,7 @@ import {
   writeWeeklyCur,
 } from "@/lib/game/play-strip-cache";
 import { fetchPlayStrips, type PlayFace } from "@/lib/game/play-public";
+import { formatWeeklyCountdown } from "@/lib/game/weekly";
 import { useProfile } from "@/lib/game/profile-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 
@@ -39,6 +40,7 @@ export function PlayWeeklyStrip({ onOpen }: { onOpen?: () => void }) {
   const [seasonLeader, setSeasonLeader] = useState<PlayFace | null>(null);
   const [weekLeader, setWeekLeader] = useState<PlayFace | null>(null);
   const [weekLive, setWeekLive] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     void load();
@@ -93,6 +95,31 @@ export function PlayWeeklyStrip({ onOpen }: { onOpen?: () => void }) {
     };
   }, [user?.id]);
 
+  const gated = meta?.status === "gated" || Boolean(meta?.gated && (meta.opensAt ?? 0) > now);
+  useEffect(() => {
+    if (!gated) return;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [gated]);
+  useEffect(() => {
+    if (!meta?.opensAt || meta.status !== "gated") return;
+    let live = true;
+    const wait = Math.max(0, meta.opensAt - Date.now()) + 250;
+    const id = window.setTimeout(() => {
+      void getWeekly({ data: {} })
+        .then((next) => {
+          if (live) setMeta(next);
+        })
+        .catch(() => {
+          /* next poll retries */
+        });
+    }, wait);
+    return () => {
+      live = false;
+      window.clearTimeout(id);
+    };
+  }, [meta?.opensAt, meta?.status]);
+
   const live = weekLive;
   const lockedIn = meta?.status === "done";
   const mineScore = live ? (meta?.score ?? 0) : 0;
@@ -101,6 +128,7 @@ export function PlayWeeklyStrip({ onOpen }: { onOpen?: () => void }) {
 
   let mineLabel = "Submit lineup";
   if (lockedIn) mineLabel = mineScore.toFixed(1);
+  else if (gated && meta) mineLabel = `Opens ${formatWeeklyCountdown(meta.opensAt - now)}`;
 
   return (
     <button

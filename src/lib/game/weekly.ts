@@ -86,6 +86,42 @@ export function sundayOnePmLock(kickoffs: readonly number[]): number | null {
   return ymds.length ? etStamp(ymds[0]!, "13:00") : null;
 }
 
+function tzOffsetMs(ms: number): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: WEEKLY_TZ,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(new Date(ms));
+  const pick = (type: string) => Number(parts.find((part) => part.type === type)?.value);
+  const asUtc = Date.UTC(pick("year"), pick("month") - 1, pick("day"), pick("hour"), pick("minute"), pick("second"));
+  return asUtc - ms;
+}
+
+function zonedStamp(ymd: string, hhmm: string): number {
+  const [year, month, day] = ymd.split("-").map(Number);
+  const [hour, minute] = hhmm.split(":").map(Number);
+  const utcGuess = Date.UTC(year!, month! - 1, day, hour, minute, 0);
+  let stamp = utcGuess - tzOffsetMs(utcGuess);
+  const again = utcGuess - tzOffsetMs(stamp);
+  return again === stamp ? stamp : again;
+}
+
+/** Friday 08:00 America/New_York before that Sunday lock. Zone offset, not a fixed EST. */
+export function weeklyDraftOpensAt(lockAt: number): number {
+  if (!lockAt) return 0;
+  const [year, month, day] = etYmd(lockAt).split("-").map(Number);
+  const friday = new Date(Date.UTC(year!, month! - 1, day! - 2));
+  const y = friday.getUTCFullYear();
+  const m = String(friday.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(friday.getUTCDate()).padStart(2, "0");
+  return zonedStamp(`${y}-${m}-${d}`, "08:00");
+}
+
 export type SlateKickGame = {
   home: string;
   away: string;
@@ -287,6 +323,17 @@ export function formatWeeklyLock(lockAt: number): string {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(lockAt));
+}
+
+export function formatWeeklyCountdown(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const days = Math.floor(total / 86_400);
+  const hours = Math.floor((total % 86_400) / 3_600);
+  const mins = Math.floor((total % 3_600) / 60);
+  const secs = total % 60;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  if (days >= 1) return `${days}d ${pad(hours)}h ${pad(mins)}m`;
+  return `${pad(hours)}:${pad(mins)}:${pad(secs)}`;
 }
 
 export function weeklyVsLabel(vs?: string | null): string {

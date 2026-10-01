@@ -9,6 +9,8 @@ import {
   hydrateWeeklyPicks,
   weeklyTotal,
   withPackedProjections,
+  isSundaySlateWeek,
+  weeklyDraftOpensAt,
 } from "../weekly";
 import { attachFinishedWeekActuals, fillPackedOpponents, nflClock, weekWindow, weeklyLiveStats } from "../weekly-sleeper";
 import type { SeasonBoard, WeeklyBoard, WeeklyBoardPack, WeeklyBoardRow, WeeklyLineup } from "../weekly-api-types";
@@ -26,7 +28,7 @@ import {
 } from "./floor";
 import { settleSafe } from "./settle";
 import { asNum, asTime, parseBoard, runStatus } from "./shared";
-import { ensureWeeklyTables, getSql, loadWeek } from "./tables";
+import { ensureWeeklyTables, getSql, loadRun, loadWeek } from "./tables";
 
 function rankWeeklyBoard(a: WeeklyBoardRow, b: WeeklyBoardRow, byScore: boolean): number {
   if (byScore) {
@@ -45,6 +47,9 @@ export async function weeklyBoardPackHandler({ context }: { context: { userId: s
     const run = await loadRun(sql, week.season, week.week, context.userId);
     const late = mswanLateOk(week.season, week.week, context.userId, run);
     const open = (window.open || late) && !week.awarded;
+    const opensAt = isSundaySlateWeek(week.season, week.week) ? weeklyDraftOpensAt(asTime(week.lock_at)) : 0;
+    const keep = run?.status === "playing" || run?.status === "done";
+    if (opensAt > 0 && Date.now() < opensAt && !keep) return null;
     if (runStatus(run, open) === "locked") return null;
     const pack = parseBoard(week.board);
     if (!pack) return null;
