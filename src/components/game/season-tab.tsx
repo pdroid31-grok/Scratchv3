@@ -424,7 +424,7 @@ function SeasonTeamPager({
                           <span className="min-w-0 truncate text-sm text-fg">{pick.name}</span>
                           <span className="text-right text-xs tabular-nums text-muted">${pick.cost}</span>
                           <span className="text-right font-display text-sm font-semibold tabular-nums text-fg">
-                            {pick.score.toFixed(1)}
+                            {lineup.live || lineup.awarded ? pick.score.toFixed(1) : ""}
                           </span>
                         </li>
                       ))}

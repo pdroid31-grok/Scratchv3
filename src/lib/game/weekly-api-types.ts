@@ -46,7 +46,7 @@ export type WeeklyLineup = {
   season: number;
   week: number;
   name: string;
-  score: number;
+  score: number | null;
   live: boolean;
   awarded: boolean;
   picks: WeeklyPickSnap[];

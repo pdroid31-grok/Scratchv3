@@ -18,7 +18,7 @@ export function WeeklyLineupSheet({
 }) {
   const [lineup, setLineup] = useState<{
     name: string;
-    score: number;
+    score: number | null;
     live: boolean;
     awarded: boolean;
     picks: WeeklyPickSnap[];
@@ -62,7 +62,7 @@ export function WeeklyLineupSheet({
                 : lineup === null
                   ? "This card isn’t available."
                   : lineup.picks.length
-                    ? `${season} · week ${week} · ${lineup.score.toFixed(1)}${!lineup.live && !lineup.awarded ? " proj" : ""} · $${lineup.picks.reduce((n, pick) => n + pick.cost, 0)}`
+                    ? `${season} · week ${week}${lineup.score == null ? "" : ` · ${lineup.score.toFixed(1)}`} · $${lineup.picks.reduce((n, pick) => n + pick.cost, 0)}`
                     : "No lineup saved."}
             </p>
           </div>
@@ -95,10 +95,7 @@ export function WeeklyLineupSheet({
                   <span className="w-8 shrink-0 text-xs tabular-nums text-muted">${pick.cost}</span>
                   <span className="min-w-0 flex-1 truncate text-sm text-fg">{pick.name}</span>
                   <span className="w-16 shrink-0 text-right font-display text-sm font-semibold tabular-nums text-fg">
-                    {pick.score.toFixed(1)}
-                    {lineup && !lineup.live && !lineup.awarded ? (
-                      <span className="ml-1 text-[10px] font-semibold uppercase tracking-wide text-muted">proj</span>
-                    ) : null}
+                    {lineup.live || lineup.awarded ? pick.score.toFixed(1) : ""}
                   </span>
                 </li>
               ))}

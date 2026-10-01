@@ -223,9 +223,7 @@ export async function getWeeklyLineupHandler({ context, data }: { context: { use
       season,
       week: weekNo,
       name: clipDisplayName(row.name ?? "") || "GM",
-      score: week.awarded
-        ? asNum(row.score)
-        : weeklyTotal(window.live ? picks : withPackedProjections(picks, pack)),
+      score: week.awarded ? asNum(row.score) : window.live ? weeklyTotal(picks) : null,
       live: window.live,
       awarded: Boolean(week.awarded),
       picks: window.live || week.awarded ? picks : withPackedProjections(picks, pack),
