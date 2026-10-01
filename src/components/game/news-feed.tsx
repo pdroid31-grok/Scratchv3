@@ -6,7 +6,8 @@ import { ArrowLeft, ArrowRight, X } from "lucide-react";
 import { WeeklyUpdateDialog } from "@/components/game/weekly-update-notice";
 import { ACHIEVEMENT_UNLOCKS, avatarById, starNeed } from "@/lib/game/avatars";
 import { formatNewsTime, type NewsFace, type NewsItem } from "@/lib/game/news";
-import { listNews, markNewsSeen, peekNewsUnseen } from "@/lib/game/news-api";
+import { listNews, markNewsSeen, peekNewsUnseen, claimNewsFeat } from "@/lib/game/news-api";
+import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { isHiddenBoardId, isHiddenBoardName } from "@/lib/game/stats-shared";
 
 type LookPeek = { src: string; name: string };
@@ -61,6 +62,7 @@ export function NewsStrip({ onOpen }: { onOpen: () => void }) {
 }
 
 export function NewsFeed({ onPlay }: { onPlay: () => void }) {
+  const { user } = useCurrentUserState();
   const [rows, setRows] = useState<NewsItem[] | null>(null);
   const [peek, setPeek] = useState<LookPeek | null>(null);
   const [hideUnlocks, setHideUnlocks] = useState(false);
@@ -142,7 +144,15 @@ export function NewsFeed({ onPlay }: { onPlay: () => void }) {
               <p className="font-display text-[10px] font-semibold uppercase tracking-wider text-muted">
                 {formatNewsTime(row.at)}
               </p>
-              <NewsLine item={row} onPeek={setPeek} hideUnlocks={hideUnlocks} onNotice={() => setNotice(true)} />
+              <NewsLine
+                item={row}
+                onPeek={setPeek}
+                hideUnlocks={hideUnlocks}
+                onNotice={() => {
+                  setNotice(true);
+                  if (user) void claimNewsFeat().catch(() => undefined);
+                }}
+              />
             </li>
           ))}
         </ol>

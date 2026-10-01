@@ -96,6 +96,7 @@ export const AVATARS = [
   { id: "bullseye", name: "Bullseye", src: "/avatars/bullseye.jpg?v=1" },
   { id: "rainyday", name: "Rainy Day", src: "/avatars/rainyday.jpg?v=1" },
   { id: "poop", name: "Poop", src: "/avatars/poop.jpg?v=1" },
+  { id: "news", name: "News", src: "/avatars/news.jpg?v=1" },
   { id: "earlybird", name: "Early Bird", src: "/avatars/earlybird.jpg?v=1" },
   { id: "heavyhitter", name: "Heavy Hitter", src: "/avatars/heavyhitter.jpg?v=1" },
   { id: "lost", name: "Lost", src: "/avatars/lost.jpg?v=1" },
@@ -204,6 +205,8 @@ export const BULLSEYE_ID = "bullseye" as const satisfies AvatarId;
 export const RAINY_DAY_ID = "rainyday" as const satisfies AvatarId;
 
 export const POOP_ID = "poop" as const satisfies AvatarId;
+
+export const NEWS_ID = "news" as const satisfies AvatarId;
 
 export const EARLY_BIRD_ID = "earlybird" as const satisfies AvatarId;
 
@@ -373,6 +376,7 @@ export const FEAT_IDS = new Set<string>([
   BULLSEYE_ID,
   RAINY_DAY_ID,
   POOP_ID,
+  NEWS_ID,
   EARLY_BIRD_ID,
   HEAVY_HITTER_ID,
   LOST_ID,
@@ -423,6 +427,7 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: BULLSEYE_ID, how: "Score exactly 100.0 in a Daily or Weekly Match." },
   { id: RAINY_DAY_ID, how: "Finish last in Daily two days in a row." },
   { id: POOP_ID, how: "Finish last in Daily 10 times." },
+  { id: NEWS_ID, how: "Click the Weekly Update notice in the News Feed." },
   { id: EARLY_BIRD_ID, how: "Be the first to submit a Daily Match 10 times." },
   { id: HEAVY_HITTER_ID, how: "Draft a player who scores 50+ in a Weekly Match." },
   { id: LOST_ID, how: "Go 10+ days between Daily submissions." },
