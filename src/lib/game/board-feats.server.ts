@@ -36,6 +36,7 @@ export {
   maybeGrantBlueStreak,
   maybeGrantColdStreak,
 } from "./board-feats/lineup";
+export { maybeGrantScoreTrend } from "./board-feats/trend";
 export {
   maybeGrantHunters,
   maybeGrantVegas,

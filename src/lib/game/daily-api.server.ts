@@ -437,6 +437,8 @@ async function completeDailyRun(
     if (day.day >= PENNY_FROM) await maybeGrantPenny(sql, userId);
     if (day.day >= BLUE_STREAK_FROM) await maybeGrantBlueStreak(sql, userId);
     await maybeGrantColdStreak(sql, userId);
+    const { maybeGrantScoreTrend } = await import("./board-feats.server");
+    await maybeGrantScoreTrend(sql, userId, day.day);
     const { maybeGrantDailyContestFeats, maybeGrantTwinDay } = await import("./board-feats.server");
     await maybeGrantDailyContestFeats(sql, day.day);
     await maybeGrantTwinDay(sql, day.day);

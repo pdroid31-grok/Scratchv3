@@ -97,6 +97,8 @@ export const AVATARS = [
   { id: "rainyday", name: "Rainy Day", src: "/avatars/rainyday.jpg?v=1" },
   { id: "poop", name: "Poop", src: "/avatars/poop.jpg?v=1" },
   { id: "news", name: "News", src: "/avatars/news.jpg?v=1" },
+  { id: "trending", name: "Trending", src: "/avatars/trending.jpg?v=1" },
+  { id: "canceled", name: "Canceled", src: "/avatars/canceled.jpg?v=1" },
   { id: "earlybird", name: "Early Bird", src: "/avatars/earlybird.jpg?v=1" },
   { id: "heavyhitter", name: "Heavy Hitter", src: "/avatars/heavyhitter.jpg?v=1" },
   { id: "lost", name: "Lost", src: "/avatars/lost.jpg?v=1" },
@@ -207,6 +209,10 @@ export const RAINY_DAY_ID = "rainyday" as const satisfies AvatarId;
 export const POOP_ID = "poop" as const satisfies AvatarId;
 
 export const NEWS_ID = "news" as const satisfies AvatarId;
+
+export const TRENDING_ID = "trending" as const satisfies AvatarId;
+
+export const CANCELED_ID = "canceled" as const satisfies AvatarId;
 
 export const EARLY_BIRD_ID = "earlybird" as const satisfies AvatarId;
 
@@ -377,6 +383,8 @@ export const FEAT_IDS = new Set<string>([
   RAINY_DAY_ID,
   POOP_ID,
   NEWS_ID,
+  TRENDING_ID,
+  CANCELED_ID,
   EARLY_BIRD_ID,
   HEAVY_HITTER_ID,
   LOST_ID,
@@ -428,6 +436,8 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: RAINY_DAY_ID, how: "Finish last in Daily two days in a row." },
   { id: POOP_ID, how: "Finish last in Daily 10 times." },
   { id: NEWS_ID, how: "Click the Weekly Update notice in the News Feed." },
+  { id: TRENDING_ID, how: "Post a Daily score that increases 3 played days in a row." },
+  { id: CANCELED_ID, how: "Post a Daily score that decreases 3 played days in a row." },
   { id: EARLY_BIRD_ID, how: "Be the first to submit a Daily Match 10 times." },
   { id: HEAVY_HITTER_ID, how: "Draft a player who scores 50+ in a Weekly Match." },
   { id: LOST_ID, how: "Go 10+ days between Daily submissions." },
@@ -556,6 +566,7 @@ export {
   sniperWeekHit,
   silverSecondDayCount,
 } from "./avatars/hits";
+export { TREND_FROM, trendingHit, canceledHit } from "./avatars/trend";
 export type { OverheadRow, TwinRow, EarlyBirdRow } from "./avatars/hits";
 export {
   justUnlockedBanana,
