@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, RotateCcw, Trophy } from "lucide-react";
 import { weekToneClass } from "@/components/game/score-tone";
 import { AuthBar } from "@/components/game/auth-bar";
+import { ViewingRow } from "@/components/game/viewing-row";
 import { ElimWinnerBanner } from "@/components/game/elim-winner";
 import { ShareResultsButton } from "@/components/game/share-results";
 import { GmName } from "@/components/game/gm-name";
@@ -163,29 +164,48 @@ export function ElimMatchupScreen() {
   const rematch = rematchReady ?? [false, false];
   const theirSeat: Seat | null = mode === "online" && mySeat !== null ? otherSeat(mySeat) : null;
   const theyReady = theirSeat !== null && rematch[theirSeat];
+  const hostedTwo = !solo && (mode === "online" || mode === "watch");
+  const seriesLine = `${elim.year} \u00b7 Best of ${ELIM_MAX_SETS}${phase === "results" ? " \u00b7 Final" : ` \u00b7 Set ${setNo}`}`;
 
   return (
     <main className="elim-board">
       <div className="mx-auto flex h-full w-full max-w-lg min-h-0 flex-col">
         <header className="flex shrink-0 items-center justify-between gap-2">
           <div className="min-w-0">
-            <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-turf">
-              {solo ? `${elim.year} \u00b7 ${mode === "weekly" ? "Weekly" : "Daily"}` : `${elim.year} \u00b7 Best of ${ELIM_MAX_SETS}`}
-              {phase === "results" ? " \u00b7 Final" : solo ? "" : ` \u00b7 Set ${setNo}`}
-            </p>
-            <h1 className="mt-1 truncate font-display text-xl font-semibold uppercase leading-none tracking-tight text-fg sm:text-2xl">
-              {phase === "results" ? (
-                seriesWinner === null ? (
-                  "Draw"
-                ) : (
-                  <GmName seat={seriesWinner} size="md" nameClassName="text-fg" />
-                )
-              ) : hideWeekNumber ? (
-                "Week"
-              ) : (
-                <>Week {holding && last ? last.week : week}</>
-              )}
-            </h1>
+            {hostedTwo && phase !== "results" ? (
+              <>
+                <p className="flex min-h-4 items-center gap-1.5 font-display text-xs font-semibold text-turf">
+                  <ViewingRow />
+                </p>
+                <h1 className="mt-1 truncate font-display text-xl font-semibold uppercase leading-none tracking-tight text-fg sm:text-2xl">
+                  {seriesLine}
+                </h1>
+              </>
+            ) : (
+              <>
+                {hostedTwo ? (
+                  <p className="flex min-h-4 items-center gap-1.5 font-display text-xs font-semibold text-turf">
+                    <ViewingRow />
+                  </p>
+                ) : null}
+                <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-turf">
+                  {solo ? `${elim.year} \u00b7 ${mode === "weekly" ? "Weekly" : "Daily"}` : seriesLine}
+                </p>
+                <h1 className="mt-1 truncate font-display text-xl font-semibold uppercase leading-none tracking-tight text-fg sm:text-2xl">
+                  {phase === "results" ? (
+                    seriesWinner === null ? (
+                      "Draw"
+                    ) : (
+                      <GmName seat={seriesWinner} size="md" nameClassName="text-fg" />
+                    )
+                  ) : hideWeekNumber ? (
+                    "Week"
+                  ) : (
+                    <>Week {holding && last ? last.week : week}</>
+                  )}
+                </h1>
+              </>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <AuthBar />

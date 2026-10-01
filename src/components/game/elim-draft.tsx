@@ -9,7 +9,7 @@ import { SeasonCard } from "@/components/game/season-card";
 import { Button } from "@/components/ui/button";
 import { slotLabel, type ElimPlayer, type ElimSlot } from "@/lib/game/elim-data";
 import { avatarById } from "@/lib/game/avatars";
-import { useRoomViewers } from "@/lib/game/room-viewers";
+import { ViewingRow } from "@/components/game/viewing-row";
 import { elimLineup, legalElimPicks, maxElimCost, pickAt, pickClockLeft, ELIM_PICK_CLOCK_MS, type ElimPick } from "@/lib/game/elim";
 import { isOnClock, useGame } from "@/lib/game/store";
 import { weeklyVsLabel } from "@/lib/game/weekly";
@@ -26,7 +26,6 @@ export function ElimDraftScreen() {
   const timeoutElim = useGame((s) => s.timeoutElim);
   const reset = useGame((s) => s.reset);
   const mode = useGame((s) => s.mode);
-  const viewers = useRoomViewers();
   const weeklyLocked = useGame((s) => Boolean(s.weekly?.locked));
   const acting = useGame((s) => s.acting);
   const mine = isOnClock(useGame((s) => s));
@@ -110,8 +109,6 @@ export function ElimDraftScreen() {
   };
 
   const hostedTwo = !elim.solo && (mode === "online" || mode === "watch");
-  const eyes = viewers.slice(0, 5);
-  const extraEyes = Math.max(0, viewers.length - eyes.length);
 
   return (
     <main className="elim-board">
@@ -124,22 +121,7 @@ export function ElimDraftScreen() {
                 {mode === "weekly" ? "Weekly Elimination" : "Daily Elimination"}
               </span>
             ) : hostedTwo ? (
-              eyes.length ? (
-                <>
-                  <span className="uppercase tracking-[0.28em]">Viewing</span>
-                  {eyes.map((eye) => (
-                    <img
-                      key={eye.userId}
-                      src={avatarById(eye.avatarId).src}
-                      alt=""
-                      className="size-5 rounded-full object-cover"
-                    />
-                  ))}
-                  {extraEyes > 0 ? (
-                    <span className="text-[10px] tabular-nums tracking-normal text-muted">+{extraEyes}</span>
-                  ) : null}
-                </>
-              ) : null
+              <ViewingRow />
             ) : (
               <span className="uppercase tracking-[0.28em]">Elimination</span>
             )}
