@@ -128,6 +128,7 @@ export const AVATARS = [
   { id: "penny", name: "Penny", src: "/avatars/penny.jpg?v=1" },
   { id: "bluestreak", name: "Blue Streak", src: "/avatars/bluestreak.jpg?v=1" },
   { id: "coldstreak", name: "Cold Streak", src: "/avatars/coldstreak.jpg?v=1" },
+  { id: "spotlight", name: "Spotlight", src: "/avatars/spotlight.jpg?v=1" },
   { id: "football", name: "Football", src: "/avatars/football.jpg?v=1" },
   { id: "luchador", name: "Luchador", src: "/avatars/luchador.jpg?v=1" },
   { id: "tailgater", name: "Tailgater", src: "/avatars/tailgater.jpg?v=1" },
@@ -270,6 +271,12 @@ export const BLUE_STREAK_ID = "bluestreak" as const satisfies AvatarId;
 
 export const COLD_STREAK_ID = "coldstreak" as const satisfies AvatarId;
 
+export const SPOTLIGHT_ID = "spotlight" as const satisfies AvatarId;
+
+export const SPOTLIGHT_FROM = "2026-09-30";
+
+export const SPOTLIGHT_NEED = 2;
+
 export const BANANA_SCORE_UNDER = 60;
 
 export const CROSSWORD_STREAK_NEED = 10;
@@ -398,6 +405,7 @@ export const FEAT_IDS = new Set<string>([
   PENNY_ID,
   BLUE_STREAK_ID,
   COLD_STREAK_ID,
+  SPOTLIGHT_ID,
 ]);
 
 export const ACHIEVEMENT_UNLOCKS = [
@@ -447,6 +455,7 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: PENNY_ID, how: "Spend $10 or less on a Daily lineup." },
   { id: BLUE_STREAK_ID, how: "Start 4 or more players who score in the blue in one Daily." },
   { id: COLD_STREAK_ID, how: "Finish 15 Daily Matches in a row with no Daily win." },
+  { id: SPOTLIGHT_ID, how: "Have 2+ viewers on a Match." },
   { id: CRYPEPE_ID, how: "Hit Nothing on a scratch ticket." },
   { id: STARPEPE_ID, how: "Scratch a star." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];

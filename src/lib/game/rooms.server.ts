@@ -260,13 +260,37 @@ async function roomViewers(row: RoomRow): Promise<RoomViewer[]> {
       [row.code],
     );
     const playing = playerIds(row);
-    return rows
+    const viewers = rows
       .filter((eye) => eye.user_id && !playing.has(eye.user_id))
       .map((eye) => ({
         userId: eye.user_id,
         name: eye.name || "Fan",
         avatarId: clipAvatar(eye.avatar_id),
       }));
+    if (viewers.length >= 2 && state.kind === "elimination" && !state.elim?.solo && !state.daily && !state.weekly) {
+      const seats = [state.userIds?.[0] ?? row.host_user_id, state.userIds?.[1] ?? row.guest_user_id].filter(
+        (id): id is string => Boolean(id),
+      );
+      try {
+        const { maybeGrantSpotlight } = await import("./board-feats/spotlight");
+        await maybeGrantSpotlight(
+          sql,
+          {
+            code: row.code,
+            createdAt: row.created_at,
+            userIds: seats,
+            kind: state.kind,
+            solo: false,
+            daily: false,
+            weekly: false,
+          },
+          viewers.length,
+        );
+      } catch (err) {
+        console.error("[darkness] spotlight grant failed", err);
+      }
+    }
+    return viewers;
   } catch (err) {
     console.error("[darkness] room viewers failed", err);
     return [];
