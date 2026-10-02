@@ -83,6 +83,13 @@ const PROGRESS_IDS = new Set<string>([
   "comebackkid",
   "freefall",
   "lost",
+  "poop",
+  "earlybird",
+  "nightowl",
+  "silvermedal",
+  "thanos",
+  "boxaddict",
+  "threeleafclover",
 ]);
 
 function sheetRows() {

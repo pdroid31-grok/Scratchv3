@@ -9,10 +9,23 @@ import {
   LOST_GAP_DAYS,
   LUMPED_UP_DAYS,
   LUMPED_UP_UNDER,
+  BOX_ADDICT_POOL_NEED,
+  EARLY_BIRD_NEED,
+  NIGHT_OWL_NEED,
+  POOP_NEED,
+  SILVER_SECOND_NEED,
+  THANOS_OWN_NEED,
+  THREE_LEAF_NEED,
   TREND_FROM,
+  boxPoolOwnedCount,
+  earlyBirdDayCount,
+  nightOwlDayCount,
+  parseOwned,
+  silverSecondDayCount,
 } from "./avatars";
 import { EASY_DOLLAR_LINE, EASY_DOLLAR_NEED } from "./avatars/money";
 import { RAINY_DAY_FROM } from "./board-feats/place-daily";
+import { asTime } from "./board-feats/place-weekly";
 import { skipBoardRow } from "./board-feats/grant";
 import { dailyDayStamp, dailyYesterday } from "./daily";
 import { clipGm } from "./stats-shared";
@@ -34,6 +47,10 @@ const TREND_NEED = 3;
 
 function line(n: number, need: number, rule: string): string {
   return `${n} / ${need}. ${rule}`;
+}
+
+function total(n: number, need: number, noun: string): string {
+  return `${n} / ${need} ${noun}. A skip does not break it.`;
 }
 
 function pairLine(hitYesterday: boolean, todayAwarded: boolean, hitToday: boolean, yesterdayWord: string, todayWord: string): string {
@@ -106,6 +123,36 @@ export async function loadFeatProgress(sql: Sql, userId: string): Promise<FeatPr
   }
   const yesterdayAwarded = byDay.has(yesterday);
   const todayAwarded = byDay.has(today);
+  const poop = lastDays.filter((day) => day >= FEAT_TRACK_FROM).length;
+  const silverRows = [...byDay.entries()].flatMap(([day, list]) =>
+    day >= FEAT_TRACK_FROM ? list.map((row) => ({ day, userId: row.userId, score: row.score })) : [],
+  );
+  const locks = await sql.query<{ day: string; user_id: string; name: string | null; finished_at: unknown; started_at: unknown }>(
+    `select r.day::text as day, r.user_id, r.finished_at, r.started_at,
+            coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name
+       from darkness_daily_runs r
+       left join player_profiles p on p.user_id = r.user_id
+       left join "user" u on u.id = r.user_id
+      where r.day >= $1::date and r.status = 'done'`,
+    [FEAT_TRACK_FROM],
+  );
+  const early: { day: string; userId: string; at: number }[] = [];
+  const owl: { day: string; userId: string; at: number }[] = [];
+  for (const row of locks) {
+    if (skipBoardRow(row.user_id, row.name) || skipBoardRow(row.user_id, clipGm(row.name ?? ""))) continue;
+    const at = asTime(row.finished_at) || asTime(row.started_at);
+    if (!at) continue;
+    const day = String(row.day).slice(0, 10);
+    early.push({ day, userId: row.user_id, at });
+    if (day >= today || dailyDayStamp(at) === day) owl.push({ day, userId: row.user_id, at });
+  }
+  const ownedRows = await sql.query<{ owned: unknown }>(`select owned from player_profiles where user_id = $1`, [userId]);
+  const owned = parseOwned(ownedRows[0]?.owned);
+  const scratches = await sql.query<{ prize: string | null }>(
+    `select distinct prize from darkness_scratch_cards where user_id = $1 and scratched_at is not null`,
+    [userId],
+  );
+  const leaf = new Set(scratches.map((row) => String(row.prize ?? "").trim()).filter(Boolean)).size;
 
   return {
     crossword: line(currentCalendarRun(doneDays, today), CROSSWORD_STREAK_NEED, "A skipped Daily breaks it."),
@@ -129,5 +176,12 @@ export async function loadFeatProgress(sql: Sql, userId: string): Promise<FeatPr
     comebackkid: pairLine(lastDays.includes(yesterday) && yesterdayAwarded, todayAwarded, firstDays.includes(today), "last", "first"),
     freefall: pairLine(firstDays.includes(yesterday) && yesterdayAwarded, todayAwarded, lastDays.includes(today), "first", "last"),
     lost: line(daysSince(lastDay, today), LOST_GAP_DAYS, "Days since your last Daily."),
+    poop: total(poop, POOP_NEED, "last-place Dailys"),
+    earlybird: total(earlyBirdDayCount(userId, early), EARLY_BIRD_NEED, "first locks"),
+    nightowl: total(nightOwlDayCount(userId, owl), NIGHT_OWL_NEED, "last locks"),
+    silvermedal: total(silverSecondDayCount(silverRows, userId), SILVER_SECOND_NEED, "seconds"),
+    thanos: total(new Set(owned).size, THANOS_OWN_NEED, "owned"),
+    boxaddict: total(boxPoolOwnedCount(owned), BOX_ADDICT_POOL_NEED, "boxes"),
+    threeleafclover: total(leaf, THREE_LEAF_NEED, "scratch results"),
   };
 }
