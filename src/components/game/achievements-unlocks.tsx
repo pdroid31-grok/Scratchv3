@@ -287,7 +287,11 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
             <X className="size-5" strokeWidth={2} />
           </button>
           <div className="flex items-center gap-3 pr-12">
-            <img src={avatarById(pickedRow.id).src} alt="" className="size-16 shrink-0 rounded-md bg-black object-cover" />
+            <span className="relative size-16 shrink-0 overflow-hidden rounded-md bg-black">
+              <span className="flex size-full items-center justify-center font-display text-2xl font-semibold text-white">
+                ?
+              </span>
+            </span>
             <div className="min-w-0">
               <h3 className="truncate font-display text-lg font-semibold uppercase tracking-wide text-fg">
                 {avatarById(pickedRow.id).name}
