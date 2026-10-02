@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Trophy, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ACHIEVEMENT_UNLOCKS, avatarById, type AvatarId } from "@/lib/game/avatars";
+import { getFeatProgress } from "@/lib/game/feat-progress-api";
 import { useProfile } from "@/lib/game/profile-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { cn } from "@/lib/utils";
@@ -68,6 +69,22 @@ const SHEET_ORDER = [
   "ultrahunter",
 ] as const satisfies readonly AvatarId[];
 
+const PROGRESS_IDS = new Set<string>([
+  "crossword",
+  "focused",
+  "lockedin",
+  "rainyday",
+  "trending",
+  "canceled",
+  "easydollar",
+  "lumpedup",
+  "coldstreak",
+  "icecoldstreak",
+  "comebackkid",
+  "freefall",
+  "lost",
+]);
+
 function sheetRows() {
   const byId = new Map(ACHIEVEMENT_UNLOCKS.map((row) => [row.id, row]));
   const named = new Set<string>(SHEET_ORDER);
@@ -120,12 +137,43 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
   const ownedCount = user
     ? (book?.owned ?? []).filter((id) => achievementIds.has(id)).length
     : 0;
+  const [progress, setProgress] = useState<Record<string, string> | null>(null);
+  const [picked, setPicked] = useState<string | null>(null);
 
   useEffect(() => {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    if (!user) return;
+    let live = true;
+    void getFeatProgress()
+      .then((lines) => {
+        if (live) setProgress(lines);
+      })
+      .catch(() => {
+        if (live) setProgress(null);
+      });
+    return () => {
+      live = false;
+    };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!picked) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setPicked(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [picked]);
+
+  const pickedRow = picked ? sheetRows().find((row) => row.id === picked) : null;
+
   return (
+    <>
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-bg/80 p-4 sm:items-center"
       role="dialog"
@@ -161,34 +209,89 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
           {sheetRows().map((row) => {
             const avatar = avatarById(row.id);
             const unlocked = owned.includes(row.id);
+            const tappable = Boolean(user) && !unlocked && PROGRESS_IDS.has(row.id);
             return (
-              <li
-                key={row.id}
-                className="flex items-center gap-3 rounded-lg bg-bg px-3 py-2.5 shadow-[var(--shadow-border)]"
-              >
-                <div className="relative size-14 shrink-0 overflow-hidden rounded-md bg-black">
-                  {unlocked ? (
-                    <img src={avatar.src} alt="" className="size-full object-cover" />
-                  ) : (
-                    <span className="flex size-full items-center justify-center font-display text-2xl font-semibold text-white">
-                      ?
+              <li key={row.id}>
+                {tappable ? (
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-3 rounded-lg bg-bg px-3 py-2.5 text-left shadow-[var(--shadow-border)]"
+                    aria-label={`${avatar.name} progress`}
+                    onClick={() => setPicked(row.id)}
+                  >
+                    <span className="relative size-14 shrink-0 overflow-hidden rounded-md bg-black">
+                      <span className="flex size-full items-center justify-center font-display text-2xl font-semibold text-white">
+                        ?
+                      </span>
                     </span>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-display text-sm font-semibold uppercase tracking-wide text-fg">
-                    {avatar.name}
-                  </p>
-                  <p className="mt-0.5 text-xs text-muted">{row.how}</p>
-                  {unlocked ? (
-                    <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-turf">Owned</p>
-                  ) : null}
-                </div>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-display text-sm font-semibold uppercase tracking-wide text-fg">
+                        {avatar.name}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-muted">{row.how}</span>
+                    </span>
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-3 rounded-lg bg-bg px-3 py-2.5 shadow-[var(--shadow-border)]">
+                    <div className="relative size-14 shrink-0 overflow-hidden rounded-md bg-black">
+                      {unlocked ? (
+                        <img src={avatar.src} alt="" className="size-full object-cover" />
+                      ) : (
+                        <span className="flex size-full items-center justify-center font-display text-2xl font-semibold text-white">
+                          ?
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-display text-sm font-semibold uppercase tracking-wide text-fg">
+                        {avatar.name}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted">{row.how}</p>
+                      {unlocked ? (
+                        <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-turf">Owned</p>
+                      ) : null}
+                    </div>
+                  </div>
+                )}
               </li>
             );
           })}
         </ul>
       </div>
     </div>
+    {pickedRow ? (
+      <div
+        className="fixed inset-0 z-[60] flex items-end justify-center bg-bg/80 p-4 sm:items-center"
+        role="dialog"
+        aria-modal="true"
+        aria-label={avatarById(pickedRow.id).name}
+        onClick={() => setPicked(null)}
+      >
+        <section
+          className="relative w-full max-w-lg rounded-xl bg-surface px-4 py-5 shadow-[var(--shadow-border)] sm:px-5"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            className="absolute right-3 top-3 flex size-11 items-center justify-center rounded-full bg-bg text-fg shadow-[var(--shadow-border)]"
+            aria-label="Close"
+            onClick={() => setPicked(null)}
+          >
+            <X className="size-5" strokeWidth={2} />
+          </button>
+          <div className="flex items-center gap-3 pr-12">
+            <img src={avatarById(pickedRow.id).src} alt="" className="size-16 shrink-0 rounded-md bg-black object-cover" />
+            <div className="min-w-0">
+              <h3 className="truncate font-display text-lg font-semibold uppercase tracking-wide text-fg">
+                {avatarById(pickedRow.id).name}
+              </h3>
+              <p className="mt-1 text-sm text-muted">{pickedRow.how}</p>
+            </div>
+          </div>
+          <p className="mt-4 text-sm text-fg">{progress?.[pickedRow.id] ?? "…"}</p>
+        </section>
+      </div>
+    ) : null}
+    </>
   );
 }
