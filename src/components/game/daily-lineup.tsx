@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { getDailyLineup, type DailyLineup } from "@/lib/game/daily-api";
+import { dailyDayStamp } from "@/lib/game/daily";
 
 export function DailyLineupSheet({
   day,
@@ -53,7 +54,7 @@ export function DailyLineupSheet({
                 : lineup === null
                   ? "This card isn’t available."
                   : lineup.picks.length
-                    ? `${lineup.year} · week ${lineup.week} · ${lineup.score.toFixed(1)} · $${lineup.picks.reduce((n, pick) => n + pick.cost, 0)}`
+                    ? `${day < dailyDayStamp() ? `${lineup.year} · week ${lineup.week} · ` : ""}${lineup.score.toFixed(1)} · $${lineup.picks.reduce((n, pick) => n + pick.cost, 0)}`
                     : "No lineup saved."}
             </p>
           </div>
