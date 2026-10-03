@@ -499,6 +499,13 @@ function SeasonPane() {
                     </span>
                     <span className="mt-0.5 block text-xs tabular-nums text-muted">{row.score.toFixed(1)}</span>
                   </span>
+                  {board.rows.some((item) => item.move) ? (
+                    <span className="w-12 shrink-0 text-right font-display text-sm font-semibold tabular-nums">
+                      {row.move === "up" ? <span className="text-turf">▲ {row.spots}</span> : null}
+                      {row.move === "down" ? <span className="text-[#ff5a5a]">▼ {row.spots}</span> : null}
+                      {row.move === "same" ? <span className="text-white">=</span> : null}
+                    </span>
+                  ) : null}
                 </Link>
               </li>
             ))}

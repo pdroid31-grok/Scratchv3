@@ -77,6 +77,8 @@ export type SeasonBoardRow = {
   avatarId: AvatarId;
   score: number;
   weeks: number;
+  move?: "up" | "down" | "same";
+  spots?: number;
 };
 
 export type SeasonBoard = {

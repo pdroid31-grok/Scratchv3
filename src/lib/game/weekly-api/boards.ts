@@ -29,6 +29,7 @@ import {
 import { settleSafe } from "./settle";
 import { asNum, asTime, parseBoard, runStatus } from "./shared";
 import { ensureWeeklyTables, getSql, loadRun, loadWeek } from "./tables";
+import { activeSeasonMove, seasonRankMoves } from "./season-move";
 
 function rankWeeklyBoard(a: WeeklyBoardRow, b: WeeklyBoardRow, byScore: boolean): number {
   if (byScore) {
@@ -360,11 +361,31 @@ export async function listSeasonBoardHandler({ data }: { data: { season: number 
       }
     }
   }
+  const span = await activeSeasonMove(
+    season,
+    clock,
+    window,
+    weekRows.flatMap((row) => (row.awarded ? [Number(row.week)] : [])),
+  );
+  const moves = span
+    ? seasonRankMoves(
+        seasonRuns,
+        weekRows.map((row) => ({ week: Number(row.week) })),
+        span.to,
+        span.from,
+        span.to,
+      )
+    : new Map();
   return {
     season,
     currentSeason: clock.season,
     currentWeek: clock.week,
     live: window.live,
-    rows: [...merged.values()].sort((a, b) => b.score - a.score || a.name.localeCompare(b.name)),
+    rows: [...merged.values()]
+      .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+      .map((row) => {
+        const hit = moves.get(row.id);
+        return hit ? { ...row, move: hit.move, spots: hit.spots } : row;
+      }),
   };
 }
