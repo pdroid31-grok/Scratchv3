@@ -63,7 +63,7 @@ export function GameChat() {
     <div
       className="pointer-events-none fixed inset-x-0 z-40 mx-auto w-full max-w-lg px-3"
       style={{
-        bottom: keyboard,
+        bottom: keyboard > 0 ? keyboard : watchChat ? "calc(4.75rem + env(safe-area-inset-bottom, 0px))" : 0,
         paddingBottom: keyboard > 0 ? 8 : "max(0.75rem, env(safe-area-inset-bottom, 0px))",
       }}
     >

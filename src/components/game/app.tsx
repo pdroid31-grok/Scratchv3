@@ -92,7 +92,7 @@ export function GameApp({
       >
       <RerollCinematic kind={fx.kind} token={fx.token} />
       <LoanPopup />
-      {mode === "watch" ? null : <GameChat />}
+      <GameChat />
       {phase === "results" ? (
         <ResultsScreen />
       ) : elimStartOpen({ phase, kind, names }, roomFilled) ? (
