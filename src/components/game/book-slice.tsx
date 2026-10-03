@@ -78,20 +78,17 @@ export function SliceStats({
         />
         <Stat label="Nights" value={blank ? "0" : String(slice.games)} />
         <Stat label="High / Low" value={blank ? "— / —" : highLow(slice.highest, slice.lowest)} />
-        {featCard ? null : <Stat label="Achievements" value={feats} />}
+        {featCard ? (
+          <div className="rounded-md bg-[#d4e8ff] px-3 py-3 text-bg shadow-[var(--shadow-border)]">
+            <dt className="text-[11px] uppercase tracking-[0.16em]">Achievements</dt>
+            <dd className="mt-1 font-display text-2xl font-semibold tabular-nums leading-none">{feats}</dd>
+          </div>
+        ) : (
+          <Stat label="Achievements" value={feats} />
+        )}
       </dl>
-      {featCard ? <FeatCard value={feats} /> : null}
       {opponents && opponents.length > 0 ? <MostPlayed opponents={opponents} /> : null}
     </>
-  );
-}
-
-function FeatCard({ value }: { value: string }) {
-  return (
-    <div className="mt-3 rounded-xl bg-[#d4e8ff] px-4 py-3 text-bg shadow-[var(--shadow-border)]">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.16em]">Achievements</p>
-      <p className="mt-1 font-display text-2xl font-semibold tabular-nums leading-none">{value}</p>
-    </div>
   );
 }
 
