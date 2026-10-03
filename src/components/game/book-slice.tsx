@@ -34,10 +34,12 @@ export function BookFormats({
   slices,
   opponents,
   owned,
+  onAchievements,
 }: {
   slices: { total: BookSlice; auction?: BookSlice; elimination?: BookSlice };
   opponents?: { total?: CareerOpponent[] };
   owned?: readonly string[];
+  onAchievements?: () => void;
 }) {
   return (
     <div className="mt-4">
@@ -46,6 +48,7 @@ export function BookFormats({
         empty="No matches on the book yet."
         opponents={opponents?.total}
         owned={owned}
+        onAchievements={onAchievements}
       />
     </div>
   );
@@ -56,13 +59,13 @@ export function SliceStats({
   empty,
   opponents,
   owned,
-  featCard,
+  onAchievements,
 }: {
   slice: BookSlice;
   empty: string;
   opponents?: CareerOpponent[];
   owned?: readonly string[];
-  featCard?: boolean;
+  onAchievements?: () => void;
 }) {
   const hasMark = slice.highest != null || slice.lowest != null;
   const feats = achievementCount(owned);
@@ -78,17 +81,25 @@ export function SliceStats({
         />
         <Stat label="Nights" value={blank ? "0" : String(slice.games)} />
         <Stat label="High / Low" value={blank ? "— / —" : highLow(slice.highest, slice.lowest)} />
-        {featCard ? (
-          <div className="rounded-md bg-[#d4e8ff] px-3 py-3 text-bg shadow-[var(--shadow-border)]">
-            <dt className="text-[11px] uppercase tracking-[0.16em]">Achievements</dt>
-            <dd className="mt-1 font-display text-2xl font-semibold tabular-nums leading-none">{feats}</dd>
-          </div>
-        ) : (
-          <Stat label="Achievements" value={feats} />
-        )}
+        <FeatStat value={feats} onOpen={onAchievements} />
       </dl>
       {opponents && opponents.length > 0 ? <MostPlayed opponents={opponents} /> : null}
     </>
+  );
+}
+
+function FeatStat({ value, onOpen }: { value: string; onOpen?: () => void }) {
+  const body = (
+    <>
+      <dt className="text-[11px] uppercase tracking-[0.16em] text-[#d4e8ff]">Achievements</dt>
+      <dd className="mt-1 font-display text-2xl font-semibold tabular-nums leading-none text-[#d4e8ff]">{value}</dd>
+    </>
+  );
+  if (!onOpen) return <div className="rounded-md bg-bg px-3 py-3">{body}</div>;
+  return (
+    <button type="button" className="rounded-md bg-bg px-3 py-3 text-left" aria-label="Achievements" onClick={onOpen}>
+      {body}
+    </button>
   );
 }
 

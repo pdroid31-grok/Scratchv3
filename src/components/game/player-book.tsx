@@ -52,7 +52,7 @@ export function PlayerBook({ book, board, popup = false }: { book: PublicBook; b
         )}
       </div>
       <div className="mt-4">
-        <SliceStats slice={book.total} empty="No matches on the book yet." owned={book.owned} featCard />
+        <SliceStats slice={book.total} empty="No matches on the book yet." owned={book.owned} />
       </div>
       <UnlockedCloset owned={owned} wearing={book.avatarId} />
       {popup || !board ? null : (

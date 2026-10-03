@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Gavel, Settings, Star, X } from "lucide-react";
-import { ACHIEVEMENT_IDS, ACHIEVEMENT_UNLOCKS, CLOSET_AVATARS, SHIRT_AVATARS, STAR_IDS, avatarById, isShirtAvatar, isUnlocked, lookSource, ownsAvatar, remainingToUnlock, type AvatarId } from "@/lib/game/avatars";
+import { ACHIEVEMENT_IDS, CLOSET_AVATARS, SHIRT_AVATARS, STAR_IDS, avatarById, isShirtAvatar, isUnlocked, lookSource, ownsAvatar, remainingToUnlock, type AvatarId } from "@/lib/game/avatars";
 import { useProfile } from "@/lib/game/profile-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { authEnabled, signOut } from "@/lib/auth/client";
@@ -36,7 +36,6 @@ export function ProfileTab() {
   const [playerSettings, setPlayerSettings] = useState(false);
   const [starsOpen, setStarsOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
-  const featOwned = new Set(owned.filter((id) => ACHIEVEMENT_IDS.has(id))).size;
 
   if (isPending) {
     return <div className="mt-5 h-64 animate-pulse rounded-xl bg-surface/90" />;
@@ -106,14 +105,6 @@ export function ProfileTab() {
                       <Star className="size-5 text-accent" fill="currentColor" />
                       <span className="text-[#f8e7a0]">{dailyStars}</span>
                     </button>
-                    <button
-                      type="button"
-                      className="text-[#d4e8ff]"
-                      aria-label="Achievements"
-                      onClick={() => setAchievementsOpen(true)}
-                    >
-                      {featOwned}/{ACHIEVEMENT_UNLOCKS.length}
-                    </button>
                   </span>
                 </h2>
                 <p className="mt-1 text-sm text-muted">
@@ -135,6 +126,7 @@ export function ProfileTab() {
                 slices={{ total: book.total, auction: book.auction, elimination: book.elimination }}
                 opponents={book.opponentsBy}
                 owned={owned}
+                onAchievements={() => setAchievementsOpen(true)}
               />
             )}
           </section>
