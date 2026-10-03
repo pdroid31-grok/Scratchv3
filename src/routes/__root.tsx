@@ -1,5 +1,6 @@
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
+import { PlayerProfileHost } from "@/components/game/player-profile-dialog";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { StyleGuard } from "@/components/style-guard";
 import { LegalFooter } from "@/components/legal-footer";
@@ -56,10 +57,12 @@ export const Route = createRootRoute({
         <PreviewHostBridge />
         <StyleGuard />
         <AuthProvider>
-          <div className="flex flex-1 flex-col">
-            <Outlet />
-          </div>
-          <LegalFooter />
+          <PlayerProfileHost>
+            <div className="flex flex-1 flex-col">
+              <Outlet />
+            </div>
+            <LegalFooter />
+          </PlayerProfileHost>
         </AuthProvider>
         <Scripts />
       </body>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowRight, X } from "lucide-react";
 import { WeeklyUpdateDialog } from "@/components/game/weekly-update-notice";
 import { ACHIEVEMENT_UNLOCKS, avatarById, starNeed } from "@/lib/game/avatars";
@@ -9,6 +8,7 @@ import { formatNewsTime, type NewsFace, type NewsItem } from "@/lib/game/news";
 import { listNews, markNewsSeen, peekNewsUnseen, claimNewsFeat } from "@/lib/game/news-api";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { isHiddenBoardId, isHiddenBoardName } from "@/lib/game/stats-shared";
+import { useOpenPlayerProfile } from "@/components/game/player-profile-dialog";
 
 type LookPeek = { src: string; name: string };
 
@@ -202,6 +202,7 @@ function Face({ face, onPeek }: { face: NewsFace; onPeek: (look: LookPeek) => vo
   const av = avatarById(face.avatarId);
   const id = face.userId?.trim() ?? "";
   const linked = Boolean(id) && !isHiddenBoardId(id) && !isHiddenBoardName(face.name);
+  const openPlayer = useOpenPlayerProfile();
   return (
     <span className="inline-flex min-w-0 items-center gap-1.5">
       <button
@@ -217,9 +218,13 @@ function Face({ face, onPeek }: { face: NewsFace; onPeek: (look: LookPeek) => vo
         <img src={av.src} alt="" className="size-7 rounded-md object-cover" />
       </button>
       {linked ? (
-        <Link to="/player/$id" params={{ id }} className="min-w-0 truncate font-medium text-fg hover:underline">
+        <button
+          type="button"
+          className="min-w-0 truncate text-left font-medium text-fg hover:underline"
+          onClick={() => openPlayer(id)}
+        >
           {face.name}
-        </Link>
+        </button>
       ) : (
         <span className="truncate font-medium text-fg">{face.name}</span>
       )}

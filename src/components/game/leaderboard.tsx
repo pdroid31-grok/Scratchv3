@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "@tanstack/react-router";
 import { CalendarDays, ChevronLeft, ChevronRight, Search, Star } from "lucide-react";
 import { RankSwipe, LEADERBOARD_TABS, type RankTabId } from "@/components/game/rank-tabs";
 import { DailyLineupSheet } from "@/components/game/daily-lineup";
 import { WeeklyWeekBoard } from "@/components/game/season-tab";
 import { YesterdayWinner } from "@/components/game/yesterday-winner";
 import { DailyLeagueChat } from "@/components/game/daily-league-chat";
+import { useOpenPlayerProfile } from "@/components/game/player-profile-dialog";
 import { avatarById } from "@/lib/game/avatars";
 import type { BoardRow, Leaderboard as Boards } from "@/lib/game/stats";
 import { listDailyBoard, type DailyBoard } from "@/lib/game/daily-api";
@@ -110,6 +110,7 @@ export function Leaderboard({
 function DailyPane() {
   const today = dailyDayStamp();
   const { user } = useCurrentUserState();
+  const openPlayer = useOpenPlayerProfile();
   const [day, setDay] = useState(today);
   const [board, setBoard] = useState<DailyBoard | null>(null);
   const [calOpen, setCalOpen] = useState(false);
@@ -167,11 +168,10 @@ function DailyPane() {
               const canPeek = row.hasPicks && canViewDailyLineup(day, today, user?.id, row.id);
               return (
                 <li key={row.id} className="flex items-stretch overflow-hidden rounded-md bg-bg shadow-[var(--shadow-border)]">
-                  <Link
-                    to="/player/$id"
-                    params={{ id: row.id }}
-                    search={{ board: "daily" }}
-                    className="min-w-0 flex-1 px-3 py-2.5 hover:shadow-[var(--shadow-border-hover)]"
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 px-3 py-2.5 text-left hover:shadow-[var(--shadow-border-hover)]"
+                    onClick={() => openPlayer(row.id)}
                   >
                     <div className="flex items-center gap-3">
                       <span className="w-6 shrink-0 text-center font-display text-sm font-semibold tabular-nums text-subtle">
@@ -199,7 +199,7 @@ function DailyPane() {
                     <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-surface-2" aria-hidden>
                       <span className="block h-full rounded-full bg-turf/80" style={{ width: `${width}%` }} />
                     </span>
-                  </Link>
+                  </button>
                   {canPeek ? (
                     <button
                       type="button"
@@ -309,7 +309,6 @@ function BoardList({
   rows,
   loading,
   empty,
-  board,
   metric = "wins",
 }: {
   rows: BoardRow[] | null;
@@ -318,6 +317,7 @@ function BoardList({
   board: RankTabId;
   metric?: "wins" | "score" | "stars";
 }) {
+  const openPlayer = useOpenPlayerProfile();
   const top =
     metric === "score"
       ? rows?.[0]?.highest ?? 0
@@ -334,11 +334,10 @@ function BoardList({
         const src = avatarById(row.avatarId).src;
         return (
           <li key={row.id}>
-            <Link
-              to="/player/$id"
-              params={{ id: row.id }}
-              search={{ board }}
-              className="block rounded-md bg-bg px-3 py-2.5 shadow-[var(--shadow-border)] hover:shadow-[var(--shadow-border-hover)]"
+            <button
+              type="button"
+              className="block w-full rounded-md bg-bg px-3 py-2.5 text-left shadow-[var(--shadow-border)] hover:shadow-[var(--shadow-border-hover)]"
+              onClick={() => openPlayer(row.id)}
             >
               <div className="flex items-center gap-3">
                 <span className="w-6 shrink-0 text-center font-display text-sm font-semibold tabular-nums text-subtle">
@@ -382,7 +381,7 @@ function BoardList({
               <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-surface-2" aria-hidden>
                 <span className="block h-full rounded-full bg-turf/80" style={{ width: `${width}%` }} />
               </span>
-            </Link>
+            </button>
           </li>
         );
       })}

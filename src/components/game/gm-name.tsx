@@ -1,7 +1,7 @@
 "use client";
 
-import { Link } from "@tanstack/react-router";
 import { avatarById } from "@/lib/game/avatars";
+import { useOpenPlayerProfile } from "@/components/game/player-profile-dialog";
 import { useGame } from "@/lib/game/store";
 import type { Seat } from "@/lib/game/types";
 import { cn } from "@/lib/utils";
@@ -30,6 +30,7 @@ export function GmName({
   const name = names[seat] || "GM";
   const src = avatarById(avatars?.[seat] ?? "poor").src;
   const userId = userIds?.[seat] ?? null;
+  const openPlayer = useOpenPlayerProfile();
   const face = size === "lg" ? "size-11" : size === "md" ? "size-9" : "size-7";
 
   const inner = flow ? (
@@ -58,8 +59,8 @@ export function GmName({
 
   if (!link || !userId) return inner;
   return (
-    <Link to="/player/$id" params={{ id: userId }} className="min-w-0 hover:underline">
+    <button type="button" className="min-w-0 text-left hover:underline" onClick={() => openPlayer(userId)}>
       {inner}
-    </Link>
+    </button>
   );
 }

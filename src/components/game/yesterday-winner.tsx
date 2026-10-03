@@ -1,17 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Link } from "@tanstack/react-router";
 import { Star } from "lucide-react";
 import { avatarById } from "@/lib/game/avatars";
 import { listDailyBoard, type DailyBoard } from "@/lib/game/daily-api";
 import { dailyDayStamp, dailyYesterday, isDailyDay } from "@/lib/game/daily";
 import { cn } from "@/lib/utils";
+import { useOpenPlayerProfile } from "@/components/game/player-profile-dialog";
 
 export function YesterdayWinner({ size = "md" }: { size?: "md" | "rank" | "lg" }) {
   const today = dailyDayStamp();
   const day = dailyYesterday(today);
   const scale = size === "lg" ? "lg" : size === "rank" ? "rank" : "md";
+  const openPlayer = useOpenPlayerProfile();
   const [row, setRow] = useState<{
     id: string;
     name: string;
@@ -73,11 +74,10 @@ export function YesterdayWinner({ size = "md" }: { size?: "md" | "rank" | "lg" }
             —
           </span>
         ) : (
-          <Link
-            to="/player/$id"
-            params={{ id: row.id }}
-            search={{ board: "daily" }}
-            className={cn("flex min-w-0 items-center", scale === "lg" ? "gap-3" : "gap-2")}
+          <button
+            type="button"
+            className={cn("flex min-w-0 items-center text-left", scale === "lg" ? "gap-3" : "gap-2")}
+            onClick={() => openPlayer(row.id)}
           >
             <img
               src={avatarById(row.avatarId).src}
@@ -119,7 +119,7 @@ export function YesterdayWinner({ size = "md" }: { size?: "md" | "rank" | "lg" }
                 {row.score.toFixed(1)}
               </span>
             </span>
-          </Link>
+          </button>
         )}
       </div>
     </div>

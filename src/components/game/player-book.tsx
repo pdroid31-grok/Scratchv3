@@ -9,12 +9,12 @@ import { closetGridClass, useClosetCols } from "@/components/game/closet-cols";
 import { ACHIEVEMENT_IDS, CLOSET_AVATARS, SHIRT_AVATARS, STAR_IDS, avatarById, isShirtAvatar, isUnlocked, lookSource, remainingToUnlock } from "@/lib/game/avatars";
 import type { PublicBook } from "@/lib/game/stats";
 
-export function PlayerBook({ book, board: start }: { book: PublicBook; board: RankTabId }) {
+export function PlayerBook({ book, board, popup = false }: { book: PublicBook; board?: RankTabId; popup?: boolean }) {
   const avatar = avatarById(book.avatarId);
   const owned = book.owned ?? ["poor"];
 
   return (
-    <section className="mt-6 rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
+    <section className={`${popup ? "" : "mt-6 "}rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-4">
           <AvatarPeek
@@ -41,25 +41,29 @@ export function PlayerBook({ book, board: start }: { book: PublicBook; board: Ra
             </p>
           </div>
         </div>
-        <Link
-          to="/"
-          search={{ tab: "rankings", board: start }}
-          className="inline-flex h-11 min-h-11 shrink-0 items-center rounded-md bg-fg px-3 text-sm font-medium text-bg hover:bg-fg/90 sm:px-4"
-        >
-          Back to Rankings
-        </Link>
+        {popup || !board ? null : (
+          <Link
+            to="/"
+            search={{ tab: "rankings", board }}
+            className="inline-flex h-11 min-h-11 shrink-0 items-center rounded-md bg-fg px-3 text-sm font-medium text-bg hover:bg-fg/90 sm:px-4"
+          >
+            Back to Rankings
+          </Link>
+        )}
       </div>
       <div className="mt-4">
         <SliceStats slice={book.total} empty="No matches on the book yet." owned={book.owned} featCard />
       </div>
       <UnlockedCloset owned={owned} wearing={book.avatarId} />
-      <Link
-        to="/"
-        search={{ tab: "rankings", board: start }}
-        className="mt-5 inline-flex h-11 min-h-11 items-center rounded-md bg-fg px-4 text-sm font-medium text-bg hover:bg-fg/90"
-      >
-        Back to Rankings
-      </Link>
+      {popup || !board ? null : (
+        <Link
+          to="/"
+          search={{ tab: "rankings", board }}
+          className="mt-5 inline-flex h-11 min-h-11 items-center rounded-md bg-fg px-4 text-sm font-medium text-bg hover:bg-fg/90"
+        >
+          Back to Rankings
+        </Link>
+      )}
     </section>
   );
 }

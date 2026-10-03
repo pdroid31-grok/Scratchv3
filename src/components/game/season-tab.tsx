@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { avatarById } from "@/lib/game/avatars";
 import { getWeeklyLineup, listSeasonBoard, listWeeklyBoard, type SeasonBoard, type WeeklyBoard, type WeeklyBoardRow, type WeeklyLineup } from "@/lib/game/weekly-api";
 import { canViewWeeklyLineup } from "@/lib/game/weekly";
 import { WeeklyLineupSheet } from "@/components/game/weekly-lineup";
+import { useOpenPlayerProfile } from "@/components/game/player-profile-dialog";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { cn } from "@/lib/utils";
 
@@ -105,6 +105,7 @@ export function WeeklyWeekBoard({
   startAtCurrent?: boolean;
 }) {
   const { user } = useCurrentUserState();
+  const openPlayer = useOpenPlayerProfile();
   const [week, setWeek] = useState(startAtCurrent ? 0 : 1);
   const [board, setBoard] = useState<WeeklyBoard | null>(null);
   const [peek, setPeek] = useState<string | null>(null);
@@ -223,13 +224,13 @@ export function WeeklyWeekBoard({
                 : peekLineups && row.hasPicks && canViewWeeklyLineup(board.awarded, board.live, user?.id, row.id);
               return (
                 <li key={row.id} className="flex items-stretch overflow-hidden rounded-md bg-bg shadow-[var(--shadow-border)]">
-                  <Link
-                    to="/player/$id"
-                    params={{ id: row.id }}
-                    className="min-w-0 flex-1 px-3 py-2.5 hover:shadow-[var(--shadow-border-hover)]"
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 px-3 py-2.5 text-left hover:shadow-[var(--shadow-border-hover)]"
+                    onClick={() => openPlayer(row.id)}
                   >
                     <WeekRowBody row={row} place={index + 1} />
-                  </Link>
+                  </button>
                   {canPeek ? (
                     <button
                       type="button"
@@ -442,6 +443,7 @@ function SeasonTeamPager({
 
 function SeasonPane() {
   const [board, setBoard] = useState<SeasonBoard | null>(null);
+  const openPlayer = useOpenPlayerProfile();
 
   useEffect(() => {
     let stop = false;
@@ -480,10 +482,10 @@ function SeasonPane() {
           <ol className="grid gap-1.5">
             {board.rows.map((row, index) => (
               <li key={row.id}>
-                <Link
-                  to="/player/$id"
-                  params={{ id: row.id }}
-                  className="flex items-center gap-3 rounded-md bg-bg px-3 py-2.5 shadow-[var(--shadow-border)] hover:shadow-[var(--shadow-border-hover)]"
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-3 rounded-md bg-bg px-3 py-2.5 text-left shadow-[var(--shadow-border)] hover:shadow-[var(--shadow-border-hover)]"
+                  onClick={() => openPlayer(row.id)}
                 >
                   <span className="w-6 shrink-0 text-center font-display text-sm font-semibold tabular-nums text-subtle">
                     {index + 1}
@@ -506,7 +508,7 @@ function SeasonPane() {
                       {row.move === "same" ? <span className="text-white">=</span> : null}
                     </span>
                   ) : null}
-                </Link>
+                </button>
               </li>
             ))}
           </ol>

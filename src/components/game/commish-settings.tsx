@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { avatarById } from "@/lib/game/avatars";
+import { useOpenPlayerProfile } from "@/components/game/player-profile-dialog";
 import {
   clearCommishClaim,
   COMMISH_PASSWORD_NAME,
@@ -450,6 +451,7 @@ function NamedPasswordPanel({
 
 function LiveBankCard() {
   const [data, setData] = useState<import("@/lib/game/bank-watch").BankWatch | null | "load">("load");
+  const openPlayer = useOpenPlayerProfile();
   useEffect(() => {
     let live = true;
     void import("@/lib/game/bank-watch")
@@ -471,13 +473,13 @@ function LiveBankCard() {
       <ul className="divide-y divide-border/60">
           {data.banks.map((row) => (
             <li key={row.id} className="flex items-baseline justify-between gap-3 py-2">
-              <Link
-                to="/player/$id"
-                params={{ id: row.id }}
-                className="min-w-0 truncate font-display text-sm font-semibold uppercase tracking-wide text-fg hover:text-turf"
+              <button
+                type="button"
+                className="min-w-0 truncate text-left font-display text-sm font-semibold uppercase tracking-wide text-fg hover:text-turf"
+                onClick={() => openPlayer(row.id)}
               >
                 {row.name}
-              </Link>
+              </button>
               <span className="shrink-0 font-display text-sm font-semibold tabular-nums text-fg">
                 ${row.coins}
                 <span className="ml-2 text-muted">
