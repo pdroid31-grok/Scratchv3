@@ -6,13 +6,12 @@ import { SliceStats } from "@/components/game/book-slice";
 import type { RankTabId } from "@/components/game/rank-tabs";
 import { AvatarPeek } from "@/components/game/avatar-peek";
 import { closetGridClass, useClosetCols } from "@/components/game/closet-cols";
-import { ACHIEVEMENT_IDS, ACHIEVEMENT_UNLOCKS, CLOSET_AVATARS, SHIRT_AVATARS, STAR_IDS, avatarById, isShirtAvatar, isUnlocked, lookSource, remainingToUnlock } from "@/lib/game/avatars";
+import { ACHIEVEMENT_IDS, CLOSET_AVATARS, SHIRT_AVATARS, STAR_IDS, avatarById, isShirtAvatar, isUnlocked, lookSource, remainingToUnlock } from "@/lib/game/avatars";
 import type { PublicBook } from "@/lib/game/stats";
 
 export function PlayerBook({ book, board: start }: { book: PublicBook; board: RankTabId }) {
   const avatar = avatarById(book.avatarId);
   const owned = book.owned ?? ["poor"];
-  const featOwned = new Set(owned.filter((id) => ACHIEVEMENT_IDS.has(id))).size;
 
   return (
     <section className="mt-6 rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
@@ -39,9 +38,6 @@ export function PlayerBook({ book, board: start }: { book: PublicBook; board: Ra
                 <Star className="size-4 text-accent" fill="currentColor" />
                 <span className="text-[#f8e7a0]">{book.dailyStars ?? 0}</span>
               </span>
-              <span className="text-[#d4e8ff]">
-                {featOwned}/{ACHIEVEMENT_UNLOCKS.length}
-              </span>
             </p>
           </div>
         </div>
@@ -54,7 +50,7 @@ export function PlayerBook({ book, board: start }: { book: PublicBook; board: Ra
         </Link>
       </div>
       <div className="mt-4">
-        <SliceStats slice={book.total} empty="No matches on the book yet." owned={book.owned} />
+        <SliceStats slice={book.total} empty="No matches on the book yet." owned={book.owned} featCard />
       </div>
       <UnlockedCloset owned={owned} wearing={book.avatarId} />
       <Link

@@ -56,39 +56,42 @@ export function SliceStats({
   empty,
   opponents,
   owned,
+  featCard,
 }: {
   slice: BookSlice;
   empty: string;
   opponents?: CareerOpponent[];
   owned?: readonly string[];
+  featCard?: boolean;
 }) {
   const hasMark = slice.highest != null || slice.lowest != null;
   const feats = achievementCount(owned);
-  if (!hasMark && slice.games === 0 && slice.wins === 0 && slice.losses === 0 && !opponents?.length) {
-    void empty;
-    return (
-      <dl className="grid grid-cols-2 gap-3">
-        <Stat label="Record" value="0–0" hint="0 nights" />
-        <Stat label="Nights" value="0" />
-        <Stat label="High / Low" value="— / —" />
-        <Stat label="Achievements" value={feats} />
-      </dl>
-    );
-  }
+  const blank = !hasMark && slice.games === 0 && slice.wins === 0 && slice.losses === 0 && !opponents?.length;
+  if (blank) void empty;
   return (
     <>
       <dl className="grid grid-cols-2 gap-3">
         <Stat
           label="Record"
-          value={`${slice.wins}–${slice.losses}`}
-          hint={slice.ties ? `${slice.ties} draw${slice.ties === 1 ? "" : "s"}` : `${slice.games} nights`}
+          value={blank ? "0–0" : `${slice.wins}–${slice.losses}`}
+          hint={blank ? "0 nights" : slice.ties ? `${slice.ties} draw${slice.ties === 1 ? "" : "s"}` : `${slice.games} nights`}
         />
-        <Stat label="Nights" value={String(slice.games)} />
-        <Stat label="High / Low" value={highLow(slice.highest, slice.lowest)} />
-        <Stat label="Achievements" value={feats} />
+        <Stat label="Nights" value={blank ? "0" : String(slice.games)} />
+        <Stat label="High / Low" value={blank ? "— / —" : highLow(slice.highest, slice.lowest)} />
+        {featCard ? null : <Stat label="Achievements" value={feats} />}
       </dl>
+      {featCard ? <FeatCard value={feats} /> : null}
       {opponents && opponents.length > 0 ? <MostPlayed opponents={opponents} /> : null}
     </>
+  );
+}
+
+function FeatCard({ value }: { value: string }) {
+  return (
+    <div className="mt-3 rounded-xl bg-[#d4e8ff] px-4 py-3 text-bg shadow-[var(--shadow-border)]">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em]">Achievements</p>
+      <p className="mt-1 font-display text-2xl font-semibold tabular-nums leading-none">{value}</p>
+    </div>
   );
 }
 
