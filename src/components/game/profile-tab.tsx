@@ -3,13 +3,15 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Gavel, Settings, Star, X } from "lucide-react";
-import { ACHIEVEMENT_IDS, CLOSET_AVATARS, SHIRT_AVATARS, STAR_IDS, avatarById, isShirtAvatar, isUnlocked, lookSource, ownsAvatar, remainingToUnlock, type AvatarId } from "@/lib/game/avatars";
+import { ACHIEVEMENT_IDS, ACHIEVEMENT_UNLOCKS, CLOSET_AVATARS, SHIRT_AVATARS, STAR_IDS, avatarById, isShirtAvatar, isUnlocked, lookSource, ownsAvatar, remainingToUnlock, type AvatarId } from "@/lib/game/avatars";
 import { useProfile } from "@/lib/game/profile-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { authEnabled, signOut } from "@/lib/auth/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BookFormats, bookHasScores } from "@/components/game/book-slice";
+import { AchievementsSheet } from "@/components/game/achievements-unlocks";
+import { DailyUnlocksSheet } from "@/components/game/daily-unlocks";
 import { AvatarPeek } from "@/components/game/avatar-peek";
 import { closetGridClass, useClosetCols, writeClosetCols } from "@/components/game/closet-cols";
 import { isCommishSettingsUser } from "@/lib/game/commish";
@@ -32,6 +34,9 @@ export function ProfileTab() {
   const shown = displayName || user?.displayName || "";
   const [signingOut, setSigningOut] = useState(false);
   const [playerSettings, setPlayerSettings] = useState(false);
+  const [starsOpen, setStarsOpen] = useState(false);
+  const [achievementsOpen, setAchievementsOpen] = useState(false);
+  const featOwned = new Set(owned.filter((id) => ACHIEVEMENT_IDS.has(id))).size;
 
   if (isPending) {
     return <div className="mt-5 h-64 animate-pulse rounded-xl bg-surface/90" />;
@@ -90,12 +95,25 @@ export function ProfileTab() {
                   <span className="truncate font-display text-2xl font-semibold uppercase tracking-wide text-fg">
                     {shown || "GM"}
                   </span>
-                  <span className="inline-flex shrink-0 items-center gap-2.5 font-display text-2xl font-semibold tabular-nums tracking-wide text-fg">
-                    <span>${coins}</span>
-                    <span className="inline-flex items-center gap-1 leading-none">
+                  <span className="inline-flex shrink-0 items-center gap-2.5 font-display text-2xl font-semibold tabular-nums tracking-wide">
+                    <span className="text-[#b8f5c8]">${coins}</span>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 leading-none"
+                      aria-label="Daily Unlocks"
+                      onClick={() => setStarsOpen(true)}
+                    >
                       <Star className="size-5 text-accent" fill="currentColor" />
-                      {dailyStars}
-                    </span>
+                      <span className="text-[#f8e7a0]">{dailyStars}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="text-[#d4e8ff]"
+                      aria-label="Achievements"
+                      onClick={() => setAchievementsOpen(true)}
+                    >
+                      {featOwned}/{ACHIEVEMENT_UNLOCKS.length}
+                    </button>
                   </span>
                 </h2>
                 <p className="mt-1 text-sm text-muted">
@@ -142,6 +160,8 @@ export function ProfileTab() {
       {playerSettings && user ? (
         <PlayerSettings name={shown} rename={rename} onClose={() => setPlayerSettings(false)} />
       ) : null}
+      {starsOpen ? <DailyUnlocksSheet onClose={() => setStarsOpen(false)} /> : null}
+      {achievementsOpen ? <AchievementsSheet onClose={() => setAchievementsOpen(false)} /> : null}
     </div>
   );
 }
