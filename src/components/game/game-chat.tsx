@@ -61,14 +61,18 @@ export function GameChat() {
 
   return (
     <div
-      className="pointer-events-none fixed inset-x-0 z-40 mx-auto w-full max-w-lg px-3"
+      className={cn(
+        "pointer-events-none fixed inset-x-0 mx-auto w-full max-w-lg px-3",
+        watchChat ? "z-[80]" : "z-40",
+        open ? "" : "flex justify-end",
+      )}
       style={{
-        bottom: keyboard > 0 ? keyboard : watchChat ? "calc(4.75rem + env(safe-area-inset-bottom, 0px))" : 0,
-        paddingBottom: keyboard > 0 ? 8 : "max(0.75rem, env(safe-area-inset-bottom, 0px))",
+        bottom: keyboard > 0 ? keyboard : watchChat ? "calc(5rem + env(safe-area-inset-bottom, 0px))" : 0,
+        paddingBottom: keyboard > 0 ? 8 : watchChat ? 8 : "max(0.75rem, env(safe-area-inset-bottom, 0px))",
       }}
     >
       {open ? (
-        <div className="pointer-events-auto overflow-hidden rounded-xl bg-surface/95 shadow-[var(--shadow-border)]">
+        <div className="pointer-events-auto w-full overflow-hidden rounded-xl bg-surface/95 shadow-[var(--shadow-border)]">
           <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
             <p className="font-display text-xs font-semibold uppercase tracking-[0.2em] text-turf">Live chat</p>
             <button
@@ -136,7 +140,7 @@ export function GameChat() {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="pointer-events-auto ml-auto flex h-11 items-center gap-2 rounded-full bg-surface/95 px-3.5 font-display text-xs font-semibold uppercase tracking-wider text-fg shadow-[var(--shadow-border)]"
+          className="pointer-events-auto flex h-11 w-fit shrink-0 items-center gap-2 rounded-full bg-surface/95 px-3.5 font-display text-xs font-semibold uppercase tracking-wider text-fg shadow-[var(--shadow-border)]"
         >
           <MessageCircle className="size-4 text-accent" />
           Chat
