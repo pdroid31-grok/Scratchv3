@@ -6,11 +6,13 @@ import { SliceStats } from "@/components/game/book-slice";
 import type { RankTabId } from "@/components/game/rank-tabs";
 import { AvatarPeek } from "@/components/game/avatar-peek";
 import { closetGridClass, useClosetCols } from "@/components/game/closet-cols";
-import { ACHIEVEMENT_IDS, CLOSET_AVATARS, SHIRT_AVATARS, STAR_IDS, avatarById, isShirtAvatar, isUnlocked, lookSource, remainingToUnlock } from "@/lib/game/avatars";
+import { ACHIEVEMENT_IDS, ACHIEVEMENT_UNLOCKS, CLOSET_AVATARS, SHIRT_AVATARS, STAR_IDS, avatarById, isShirtAvatar, isUnlocked, lookSource, remainingToUnlock } from "@/lib/game/avatars";
 import type { PublicBook } from "@/lib/game/stats";
 
 export function PlayerBook({ book, board: start }: { book: PublicBook; board: RankTabId }) {
   const avatar = avatarById(book.avatarId);
+  const owned = book.owned ?? ["poor"];
+  const featOwned = new Set(owned.filter((id) => ACHIEVEMENT_IDS.has(id))).size;
 
   return (
     <section className="mt-6 rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
@@ -31,11 +33,14 @@ export function PlayerBook({ book, board: start }: { book: PublicBook; board: Ra
             <p className="mt-1 text-sm text-muted">
               <span className={lookNameTone(avatar.id) || undefined}>{avatar.name}</span>
             </p>
-            <p className="mt-1 flex items-center gap-2 font-display text-lg font-semibold tabular-nums text-fg">
-              <span>${book.coins ?? 0}</span>
+            <p className="mt-1 flex items-center gap-2 font-display text-lg font-semibold tabular-nums">
+              <span className="text-[#b8f5c8]">${book.coins ?? 0}</span>
               <span className="inline-flex items-center gap-1">
                 <Star className="size-4 text-accent" fill="currentColor" />
-                {book.dailyStars ?? 0}
+                <span className="text-[#f8e7a0]">{book.dailyStars ?? 0}</span>
+              </span>
+              <span className="text-[#d4e8ff]">
+                {featOwned}/{ACHIEVEMENT_UNLOCKS.length}
               </span>
             </p>
           </div>
@@ -51,7 +56,7 @@ export function PlayerBook({ book, board: start }: { book: PublicBook; board: Ra
       <div className="mt-4">
         <SliceStats slice={book.total} empty="No matches on the book yet." owned={book.owned} />
       </div>
-      <UnlockedCloset owned={book.owned ?? ["poor"]} wearing={book.avatarId} />
+      <UnlockedCloset owned={owned} wearing={book.avatarId} />
       <Link
         to="/"
         search={{ tab: "rankings", board: start }}
