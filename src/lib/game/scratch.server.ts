@@ -472,6 +472,12 @@ export async function claimScratchCard(sql: Sql, userId: string, cardId: number)
           } catch (err) {
             console.error("[darkness] crying scratch points failed", err);
           }
+          try {
+            const { maybeGrantHunters } = await import("./board-feats/shop");
+            await maybeGrantHunters(sql, userId);
+          } catch (err) {
+            console.error("[darkness] hunter ladder failed", err);
+          }
         }
       }
     }

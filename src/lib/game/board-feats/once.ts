@@ -15,7 +15,7 @@ const HUNTER_LADDER_FLAG = "hunter-ladder-v1";
 const HUNTER_LADDER_V2_FLAG = "hunter-ladder-v2";
 
 /** One pass through the live ladder. grantFeat writes News and scratch points. Does not touch hunter-ladder-v1. */
-async function grantHunterLadderV2(sql: Sql): Promise<void> {
+export async function grantHunterLadderV2(sql: Sql): Promise<void> {
   await sql.query(`
     create table if not exists darkness_feat_flags (
       key text primary key,

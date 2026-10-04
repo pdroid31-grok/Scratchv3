@@ -134,6 +134,8 @@ export async function importLegacyThenSettle(sql: Sql, today: string): Promise<v
     await maybeGrantDailyContestFeats(sql, today);
     await maybeGrantTwinDay(sql, today);
     await grantRosterFeatsOnce(sql);
+    const { grantHunterLadderV2 } = await import("./board-feats/once");
+    await grantHunterLadderV2(sql);
     await grantCryScratchPointsOnce(sql);
     await grantStarPepeOnce(sql);
   } catch (err) {

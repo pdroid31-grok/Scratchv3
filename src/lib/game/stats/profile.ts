@@ -313,6 +313,12 @@ export async function settleProfile(
       userId,
     ]);
     await announceFeatUnlocks(sql, userId, [CLUB_200_ID]);
+    try {
+      const { maybeGrantHunters } = await import("../board-feats/shop");
+      await maybeGrantHunters(sql, userId);
+    } catch (err) {
+      console.error("[darkness] hunter ladder failed", err);
+    }
   } else if (!clubHit && owned.includes(CLUB_200_ID)) {
     owned = owned.filter((id) => id !== CLUB_200_ID);
     if (avatarId === CLUB_200_ID) avatarId = "poor";
