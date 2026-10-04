@@ -195,6 +195,12 @@ export async function grantEarnedFeats(
     ]);
   }
   await announceFeatUnlocks(sql, userId, add);
+  try {
+    const { maybeGrantHunters } = await import("../board-feats/shop");
+    await maybeGrantHunters(sql, userId);
+  } catch (err) {
+    console.error("[darkness] hunter ladder failed", err);
+  }
   return next;
 }
 
@@ -247,6 +253,12 @@ export async function grantSeedClub200(
     userId,
   ]);
   await announceFeatUnlocks(sql, userId, [CLUB_200_ID]);
+  try {
+    const { maybeGrantHunters } = await import("../board-feats/shop");
+    await maybeGrantHunters(sql, userId);
+  } catch (err) {
+    console.error("[darkness] hunter ladder failed", err);
+  }
   return next;
 }
 

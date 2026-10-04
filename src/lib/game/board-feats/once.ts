@@ -1,6 +1,7 @@
 import { parseOwned, huntersToGrant, VEGAS_ID, COLD_STREAK_FROM, THREE_HEADED_FROM, threeHeadedHit, pennyHit, PENNY_ID, CRYPEPE_ID, STARPEPE_ID } from "../avatars";
 import { dailyDayStamp } from "../daily";
 import { grantFeat, skipWho, type Sql } from "./grant";
+import { maybeGrantHunters } from "./shop";
 import {
   maybeGrantBlueStreak,
   maybeGrantColdStreak,
@@ -11,9 +12,36 @@ import {
 } from "./lineup";
 
 const HUNTER_LADDER_FLAG = "hunter-ladder-v1";
+const HUNTER_LADDER_V2_FLAG = "hunter-ladder-v2";
+
+/** One pass through the live ladder. grantFeat writes News and scratch points. Does not touch hunter-ladder-v1. */
+async function grantHunterLadderV2(sql: Sql): Promise<void> {
+  await sql.query(`
+    create table if not exists darkness_feat_flags (
+      key text primary key,
+      created_at timestamptz not null default now()
+    )`);
+  const already = await sql.query<{ key: string }>(
+    `select key from darkness_feat_flags where key = $1`,
+    [HUNTER_LADDER_V2_FLAG],
+  );
+  if (already[0]) return;
+  const rows = await sql.query<{ user_id: string; name: string | null }>(
+    `select p.user_id,
+            coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name
+       from player_profiles p
+       left join "user" u on u.id = p.user_id`,
+  );
+  for (const row of rows) {
+    if (skipWho(row.user_id, row.name)) continue;
+    await maybeGrantHunters(sql, row.user_id);
+  }
+  await sql.query(`insert into darkness_feat_flags (key) values ($1) on conflict do nothing`, [HUNTER_LADDER_V2_FLAG]);
+}
 
 /** One dump of current standings. Toasts only. Does not write News. */
 export async function grantHunterLadderOnce(sql: Sql): Promise<void> {
+  await grantHunterLadderV2(sql);
   await sql.query(`
     create table if not exists darkness_feat_flags (
       key text primary key,
