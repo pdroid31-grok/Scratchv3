@@ -62,6 +62,12 @@ async function grantOne(sql: Sql, userId: string): Promise<void> {
   ]);
   const { recordLookUnlockNews } = await import("./news.server");
   await recordLookUnlockNews(sql, userId, DOUBLE_TROUBLE_ID, "feats");
+  try {
+    const { maybeGrantHunters } = await import("./board-feats/shop");
+    await maybeGrantHunters(sql, userId);
+  } catch (err) {
+    console.error("[darkness] hunter ladder failed", err);
+  }
 }
 
 async function wonDaily(sql: Sql, day: string, userId: string): Promise<boolean> {

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, X } from "lucide-react";
 import { WeeklyUpdateDialog } from "@/components/game/weekly-update-notice";
-import { ACHIEVEMENT_UNLOCKS, avatarById, starNeed } from "@/lib/game/avatars";
+import { ACHIEVEMENT_UNLOCKS, avatarById, lookSource, starNeed } from "@/lib/game/avatars";
 import { formatNewsTime, type NewsFace, type NewsItem } from "@/lib/game/news";
 import { listNews, markNewsSeen, peekNewsUnseen, claimNewsFeat } from "@/lib/game/news-api";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -325,18 +325,18 @@ function NewsLine({
   if ((item.kind === "star_unlock" || item.kind === "feat_unlock") && a && item.prizeId) {
     const need = starNeed(item.prizeId);
     const how = ACHIEVEMENT_UNLOCKS.find((row) => row.id === item.prizeId)?.how ?? "";
+    const source =
+      item.kind === "star_unlock"
+        ? `from ${need} Daily stars`
+        : how
+          ? `from Achievement: ${how}`
+          : lookSource(item.prizeId);
     return (
       <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-fg">
         <Face face={a} onPeek={onPeek} />
         <span className="text-muted">unlocked</span>
         <PrizeMark id={item.prizeId} label={item.prizeLabel} onPeek={onPeek} hideUnlocks={hideUnlocks} />
-        <span className="text-muted">
-          {item.kind === "star_unlock"
-            ? `from ${need} Daily stars`
-            : how
-              ? `from Achievement: ${how}`
-              : "from Achievements"}
-        </span>
+        {source ? <span className="text-muted">{source}</span> : null}
       </p>
     );
   }
