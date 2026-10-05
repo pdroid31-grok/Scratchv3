@@ -9,6 +9,7 @@ export {
   maybeGrantTwinDay,
   maybeGrantComebackPair,
   maybeGrantPoop,
+  maybeGrantMusicalChairs,
 } from "./board-feats/place-daily";
 export {
   maybeGrantHeavyHitter,
@@ -17,6 +18,7 @@ export {
   maybeGrantDailyContestFeats,
   maybeGrantMirrorWeek,
   maybeGrantTwinWeek,
+  maybeGrantHospital,
 } from "./board-feats/place-weekly";
 export {
   maybeGrantThrifty,

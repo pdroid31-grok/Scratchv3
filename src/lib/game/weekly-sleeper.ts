@@ -421,6 +421,21 @@ export function buildWeeklyBoard(
   return withMondayNightPlayer(pack, byPos, teams);
 }
 
+/** Sids on this week's Sleeper projection list that isInjuredForWeekly marks injured. */
+export async function weeklyInjuredSids(season: number, week: number): Promise<Set<string>> {
+  const raw = await getJson<ProjRow[]>(
+    `https://api.sleeper.app/projections/nfl/${season}/${week}?season_type=regular`,
+    30 * 60_000,
+  );
+  const out = new Set<string>();
+  for (const row of Array.isArray(raw) ? raw : []) {
+    const sid = String(row.player_id || "");
+    if (!sid || !isInjuredForWeekly(row.player)) continue;
+    out.add(sid);
+  }
+  return out;
+}
+
 export async function weeklyProjections(season: number, week: number): Promise<WeeklyPackedBoard> {
   const [raw, schedule] = await Promise.all([
     getJson<ProjRow[]>(

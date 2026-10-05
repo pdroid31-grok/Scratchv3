@@ -13,6 +13,10 @@ import {
   OVERHEAD_FROM,
   MIRROR_FROM,
   TWIN_FROM,
+  HOSPITAL_ID,
+  HOSPITAL_FROM_SEASON,
+  HOSPITAL_FROM_WEEK,
+  HOSPITAL_NEED,
   lineupSignature,
   overheadPassed,
   mirrorUserIds,
@@ -23,6 +27,7 @@ import { dailyDayStamp } from "../daily";
 import { teamBye } from "../elim-byes";
 import type { TeamId } from "../types";
 import { grantFeat, skipBoardRow, type Sql } from "./grant";
+import { weeklyInjuredSids } from "../weekly-sleeper";
 
 export function asTime(value: unknown): number {
   if (value instanceof Date) {
@@ -230,5 +235,31 @@ export async function maybeGrantTwinWeek(sql: Sql, season: number, week: number,
     for (const userId of twinUserIds(signed)) await grantFeat(sql, userId, TWIN_ID);
   } catch (err) {
     console.error("[darkness] twin grant failed", err);
+  }
+}
+
+/** Two or more locked Weekly picks injured at close. From 2026 week 4. The board is not counted. */
+export async function maybeGrantHospital(
+  sql: Sql,
+  season: number,
+  week: number,
+  runs: readonly { userId: string; picks: readonly { sid?: string }[] }[],
+): Promise<void> {
+  try {
+    if (season < HOSPITAL_FROM_SEASON || (season === HOSPITAL_FROM_SEASON && week < HOSPITAL_FROM_WEEK)) return;
+    const injured = await weeklyInjuredSids(season, week);
+    for (const run of runs) {
+      const seen = new Set<string>();
+      let n = 0;
+      for (const pick of run.picks) {
+        const sid = String(pick.sid || "");
+        if (!sid || seen.has(sid) || !injured.has(sid)) continue;
+        seen.add(sid);
+        n += 1;
+      }
+      if (n >= HOSPITAL_NEED) await grantFeat(sql, run.userId, HOSPITAL_ID);
+    }
+  } catch (err) {
+    console.error("[darkness] hospital grant failed", err);
   }
 }

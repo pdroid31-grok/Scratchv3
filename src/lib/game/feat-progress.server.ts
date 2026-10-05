@@ -14,6 +14,7 @@ import {
   NIGHT_OWL_NEED,
   POOP_NEED,
   SILVER_SECOND_NEED,
+  MUSICAL_CHAIRS_NEED,
   THANOS_OWN_NEED,
   THREE_LEAF_NEED,
   TREND_FROM,
@@ -38,6 +39,8 @@ import {
   fallingTail,
   risingTail,
   trailingAtLeast,
+  musicalChairLine,
+  placesHeld,
   type FeatProgressLines,
 } from "./feat-progress";
 import type { Sql } from "@/lib/db";
@@ -183,5 +186,12 @@ export async function loadFeatProgress(sql: Sql, userId: string): Promise<FeatPr
     thanos: total(new Set(owned).size, THANOS_OWN_NEED, "owned"),
     boxaddict: total(boxPoolOwnedCount(owned), BOX_ADDICT_POOL_NEED, "boxes"),
     threeleafclover: total(leaf, THREE_LEAF_NEED, "scratch results"),
+    musicalchairs: musicalChairLine(
+      placesHeld(
+        [...byDay.entries()].filter(([day]) => day >= COLD_STREAK_FROM).map(([, list]) => list),
+        userId,
+        MUSICAL_CHAIRS_NEED,
+      ),
+    ),
   };
 }

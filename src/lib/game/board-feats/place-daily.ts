@@ -9,6 +9,9 @@ import {
   RAINY_DAY_ID,
   POOP_ID,
   POOP_NEED,
+  MUSICAL_CHAIRS_ID,
+  MUSICAL_CHAIRS_NEED,
+  COLD_STREAK_FROM,
   EARLY_BIRD_ID,
   LOST_ID,
   NIGHT_OWL_ID,
@@ -26,6 +29,7 @@ import {
 import { clipGm } from "../stats-shared";
 import { dailyDayStamp, dailyYesterday } from "../daily";
 import { grantFeat, skipBoardRow, type Sql } from "./grant";
+import { placesHeld } from "../feat-progress";
 import { asPicks, asTime, visibleContest, type DailyContestRow } from "./place-weekly";
 
 export const RAINY_DAY_FROM = "2026-09-19";
@@ -271,5 +275,50 @@ export async function maybeGrantPoop(sql: Sql, day: string): Promise<void> {
     }
   } catch (err) {
     console.error("[darkness] poop grant failed", err);
+  }
+}
+
+/** Each visible Daily place 1 through 10, once, from COLD_STREAK_FROM. Ties share the place. */
+export async function maybeGrantMusicalChairs(sql: Sql, day: string): Promise<void> {
+  try {
+    if (!day || day < COLD_STREAK_FROM) return;
+    if (!(await dayAwarded(sql, day))) return;
+    const days = await sql.query<{ day: string }>(
+      `select day::text as day
+         from darkness_daily_days
+        where awarded is true and day >= $1::date
+        order by 1`,
+      [COLD_STREAK_FROM],
+    );
+    const boards: { userId: string; score: number }[][] = [];
+    for (const row of days) {
+      const stamp = String(row.day).slice(0, 10);
+      const rows = await sql.query<{ user_id: string; name: string | null; score: number | string }>(
+        `select r.user_id,
+                coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name,
+                r.score
+           from darkness_daily_runs r
+           left join player_profiles p on p.user_id = r.user_id
+           left join "user" u on u.id = r.user_id
+          where r.day = $1::date and r.status = 'done' and r.score is not null`,
+        [stamp],
+      );
+      const visible: { userId: string; score: number }[] = [];
+      for (const run of rows) {
+        if (skipBoardRow(run.user_id, run.name) || skipBoardRow(run.user_id, clipGm(run.name ?? ""))) continue;
+        const score = Number(run.score);
+        if (!Number.isFinite(score)) continue;
+        visible.push({ userId: run.user_id, score });
+      }
+      if (visible.length) boards.push(visible);
+    }
+    const users = new Set(boards.flatMap((board) => board.map((row) => row.userId)));
+    for (const userId of users) {
+      if (placesHeld(boards, userId, MUSICAL_CHAIRS_NEED).length >= MUSICAL_CHAIRS_NEED) {
+        await grantFeat(sql, userId, MUSICAL_CHAIRS_ID);
+      }
+    }
+  } catch (err) {
+    console.error("[darkness] musical chairs grant failed", err);
   }
 }

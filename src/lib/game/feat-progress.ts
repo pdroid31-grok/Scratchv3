@@ -117,3 +117,35 @@ export function daysSince(lastDay: string, today: string): number {
 }
 
 export type FeatProgressLines = Record<string, string>;
+
+/** 1-based finish. Ties share the place. The next place skips the tied count. */
+export function finishPlace(rows: readonly { userId: string; score: number }[], userId: string): number | null {
+  const mine = rows.find((row) => row.userId === userId);
+  if (!mine || !Number.isFinite(mine.score)) return null;
+  let ahead = 0;
+  for (const row of rows) {
+    if (row.score > mine.score) ahead += 1;
+  }
+  return ahead + 1;
+}
+
+/** Distinct places 1 through 10. A place already held is not counted again. */
+export function placesHeld(
+  days: readonly (readonly { userId: string; score: number }[])[],
+  userId: string,
+  need = 10,
+): number[] {
+  const held = new Set<number>();
+  for (const rows of days) {
+    const place = finishPlace(rows, userId);
+    if (place == null || place < 1 || place > need) continue;
+    held.add(place);
+  }
+  return [...held].sort((a, b) => a - b);
+}
+
+export function musicalChairLine(places: readonly number[]): string {
+  const n = places.length;
+  if (!n) return "0/10";
+  return `${places.join(", ")} · ${n}/10`;
+}

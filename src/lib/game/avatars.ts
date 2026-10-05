@@ -143,6 +143,8 @@ export const AVATARS = [
   { id: "rubberduck", name: "Rubber Duck", src: "/avatars/rubberduck.jpg?v=1" },
   { id: "golden", name: "Golden", src: "/avatars/golden.jpg?v=1" },
   { id: "oneone", name: "1/1", src: "/avatars/oneone.jpg?v=1" },
+  { id: "musicalchairs", name: "Musical Chairs", src: "/avatars/musicalchairs.jpg?v=1" },
+  { id: "hospital", name: "Hospital", src: "/avatars/hospital.jpg?v=1" },
 ] as const;
 
 export type AvatarId = (typeof AVATARS)[number]["id"];
@@ -297,6 +299,18 @@ export const SPOTLIGHT_ID = "spotlight" as const satisfies AvatarId;
 
 export const ONEONE_ID = "oneone" as const satisfies AvatarId;
 
+export const MUSICAL_CHAIRS_ID = "musicalchairs" as const satisfies AvatarId;
+
+export const HOSPITAL_ID = "hospital" as const satisfies AvatarId;
+
+export const MUSICAL_CHAIRS_NEED = 10;
+
+export const HOSPITAL_FROM_SEASON = 2026;
+
+export const HOSPITAL_FROM_WEEK = 4;
+
+export const HOSPITAL_NEED = 2;
+
 export const SPOTLIGHT_FROM = "2026-09-30";
 
 export const SPOTLIGHT_NEED = 2;
@@ -440,6 +454,8 @@ export const FEAT_IDS = new Set<string>([
   ICE_COLD_STREAK_ID,
   SPOTLIGHT_ID,
   ONEONE_ID,
+  MUSICAL_CHAIRS_ID,
+  HOSPITAL_ID,
 ]);
 
 export const ACHIEVEMENT_UNLOCKS = [
@@ -500,6 +516,8 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: CRYPEPE_ID, how: "Hit Nothing on a scratch ticket." },
   { id: STARPEPE_ID, how: "Scratch a star." },
   { id: ONEONE_ID, how: "Purchase a 1/1 from the showcase." },
+  { id: MUSICAL_CHAIRS_ID, how: "Finish a Daily Match in each place 1 through 10." },
+  { id: HOSPITAL_ID, how: "Two or more players on your Weekly lineup leave the week injured." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];
 
 export const PRIZE_AVATARS = AVATARS.filter(

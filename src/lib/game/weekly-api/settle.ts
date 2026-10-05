@@ -179,6 +179,17 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
       console.error("[darkness] weekly feat grant failed", err);
     }
   }
+  try {
+    const { maybeGrantHospital } = await import("../board-feats.server");
+    await maybeGrantHospital(
+      sql,
+      season,
+      week,
+      scored.map((row) => ({ userId: row.userId, picks: row.picks })),
+    );
+  } catch (err) {
+    console.error("[darkness] hospital grant failed", err);
+  }
   await sql.query(
     `update darkness_weekly_weeks set awarded = true where season = $1 and week = $2 and awarded = false`,
     [season, week],
