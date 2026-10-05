@@ -422,7 +422,7 @@ function SeasonTeamPager({
                           <span className="font-display text-[10px] font-semibold uppercase tracking-wide text-subtle">
                             {pick.slot}
                           </span>
-                          <span className="min-w-0 truncate text-sm text-fg">{pick.team ? `${pick.team} ${pick.name}` : pick.name}</span>
+                          <span className="min-w-0 truncate text-sm text-fg">{pick.slot === "D" || !pick.team ? pick.name : `${pick.name} - ${pick.team}`}</span>
                           <span className="text-right text-xs tabular-nums text-muted">${pick.cost}</span>
                           <span className="text-right font-display text-sm font-semibold tabular-nums text-fg">
                             {lineup.live || lineup.awarded ? pick.score.toFixed(1) : ""}
