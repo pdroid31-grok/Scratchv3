@@ -112,21 +112,21 @@ function bestLineup(rows: Record<ElimPos, Row[]>): { picks: WeeklyReviewPick[]; 
   return { picks, score: best.score, cost: picks.reduce((n, row) => n + row.cost, 0) };
 }
 
-/** Score a stored weekly board that already has this week's actual on weeks[week - 1]. */
+/** Score a stored weekly board. A blank week slot is 0. The caller rejects an empty stats map first. */
 export function buildWeeklyReview(pack: WeeklyPackedBoard, week: number): WeeklyReviewBuilt {
   const index = week - 1;
   const rows = {} as Record<ElimPos, Row[]>;
   for (const pos of POS) {
     rows[pos] = [];
     for (const player of pack[pos] ?? []) {
-      const score = player.weeks?.[index];
-      if (score == null || !Number.isFinite(Number(score))) return { ok: false, missing: player.name || pos };
+      const raw = player.weeks?.[index];
+      const score = raw == null || !Number.isFinite(Number(raw)) ? 0 : Number(raw);
       rows[pos].push({
         id: player.id,
         name: player.name,
         team: player.team,
         cost: Number(player.cost) || 0,
-        score: Number(score),
+        score,
       });
     }
     if (rows[pos].length < NEED[pos]) return { ok: false, missing: pos };

@@ -405,6 +405,8 @@ export async function reviewWeeklyOptionsHandler({
   if (!week?.awarded) return null;
   const pack = parseBoard(week.board);
   if (!pack) return null;
+  const live = await weeklyLiveStats(season, weekNo);
+  if (Object.keys(live).length === 0) return { ok: false, season, week: weekNo, missing: "this week" };
   const scored = await attachFinishedWeekActuals(pack, season, weekNo + 1);
   const built = buildWeeklyReview(scored, weekNo);
   if (!built.ok) return { ok: false, season, week: weekNo, missing: built.missing };
