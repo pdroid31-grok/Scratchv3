@@ -93,7 +93,7 @@ export function WeeklyLineupSheet({
                     {pick.slot}
                   </span>
                   <span className="w-8 shrink-0 text-xs tabular-nums text-muted">${pick.cost}</span>
-                  <span className="min-w-0 flex-1 truncate text-sm text-fg">{pick.name}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm text-fg">{pick.team ? `${pick.team} ${pick.name}` : pick.name}</span>
                   <span className="w-16 shrink-0 text-right font-display text-sm font-semibold tabular-nums text-fg">
                     {lineup.live || lineup.awarded ? pick.score.toFixed(1) : ""}
                   </span>
