@@ -306,7 +306,7 @@ export const LOCKED_IN_STREAK_NEED = 100;
 
 export const FOCUSED_STREAK_NEED = 50;
 
-export const THANOS_OWN_NEED = 50;
+export const THANOS_OWN_NEED = 100;
 
 export const BOX_ADDICT_POOL_NEED = 25;
 
@@ -443,7 +443,7 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: PEEPING_ID, how: "View a live match." },
   { id: BANANA_ID, how: "Score under 60 in a Daily Match." },
   { id: CROSSWORD_ID, how: "Play 10 Daily Elims in a row." },
-  { id: THANOS_ID, how: "Own 50 unique avatars." },
+  { id: THANOS_ID, how: "Own 100 unique avatars." },
   { id: BOX_ADDICT_ID, how: "Open 25 mystery boxes." },
   { id: LOCKED_IN_ID, how: "100 consecutive calendar days with a Daily Match submitted." },
   { id: FOCUSED_ID, how: "50 consecutive calendar days with a Daily Match submitted." },
