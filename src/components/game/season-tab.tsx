@@ -215,7 +215,7 @@ export function WeeklyWeekBoard({
           className="mt-3 h-8 w-full rounded-md bg-bg px-3 font-display text-[11px] font-semibold uppercase tracking-wider text-fg shadow-[var(--shadow-border)]"
           onClick={() => setReview(true)}
         >
-          Review Line Up Options
+          Review Line Up Options Week {board.week}
         </button>
       ) : null}
       <div className="mt-3">

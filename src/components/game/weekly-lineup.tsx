@@ -152,6 +152,8 @@ export function WeeklyReviewSheet({
           ? review.worst ?? []
           : review.best ?? []
       : [];
+  const totalScore = Math.round(picks.reduce((n, pick) => n + pick.score, 0) * 10) / 10;
+  const totalCost = picks.reduce((n, pick) => n + pick.cost, 0);
 
   return (
     <div
@@ -186,9 +188,13 @@ export function WeeklyReviewSheet({
                   ? "This card isn’t available."
                   : !review.ok
                     ? `No actual for ${review.missing ?? "a player"}.`
-                    : page === 1
-                      ? `${season} · week ${week} · ${(review.lineupScore ?? 0).toFixed(1)} · $${review.lineupCost ?? 0}`
-                      : `${season} · week ${week}`}
+                    : (
+                      <>
+                        {season} · week {week} · <span className="text-white">{totalScore.toFixed(1)}</span>
+                        {" · "}
+                        <span>${totalCost}</span>
+                      </>
+                    )}
             </p>
           </div>
           <button
