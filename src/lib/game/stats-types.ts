@@ -48,7 +48,7 @@ export type BoxResult =
 
 export type ShopResult =
   | { ok: true; coins: number; owned: AvatarId[]; avatarId: AvatarId }
-  | { ok: false; reason: "broke" | "owned"; coins: number; owned: AvatarId[] };
+  | { ok: false; reason: "broke" | "owned" | "sold"; coins: number; owned: AvatarId[] };
 
 export type BoardRow = {
   id: string;

@@ -1,5 +1,5 @@
 /** Mystery box, Golden Pepe, Peeping. Move-only from stats.server. */
-import { avatarById, pickPrize, BOX_COST, GOLDEN_COST, PEEPING_ID, type AvatarId } from "../avatars";
+import { avatarById, pickPrize, BOX_COST, GOLDEN_COST, ONEONE_ID, PEEPING_ID, type AvatarId } from "../avatars";
 import type { BoxResult, ShopResult } from "../stats-types";
 import { announceFeatUnlocks } from "./feats";
 import { settleProfile } from "./profile";
@@ -72,14 +72,45 @@ export async function openMysteryBoxHandler({ context }: { context: { userId: st
     return { ok: true, prize, coins: next.coins, owned: next.owned, avatarId: settled.avatarId };
 }
 
+const GOLDEN_FLAG = "golden-1of1";
+
+async function ensureFeatFlags(sql: { query: <T>(text: string, params?: unknown[]) => Promise<T[]> }): Promise<void> {
+  await sql.query(`
+    create table if not exists darkness_feat_flags (
+      key text primary key,
+      created_at timestamptz not null default now()
+    )`);
+}
+
+export async function getShowcaseHandler(): Promise<{ sold: boolean; revealed: boolean }> {
+  const { getSql } = await import("@/lib/db");
+  const sql = await getSql();
+  await ensureFeatFlags(sql);
+  const sold = await sql.query<{ key: string }>(`select key from darkness_feat_flags where key = $1`, [GOLDEN_FLAG]);
+  const revealed = await sql.query<{ ok: number }>(
+    `select 1 as ok from player_profiles where position($1 in owned::text) > 0 limit 1`,
+    ['"oneone"'],
+  );
+  return { sold: Boolean(sold[0]), revealed: Boolean(revealed[0]) };
+}
+
 export async function buyGoldenPepeHandler({ context }: { context: { userId: string } }): Promise<ShopResult> {
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
     const settled = await settleProfile(sql, context.userId);
+    await ensureFeatFlags(sql);
+    const claimed = await sql.query<{ key: string }>(
+      `insert into darkness_feat_flags (key) values ($1) on conflict do nothing returning key`,
+      [GOLDEN_FLAG],
+    );
+    if (!claimed[0]) {
+      return { ok: false, reason: "sold", coins: settled.coins, owned: settled.owned };
+    }
     if (settled.owned.includes("golden")) {
       return { ok: false, reason: "owned", coins: settled.coins, owned: settled.owned };
     }
     if (settled.coins < GOLDEN_COST) {
+      await sql.query(`delete from darkness_feat_flags where key = $1`, [GOLDEN_FLAG]);
       return { ok: false, reason: "broke", coins: settled.coins, owned: settled.owned };
     }
     const owned = [...settled.owned, "golden" as AvatarId];
@@ -89,6 +120,18 @@ export async function buyGoldenPepeHandler({ context }: { context: { userId: str
        where user_id = $3`,
       [JSON.stringify(owned), "golden", context.userId],
     );
+    try {
+      const { grantFeat } = await import("../board-feats/grant");
+      await grantFeat(sql, context.userId, ONEONE_ID);
+    } catch (err) {
+      console.error("[darkness] 1/1 grant failed", err);
+    }
+    try {
+      const { grantShowcaseScratch } = await import("../scratch.server");
+      await grantShowcaseScratch(sql, context.userId);
+    } catch (err) {
+      console.error("[darkness] 1/1 scratch failed", err);
+    }
     const next = await settleProfile(sql, context.userId);
     return { ok: true, coins: next.coins, owned: next.owned, avatarId: "golden" };
 }

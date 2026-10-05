@@ -5,6 +5,7 @@ import { Trophy, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ACHIEVEMENT_UNLOCKS, avatarById, type AvatarId } from "@/lib/game/avatars";
 import { getFeatProgress } from "@/lib/game/feat-progress-api";
+import { getShowcase } from "@/lib/game/stats";
 import { useProfile } from "@/lib/game/profile-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { cn } from "@/lib/utils";
@@ -146,6 +147,19 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
     : 0;
   const [progress, setProgress] = useState<Record<string, string> | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
+  const [revealed, setRevealed] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    void getShowcase()
+      .then((next) => {
+        if (live) setRevealed(next.revealed);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
 
   useEffect(() => {
     void load();
@@ -216,14 +230,17 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
           {sheetRows().map((row) => {
             const avatar = avatarById(row.id);
             const unlocked = owned.includes(row.id);
-            const tappable = Boolean(user) && !unlocked && PROGRESS_IDS.has(row.id);
+            const hidden = row.id === "oneone" && !revealed && !unlocked;
+            const label = hidden ? "???" : avatar.name;
+            const how = hidden ? "?????" : row.how;
+            const tappable = Boolean(user) && !unlocked && !hidden && PROGRESS_IDS.has(row.id);
             return (
               <li key={row.id}>
                 {tappable ? (
                   <button
                     type="button"
                     className="flex w-full items-center gap-3 rounded-lg bg-bg px-3 py-2.5 text-left shadow-[var(--shadow-border)]"
-                    aria-label={`${avatar.name} progress`}
+                    aria-label={`${label} progress`}
                     onClick={() => setPicked(row.id)}
                   >
                     <span className="relative size-14 shrink-0 overflow-hidden rounded-md bg-black">
@@ -233,9 +250,9 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-display text-sm font-semibold uppercase tracking-wide text-fg">
-                        {avatar.name}
+                        {label}
                       </span>
-                      <span className="mt-0.5 block text-xs text-muted">{row.how}</span>
+                      <span className="mt-0.5 block text-xs text-muted">{how}</span>
                     </span>
                   </button>
                 ) : (
@@ -251,9 +268,9 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-display text-sm font-semibold uppercase tracking-wide text-fg">
-                        {avatar.name}
+                        {label}
                       </p>
-                      <p className="mt-0.5 text-xs text-muted">{row.how}</p>
+                      <p className="mt-0.5 text-xs text-muted">{how}</p>
                       {unlocked ? (
                         <p className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-turf">Owned</p>
                       ) : null}

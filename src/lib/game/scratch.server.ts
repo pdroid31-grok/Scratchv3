@@ -228,6 +228,7 @@ async function capPostCutoffUnused(sql: Sql, userId: string, earnedCards: number
            and not exists (
              select 1 from darkness_scratch_flags f
               where f.key = ('inspector1-scratch:' || c.id::text)
+                 or f.key = ('gift-scratch:' || c.id::text)
            )
          order by c.id asc
          offset $3
@@ -282,6 +283,18 @@ export async function mintMissing(sql: Sql, userId: string, need: number, toast 
   return minted;
 }
 
+/** One existing scratch ticket. No scratch-ready toast. Kept through the unused cap. */
+export async function grantShowcaseScratch(sql: Sql, userId: string): Promise<void> {
+  if (!userId) return;
+  const minted = await mintMissing(sql, userId, 1, false);
+  const id = minted[0];
+  if (!id) return;
+  await ensureScratchFlags(sql);
+  await sql.query(`insert into darkness_scratch_flags (key) values ($1) on conflict (key) do nothing`, [
+    `gift-scratch:${id}`,
+  ]);
+}
+
 /** CEO Inspector1 tickets stay unused through cap and the TestPG gift flag. */
 export async function keepInspectorScratchCards(sql: Sql, cardIds: number[]): Promise<void> {
   const ids = cardIds.map((id) => asInt(id)).filter((id) => id > 0);
@@ -330,9 +343,13 @@ export async function syncScratchBank(sql: Sql, userId: string): Promise<Scratch
   await capPostCutoffUnused(sql, userId, earned.cards);
   const mintedRows = await sql.query<{ n: number | string }>(
     `select count(*)::int as n
-       from darkness_scratch_cards
-      where user_id = $1
-        and created_at >= ($2::timestamp AT TIME ZONE 'America/New_York')`,
+       from darkness_scratch_cards c
+      where c.user_id = $1
+        and c.created_at >= ($2::timestamp AT TIME ZONE 'America/New_York')
+        and not exists (
+          select 1 from darkness_scratch_flags f
+           where f.key = ('gift-scratch:' || c.id::text)
+        )`,
     [userId, SCRATCH_BANK_START],
   );
   const minted = asInt(mintedRows[0]?.n);

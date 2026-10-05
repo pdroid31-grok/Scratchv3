@@ -70,6 +70,11 @@ export const openMysteryBox = createServerFn({ method: "POST" })
     return openMysteryBoxHandler({ context });
   });
 
+export const getShowcase = createServerFn({ method: "GET" }).handler(async (): Promise<{ sold: boolean; revealed: boolean }> => {
+  const { getShowcaseHandler } = await import("./stats.server");
+  return getShowcaseHandler();
+});
+
 export const buyGoldenPepe = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
   .validator(() => ({}))

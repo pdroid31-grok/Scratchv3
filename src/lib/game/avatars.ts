@@ -142,6 +142,7 @@ export const AVATARS = [
   { id: "broadcast", name: "Broadcast", src: "/avatars/broadcast.jpg?v=1" },
   { id: "rubberduck", name: "Rubber Duck", src: "/avatars/rubberduck.jpg?v=1" },
   { id: "golden", name: "Golden", src: "/avatars/golden.jpg?v=1" },
+  { id: "oneone", name: "1/1", src: "/avatars/oneone.jpg?v=1" },
 ] as const;
 
 export type AvatarId = (typeof AVATARS)[number]["id"];
@@ -294,6 +295,8 @@ export const ICE_COLD_STREAK_ID = "icecoldstreak" as const satisfies AvatarId;
 
 export const SPOTLIGHT_ID = "spotlight" as const satisfies AvatarId;
 
+export const ONEONE_ID = "oneone" as const satisfies AvatarId;
+
 export const SPOTLIGHT_FROM = "2026-09-30";
 
 export const SPOTLIGHT_NEED = 2;
@@ -436,6 +439,7 @@ export const FEAT_IDS = new Set<string>([
   COLD_STREAK_ID,
   ICE_COLD_STREAK_ID,
   SPOTLIGHT_ID,
+  ONEONE_ID,
 ]);
 
 export const ACHIEVEMENT_UNLOCKS = [
@@ -495,6 +499,7 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: SPOTLIGHT_ID, how: "Have 2+ viewers on a Match." },
   { id: CRYPEPE_ID, how: "Hit Nothing on a scratch ticket." },
   { id: STARPEPE_ID, how: "Scratch a star." },
+  { id: ONEONE_ID, how: "Purchase a 1/1 from the showcase." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];
 
 export const PRIZE_AVATARS = AVATARS.filter(

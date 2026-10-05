@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Star, Sun, Trophy } from "lucide-react";
 import { BOX_COST, GOLDEN_COST, PRIZE_AVATARS, avatarById } from "@/lib/game/avatars";
+import { getShowcase } from "@/lib/game/stats";
 import { useProfile } from "@/lib/game/profile-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ export function StoreTab({ onProfile }: { onProfile?: () => void }) {
   const owned = book?.owned ?? ["poor"];
   const left = PRIZE_AVATARS.filter((avatar) => !owned.includes(avatar.id)).length;
   const hasGolden = owned.includes("golden");
+  const [sold, setSold] = useState(false);
   const golden = avatarById("golden");
   const [busy, setBusy] = useState(false);
   const [spinning, setSpinning] = useState(false);
@@ -37,6 +39,18 @@ export function StoreTab({ onProfile }: { onProfile?: () => void }) {
   const boxRef = useRef<MysteryBoxHandle>(null);
   const opening = useRef(false);
   const holdTimer = useRef<number | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    void getShowcase()
+      .then((next) => {
+        if (live) setSold(next.sold);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
 
   useEffect(() => {
     const img = new Image();
@@ -190,14 +204,26 @@ export function StoreTab({ onProfile }: { onProfile?: () => void }) {
 
       <section className="w-full rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
         <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-turf">Showcase</p>
-        <h2 className="mt-1 font-display text-2xl font-semibold uppercase tracking-wide text-fg">Golden</h2>
+        <h2 className="mt-1 font-display text-2xl font-semibold uppercase tracking-wide text-fg">
+          Golden <span className="text-muted">1/1</span>
+        </h2>
         <img
           src={golden.src}
           alt={golden.name}
           className="mx-auto mt-4 aspect-square w-full max-w-56 rounded-xl object-cover shadow-[var(--shadow-border)]"
         />
         {shopNote ? <p className="mt-3 text-sm text-muted">{shopNote}</p> : null}
-        {guest ? (
+        {sold ? (
+          <Button
+            type="button"
+            size="lg"
+            variant="secondary"
+            className="mt-5 w-full font-display uppercase tracking-wider"
+            disabled
+          >
+            Sold out
+          </Button>
+        ) : guest ? (
           <Button asChild size="lg" className="mt-5 w-full font-display uppercase tracking-wider">
             <Link to="/login">Sign in</Link>
           </Button>
@@ -205,10 +231,11 @@ export function StoreTab({ onProfile }: { onProfile?: () => void }) {
           <Button
             type="button"
             size="lg"
+            variant={sold ? "secondary" : "default"}
             className="mt-5 w-full font-display uppercase tracking-wider"
-            disabled={busy || hasGolden || coins < GOLDEN_COST}
+            disabled={busy || sold || hasGolden || coins < GOLDEN_COST}
             onClick={async () => {
-              if (busy || hasGolden) return;
+              if (busy || sold || hasGolden) return;
               setBusy(true);
               setShopNote(null);
               const result = await buyGolden();
@@ -218,11 +245,17 @@ export function StoreTab({ onProfile }: { onProfile?: () => void }) {
                 return;
               }
               if (!result.ok) {
+                if (result.reason === "sold") {
+                  setSold(true);
+                  return;
+                }
                 setShopNote(result.reason === "owned" ? "You already own Golden." : `Need $${GOLDEN_COST}.`);
+                return;
               }
+              setSold(true);
             }}
           >
-            {hasGolden ? "Owned" : busy ? "Buying…" : `Buy · $${GOLDEN_COST}`}
+            {sold ? "Sold out" : hasGolden ? "Owned" : busy ? "Buying…" : `Buy · $${GOLDEN_COST}`}
           </Button>
         )}
       </section>

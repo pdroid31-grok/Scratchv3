@@ -208,9 +208,14 @@ function ToastBody({ item }: { item: ToastItem }) {
             <Star className="size-[1.15em] shrink-0 text-fg" fill="currentColor" />
           </p>
         ) : (
-          <p className="text-center text-sm text-muted">
-            From Achievement{how ? `: ${how}` : ""}
-          </p>
+          <>
+            <p className="text-center text-sm text-muted">
+              From Achievement{how ? `: ${how}` : ""}
+            </p>
+            {prize.id === "oneone" ? (
+              <p className="text-center text-sm text-fg">Plus one free scratch.</p>
+            ) : null}
+          </>
         )}
       </div>
     </>

@@ -4,6 +4,6 @@ export type { BoxResult, BoardRow, BookSlice, CareerBook, CareerOpponent, Leader
 export { normalizeRecordNight, recordNightHandler, creditHostedMatch } from "./stats/nights";
 export { grantStarLooks } from "./stats/stars";
 export { settleProfile } from "./stats/profile";
-export { grantPeeping, openMysteryBoxHandler, buyGoldenPepeHandler } from "./stats/shop";
+export { grantPeeping, openMysteryBoxHandler, buyGoldenPepeHandler, getShowcaseHandler } from "./stats/shop";
 export { getMyStatsHandler, setMyAvatarHandler, setMyNameHandler, getPublicProfileHandler } from "./stats/book";
 export { loadLeaderboard, getLeaderboardHandler } from "./stats/leaderboard";
