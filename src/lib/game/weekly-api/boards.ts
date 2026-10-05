@@ -13,7 +13,7 @@ import {
   weeklyDraftOpensAt,
 } from "../weekly";
 import { attachFinishedWeekActuals, fillPackedOpponents, nflClock, weekWindow, weeklyLiveStats } from "../weekly-sleeper";
-import type { SeasonBoard, WeeklyBoard, WeeklyBoardPack, WeeklyBoardRow, WeeklyLineup } from "../weekly-api-types";
+import type { SeasonBoard, WeeklyBoard, WeeklyBoardPack, WeeklyBoardRow, WeeklyLineup, WeeklyReview } from "../weekly-api-types";
 import { currentWeek, mswanLateOk, resolveClock } from "./clock";
 import {
   floorEligibleRun,
@@ -30,6 +30,7 @@ import { settleSafe } from "./settle";
 import { asNum, asTime, parseBoard, runStatus } from "./shared";
 import { ensureWeeklyTables, getSql, loadRun, loadWeek } from "./tables";
 import { activeSeasonMove, seasonRankMoves } from "./season-move";
+import { buildWeeklyReview } from "../weekly-review";
 
 function rankWeeklyBoard(a: WeeklyBoardRow, b: WeeklyBoardRow, byScore: boolean): number {
   if (byScore) {
@@ -387,5 +388,34 @@ export async function listSeasonBoardHandler({ data }: { data: { season: number 
         const hit = moves.get(row.id);
         return hit ? { ...row, move: hit.move, spots: hit.spots } : row;
       }),
+  };
+}
+
+export async function reviewWeeklyOptionsHandler({
+  data,
+}: {
+  data: { season: number; week: number };
+}): Promise<WeeklyReview | null> {
+  const season = data.season;
+  const weekNo = data.week;
+  if (weekNo < 2) return null;
+  const sql = await getSql();
+  await ensureWeeklyTables(sql);
+  const week = await loadWeek(sql, season, weekNo);
+  if (!week?.awarded) return null;
+  const pack = parseBoard(week.board);
+  if (!pack) return null;
+  const scored = await attachFinishedWeekActuals(pack, season, weekNo + 1);
+  const built = buildWeeklyReview(scored, weekNo);
+  if (!built.ok) return { ok: false, season, week: weekNo, missing: built.missing };
+  return {
+    ok: true,
+    season,
+    week: weekNo,
+    best: built.best,
+    lineup: built.lineup,
+    lineupScore: built.lineupScore,
+    lineupCost: built.lineupCost,
+    worst: built.worst,
   };
 }

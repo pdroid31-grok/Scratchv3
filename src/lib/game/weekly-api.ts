@@ -7,6 +7,7 @@ import type {
   WeeklyMeta,
   WeeklyPickPayload,
   WeeklyResume,
+  WeeklyReview,
   SeasonBoard,
 } from "./weekly-api-types";
 
@@ -17,6 +18,8 @@ export type {
   WeeklyLineup,
   WeeklyMeta,
   WeeklyResume,
+  WeeklyReview,
+  WeeklyReviewPick,
   WeeklyStatus,
   SeasonBoard,
   SeasonBoardRow,
@@ -109,6 +112,16 @@ export const getWeeklyLineup = createServerFn({ method: "POST" })
   .handler(async ({ context, data }): Promise<WeeklyLineup | null> => {
     const { getWeeklyLineupHandler } = await import("./weekly-api.server");
     return getWeeklyLineupHandler({ context, data });
+  });
+
+export const reviewWeeklyOptions = createServerFn({ method: "POST" })
+  .validator((data: { season?: number; week?: number }) => ({
+    season: Number(data.season) || 0,
+    week: Number(data.week) || 0,
+  }))
+  .handler(async ({ data }): Promise<WeeklyReview | null> => {
+    const { reviewWeeklyOptionsHandler } = await import("./weekly-api.server");
+    return reviewWeeklyOptionsHandler({ data });
   });
 
 export const resumeWeekly = createServerFn({ method: "POST" })

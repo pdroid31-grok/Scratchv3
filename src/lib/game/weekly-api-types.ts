@@ -71,6 +71,26 @@ export type WeeklyBoardPack = {
 
 export type WeeklyPickPayload = { slot: string; id: string };
 
+export type WeeklyReviewPick = {
+  slot: string;
+  name: string;
+  team: string;
+  cost: number;
+  score: number;
+};
+
+export type WeeklyReview = {
+  ok: boolean;
+  season: number;
+  week: number;
+  missing?: string;
+  best?: WeeklyReviewPick[];
+  lineup?: WeeklyReviewPick[];
+  lineupScore?: number;
+  lineupCost?: number;
+  worst?: WeeklyReviewPick[];
+};
+
 export type SeasonBoardRow = {
   id: string;
   name: string;

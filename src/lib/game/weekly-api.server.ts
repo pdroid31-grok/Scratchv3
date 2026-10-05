@@ -1,5 +1,5 @@
 /** Server-only weekly elimination writes. Do not import from client modules. */
-export type { SeasonBoard, WeeklyBoard, WeeklyBoardPack, WeeklyLineup, WeeklyMeta, WeeklyResume, WeeklyStatus } from "./weekly-api-types";
+export type { SeasonBoard, WeeklyBoard, WeeklyBoardPack, WeeklyLineup, WeeklyMeta, WeeklyResume, WeeklyReview, WeeklyStatus } from "./weekly-api-types";
 
 export {
   claimWeeklyHandler,
@@ -13,5 +13,6 @@ export {
   getWeeklyLineupHandler,
   listSeasonBoardHandler,
   listWeeklyBoardHandler,
+  reviewWeeklyOptionsHandler,
   weeklyBoardPackHandler,
 } from "./weekly-api/boards";

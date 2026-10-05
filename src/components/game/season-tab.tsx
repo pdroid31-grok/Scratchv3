@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { avatarById } from "@/lib/game/avatars";
 import { getWeeklyLineup, listSeasonBoard, listWeeklyBoard, type SeasonBoard, type WeeklyBoard, type WeeklyBoardRow, type WeeklyLineup } from "@/lib/game/weekly-api";
 import { canViewWeeklyLineup } from "@/lib/game/weekly";
-import { WeeklyLineupSheet } from "@/components/game/weekly-lineup";
+import { WeeklyLineupSheet, WeeklyReviewSheet } from "@/components/game/weekly-lineup";
 import { useOpenPlayerProfile } from "@/components/game/player-profile-dialog";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { cn } from "@/lib/utils";
@@ -109,6 +109,7 @@ export function WeeklyWeekBoard({
   const [week, setWeek] = useState(startAtCurrent ? 0 : 1);
   const [board, setBoard] = useState<WeeklyBoard | null>(null);
   const [peek, setPeek] = useState<string | null>(null);
+  const [review, setReview] = useState(false);
   const [view, setView] = useState<"list" | "board">(readWeekView);
 
   useEffect(() => {
@@ -153,6 +154,7 @@ export function WeeklyWeekBoard({
   const weekReady = !startAtCurrent || (Boolean(board) && week >= 1);
   const viewWeek = weekReady ? Math.min(week, open) : 0;
   const locked = Boolean(board && (board.live || board.awarded));
+  const showReview = seasonViews && board != null && board.week === viewWeek && board.awarded && board.week > 1;
   const teams = board?.rows.filter((row) => row.hasPicks) ?? [];
 
   function setSeasonView(next: "list" | "board") {
@@ -169,7 +171,10 @@ export function WeeklyWeekBoard({
             <select
               className="h-11 rounded-md bg-bg px-3 font-display text-sm font-semibold uppercase tracking-wide text-fg shadow-[var(--shadow-border)]"
               value={viewWeek}
-              onChange={(event) => setWeek(Number(event.target.value) || 1)}
+              onChange={(event) => {
+                setReview(false);
+                setWeek(Number(event.target.value) || 1);
+              }}
             >
               {weeks.map((n) => (
                 <option key={n} value={n}>
@@ -204,6 +209,15 @@ export function WeeklyWeekBoard({
           </div>
         ) : null}
       </div>
+      {showReview ? (
+        <button
+          type="button"
+          className="mt-3 h-8 w-full rounded-md bg-bg px-3 font-display text-[11px] font-semibold uppercase tracking-wider text-fg shadow-[var(--shadow-border)]"
+          onClick={() => setReview(true)}
+        >
+          Review Line Up Options
+        </button>
+      ) : null}
       <div className="mt-3">
         {board === null ? (
           <div className="h-40 animate-pulse rounded-md bg-bg" />
@@ -254,6 +268,9 @@ export function WeeklyWeekBoard({
           userId={peek}
           onClose={() => setPeek(null)}
         />
+      ) : null}
+      {review && showReview && board ? (
+        <WeeklyReviewSheet season={board.season} week={board.week} onClose={() => setReview(false)} />
       ) : null}
     </div>
   );
