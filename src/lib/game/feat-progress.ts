@@ -149,3 +149,42 @@ export function musicalChairLine(places: readonly number[]): string {
   if (!n) return "0/10";
   return `${places.join(", ")} · ${n}/10`;
 }
+
+function utcDay(ymd: string): Date {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(Date.UTC(y!, (m ?? 1) - 1, d ?? 1));
+}
+
+function ymdFromUtc(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+export function ymdAdd(ymd: string, days: number): string {
+  const date = utcDay(ymd);
+  date.setUTCDate(date.getUTCDate() + days);
+  return ymdFromUtc(date);
+}
+
+export function ymdWeekday(ymd: string): number {
+  return utcDay(ymd).getUTCDay();
+}
+
+/** Sunday of the calendar week that contains this date. */
+export function weekSunday(ymd: string): string {
+  return ymdAdd(ymd, -ymdWeekday(ymd));
+}
+
+export function placeWord(n: number): string {
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+  const mod10 = n % 10;
+  if (mod10 === 1) return `${n}st`;
+  if (mod10 === 2) return `${n}nd`;
+  if (mod10 === 3) return `${n}rd`;
+  return `${n}th`;
+}
+
+export function consistentLine(average: number | null, place: number | null): string {
+  if (average == null || place == null || !Number.isFinite(average)) return "—";
+  return `${average.toFixed(1)} · ${placeWord(place)}`;
+}

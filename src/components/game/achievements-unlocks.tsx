@@ -92,6 +92,7 @@ const PROGRESS_IDS = new Set<string>([
   "boxaddict",
   "threeleafclover",
   "musicalchairs",
+  "consistent",
 ]);
 
 function sheetRows() {

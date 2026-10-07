@@ -10,6 +10,7 @@ export {
   maybeGrantComebackPair,
   maybeGrantPoop,
   maybeGrantMusicalChairs,
+  maybeGrantConsistent,
 } from "./board-feats/place-daily";
 export {
   maybeGrantHeavyHitter,

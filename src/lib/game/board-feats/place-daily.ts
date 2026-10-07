@@ -11,6 +11,9 @@ import {
   POOP_NEED,
   MUSICAL_CHAIRS_ID,
   MUSICAL_CHAIRS_NEED,
+  CONSISTENT_ID,
+  CONSISTENT_FROM,
+  CONSISTENT_DAYS,
   COLD_STREAK_FROM,
   EARLY_BIRD_ID,
   LOST_ID,
@@ -29,7 +32,7 @@ import {
 import { clipGm } from "../stats-shared";
 import { dailyDayStamp, dailyYesterday } from "../daily";
 import { grantFeat, skipBoardRow, type Sql } from "./grant";
-import { placesHeld } from "../feat-progress";
+import { placesHeld, ymdAdd, ymdWeekday } from "../feat-progress";
 import { asPicks, asTime, visibleContest, type DailyContestRow } from "./place-weekly";
 
 export const RAINY_DAY_FROM = "2026-09-19";
@@ -320,5 +323,58 @@ export async function maybeGrantMusicalChairs(sql: Sql, day: string): Promise<vo
     }
   } catch (err) {
     console.error("[darkness] musical chairs grant failed", err);
+  }
+}
+
+export type ConsistentWeekRow = { userId: string; average: number; days: number };
+
+/** Awarded Daily days only. A missed day is absent. An unfinished day is absent. */
+export async function consistentWeekRows(sql: Sql, sunday: string, saturday: string): Promise<ConsistentWeekRow[]> {
+  const rows = await sql.query<{ user_id: string; name: string | null; score: number | string }>(
+    `select r.user_id, r.score,
+            coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name
+       from darkness_daily_runs r
+       join darkness_daily_days d on d.day = r.day
+       left join player_profiles p on p.user_id = r.user_id
+       left join "user" u on u.id = r.user_id
+      where d.awarded is true
+        and r.day >= $1::date
+        and r.day <= $2::date
+        and r.status = 'done'
+        and r.score is not null`,
+    [sunday, saturday],
+  );
+  const tally = new Map<string, { total: number; days: number }>();
+  for (const row of rows) {
+    if (skipBoardRow(row.user_id, row.name) || skipBoardRow(row.user_id, clipGm(row.name ?? ""))) continue;
+    const score = Number(row.score);
+    if (!Number.isFinite(score)) continue;
+    const cur = tally.get(row.user_id) ?? { total: 0, days: 0 };
+    cur.total += score;
+    cur.days += 1;
+    tally.set(row.user_id, cur);
+  }
+  return [...tally.entries()].map(([userId, cur]) => ({
+    userId,
+    average: cur.total / cur.days,
+    days: cur.days,
+  }));
+}
+
+/** Highest Sun–Sat average once that Saturday is awarded. From 2026-10-04. Ties share it. */
+export async function maybeGrantConsistent(sql: Sql, day: string): Promise<void> {
+  try {
+    if (!day || ymdWeekday(day) !== 6) return;
+    const sunday = ymdAdd(day, -6);
+    if (sunday < CONSISTENT_FROM) return;
+    if (!(await dayAwarded(sql, day))) return;
+    const ranked = (await consistentWeekRows(sql, sunday, day)).filter((row) => row.days >= CONSISTENT_DAYS);
+    if (!ranked.length) return;
+    const best = Math.max(...ranked.map((row) => row.average));
+    for (const row of ranked) {
+      if (Math.abs(row.average - best) < 1e-9) await grantFeat(sql, row.userId, CONSISTENT_ID);
+    }
+  } catch (err) {
+    console.error("[darkness] consistent grant failed", err);
   }
 }

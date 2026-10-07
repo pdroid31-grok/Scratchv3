@@ -1,5 +1,6 @@
 import {
   COLD_STREAK_FROM,
+  CONSISTENT_FROM,
   COLD_STREAK_NEED,
   CROSSWORD_STREAK_NEED,
   FEAT_TRACK_FROM,
@@ -25,7 +26,7 @@ import {
   silverSecondDayCount,
 } from "./avatars";
 import { EASY_DOLLAR_LINE, EASY_DOLLAR_NEED } from "./avatars/money";
-import { RAINY_DAY_FROM } from "./board-feats/place-daily";
+import { RAINY_DAY_FROM, consistentWeekRows } from "./board-feats/place-daily";
 import { asTime } from "./board-feats/place-weekly";
 import { skipBoardRow } from "./board-feats/grant";
 import { dailyDayStamp, dailyYesterday } from "./daily";
@@ -41,6 +42,10 @@ import {
   trailingAtLeast,
   musicalChairLine,
   placesHeld,
+  consistentLine,
+  finishPlace,
+  weekSunday,
+  ymdAdd,
   type FeatProgressLines,
 } from "./feat-progress";
 import type { Sql } from "@/lib/db";
@@ -156,6 +161,14 @@ export async function loadFeatProgress(sql: Sql, userId: string): Promise<FeatPr
     [userId],
   );
   const leaf = new Set(scratches.map((row) => String(row.prize ?? "").trim()).filter(Boolean)).size;
+  const openSunday = weekSunday(today);
+  const openWeek = openSunday >= CONSISTENT_FROM
+    ? await consistentWeekRows(sql, openSunday, ymdAdd(openSunday, 6))
+    : [];
+  const mine = openWeek.find((row) => row.userId === userId) ?? null;
+  const consistentPlace = mine
+    ? finishPlace(openWeek.map((row) => ({ userId: row.userId, score: row.average })), userId)
+    : null;
 
   return {
     crossword: line(currentCalendarRun(doneDays, today), CROSSWORD_STREAK_NEED, "A skipped Daily breaks it."),
@@ -193,5 +206,6 @@ export async function loadFeatProgress(sql: Sql, userId: string): Promise<FeatPr
         MUSICAL_CHAIRS_NEED,
       ),
     ),
+    consistent: consistentLine(mine?.average ?? null, consistentPlace),
   };
 }
