@@ -35,6 +35,14 @@ export type DailyBoard = {
   rows: DailyBoardRow[];
 };
 
+export type DailyAverageRow = {
+  id: string;
+  name: string;
+  avatarId: AvatarId;
+  stars: number;
+  average: number;
+};
+
 export type DailyLineupPick = {
   slot: string;
   name: string;

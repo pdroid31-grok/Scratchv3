@@ -10,7 +10,7 @@ import { DailyLeagueChat } from "@/components/game/daily-league-chat";
 import { useOpenPlayerProfile } from "@/components/game/player-profile-dialog";
 import { avatarById } from "@/lib/game/avatars";
 import type { BoardRow, Leaderboard as Boards } from "@/lib/game/stats";
-import { listDailyBoard, type DailyBoard } from "@/lib/game/daily-api";
+import { listDailyAverages, listDailyBoard, type DailyAverageRow, type DailyBoard } from "@/lib/game/daily-api";
 import { DAILY_LAUNCH, canViewDailyLineup, dailyDayStamp, formatDailyDate, isDailyDay } from "@/lib/game/daily";
 import { isLeaderboardTab } from "@/lib/game/rank-tabs";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -115,6 +115,23 @@ function DailyPane() {
   const [board, setBoard] = useState<DailyBoard | null>(null);
   const [calOpen, setCalOpen] = useState(false);
   const [peek, setPeek] = useState<string | null>(null);
+  const [averagesOn, setAveragesOn] = useState(false);
+  const [averages, setAverages] = useState<DailyAverageRow[] | null>(null);
+
+  useEffect(() => {
+    if (!averagesOn || averages !== null) return;
+    let live = true;
+    void listDailyAverages({ data: {} })
+      .then((rows) => {
+        if (live) setAverages(rows);
+      })
+      .catch(() => {
+        if (live) setAverages([]);
+      });
+    return () => {
+      live = false;
+    };
+  }, [averagesOn, averages]);
 
   useEffect(() => {
     let live = true;
@@ -142,6 +159,17 @@ function DailyPane() {
           {past && board?.week ? ` · week ${board.week}` : ""}
         </p>
         <div className="flex shrink-0 items-center">
+          <button
+            type="button"
+            aria-pressed={averagesOn}
+            className={cn(
+              "h-8 shrink-0 rounded-md px-2 font-display text-xs font-semibold uppercase tracking-wide",
+              averagesOn ? "bg-bg text-fg shadow-[var(--shadow-border)]" : "text-muted hover:bg-surface-2",
+            )}
+            onClick={() => setAveragesOn((on) => !on)}
+          >
+            Averages
+          </button>
           <DailyLeagueChat />
           <button
             type="button"
@@ -155,7 +183,9 @@ function DailyPane() {
       </div>
       {calOpen ? <DayPicker day={day} today={today} onPick={(next) => { setDay(next); setCalOpen(false); }} /> : null}
       <div className="mt-3">
-        {board === null ? (
+        {averagesOn ? (
+          <AverageList rows={averages} onOpen={openPlayer} />
+        ) : board === null ? (
           <div className="h-40 animate-pulse rounded-md bg-bg" />
         ) : board.rows.length === 0 ? (
           <p className="text-sm text-muted">
@@ -218,6 +248,63 @@ function DailyPane() {
       </div>
       {peek ? <DailyLineupSheet day={day} userId={peek} onClose={() => setPeek(null)} /> : null}
     </div>
+  );
+}
+
+function AverageList({
+  rows,
+  onOpen,
+}: {
+  rows: DailyAverageRow[] | null;
+  onOpen: (id: string) => void;
+}) {
+  if (rows === null) return <div className="h-40 animate-pulse rounded-md bg-bg" />;
+  if (rows.length === 0) return <p className="text-sm text-muted">No finished dailies yet.</p>;
+  const top = rows[0]?.average ?? 0;
+  return (
+    <ol className="grid gap-1.5">
+      {rows.map((row, index) => {
+        const width = top > 0 ? Math.max(8, Math.round((row.average / top) * 100)) : 8;
+        return (
+          <li key={row.id} className="flex items-stretch overflow-hidden rounded-md bg-bg shadow-[var(--shadow-border)]">
+            <button
+              type="button"
+              className="min-w-0 flex-1 px-3 py-2.5 text-left hover:shadow-[var(--shadow-border-hover)]"
+              onClick={() => onOpen(row.id)}
+            >
+              <div className="flex items-center gap-3">
+                <span className="w-6 shrink-0 text-center font-display text-sm font-semibold tabular-nums text-subtle">
+                  {index + 1}
+                </span>
+                <img
+                  src={avatarById(row.avatarId).src}
+                  alt=""
+                  className="size-9 shrink-0 rounded-md object-cover shadow-[var(--shadow-border)]"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <span className="block min-w-0 truncate font-display text-sm font-semibold uppercase tracking-wide text-fg">
+                      {row.name}
+                    </span>
+                    <span className="inline-flex shrink-0 items-center gap-1 font-display text-xs font-semibold tabular-nums text-fg">
+                      <Star className="size-3 text-accent" fill="currentColor" />
+                      {row.stars}
+                    </span>
+                  </span>
+                  <span className="mt-0.5 block text-xs tabular-nums text-muted">{row.average.toFixed(1)}</span>
+                </span>
+              </div>
+              <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-surface-2" aria-hidden>
+                <span className="block h-full rounded-full bg-turf/80" style={{ width: `${width}%` }} />
+              </span>
+            </button>
+            <span className="inline-flex w-11 shrink-0 items-center justify-center font-display text-[10px] font-semibold uppercase tracking-wide text-subtle">
+              AVG
+            </span>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

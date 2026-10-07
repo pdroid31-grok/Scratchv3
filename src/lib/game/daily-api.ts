@@ -1,9 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware, optionalAuthMiddleware } from "@/lib/auth/middleware";
 import { dailyDayStamp, isDailyDay } from "./daily";
-import type { DailyBoard, DailyLineup, DailyMeta, DailyPickPayload } from "./daily-api-types";
+import type { DailyAverageRow, DailyBoard, DailyLineup, DailyMeta, DailyPickPayload } from "./daily-api-types";
 
 export type {
+  DailyAverageRow,
   DailyBoard,
   DailyBoardRow,
   DailyLineup,
@@ -68,6 +69,13 @@ export const listDailyBoard = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<DailyBoard> => {
     const { listDailyBoardHandler } = await import("./daily-api.server");
     return listDailyBoardHandler({ data });
+  });
+
+export const listDailyAverages = createServerFn({ method: "POST" })
+  .validator(() => ({}))
+  .handler(async (): Promise<DailyAverageRow[]> => {
+    const { listDailyAveragesHandler } = await import("./daily-api.server");
+    return listDailyAveragesHandler();
   });
 
 export const getDailyLineup = createServerFn({ method: "POST" })

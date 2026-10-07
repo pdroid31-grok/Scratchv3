@@ -1,8 +1,9 @@
 /** Server-only daily elimination writes. Do not import from client modules. */
-import type { DailyBoard, DailyLineup, DailyMeta, DailyPickPayload, DailyStatus } from "./daily-api-types";
-export type { DailyBoard, DailyBoardRow, DailyLineup, DailyLineupPick, DailyMeta, DailyStatus } from "./daily-api-types";
+import type { DailyAverageRow, DailyBoard, DailyLineup, DailyMeta, DailyPickPayload, DailyStatus } from "./daily-api-types";
+export type { DailyAverageRow, DailyBoard, DailyBoardRow, DailyLineup, DailyLineupPick, DailyMeta, DailyStatus } from "./daily-api-types";
 import { ELIM_SLOTS, buildSeason, slotPos, type ElimYear } from "./elim-data";
 import {
+  DAILY_LAUNCH,
   DAILY_PAY,
   autoFillDailyPicks,
   canViewDailyLineup,
@@ -678,6 +679,54 @@ export async function listDailyBoardHandler({ data }: { data: { day: string } })
         ];
       }),
     };
+}
+
+/** Finished Daily scores from DAILY_LAUNCH through yesterday. A missed day is absent, not zero. */
+export async function listDailyAveragesHandler(): Promise<DailyAverageRow[]> {
+  const sql = await getSql();
+  await ensureDailyTables(sql);
+  const today = dailyDayStamp();
+  const rows = await sql.query<{
+    id: string;
+    name: string | null;
+    avatar_id: string | null;
+    daily_stars: number | string | null;
+    total: number | string | null;
+    days: number | string | null;
+  }>(
+    `select r.user_id as id,
+            max(coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), 'GM')) as name,
+            max(coalesce(p.avatar_id, 'poor')) as avatar_id,
+            max(coalesce(p.daily_stars, 0)) as daily_stars,
+            sum(r.score) as total,
+            count(*) as days
+       from darkness_daily_runs r
+       left join player_profiles p on p.user_id = r.user_id
+       left join "user" u on u.id = r.user_id
+      where r.status = 'done'
+        and r.score is not null
+        and r.day >= $1::date
+        and r.day < $2::date
+      group by r.user_id`,
+    [DAILY_LAUNCH, today],
+  );
+  return rows
+    .flatMap((row) => {
+      const name = clipDisplayName(row.name ?? "");
+      const days = Math.max(0, Math.floor(Number(row.days) || 0));
+      const total = asNum(row.total);
+      if (!name || !days || isHiddenBoardId(row.id) || isHiddenBoardName(name)) return [];
+      return [
+        {
+          id: row.id,
+          name,
+          avatarId: clampAvatar(row.avatar_id ?? "poor"),
+          stars: Math.max(0, Math.floor(Number(row.daily_stars) || 0)),
+          average: total / days,
+        },
+      ];
+    })
+    .sort((a, b) => b.average - a.average || a.name.localeCompare(b.name));
 }
 
 export async function getDailyLineupHandler({ context, data }: { context: { userId: string | null }; data: { day: string; userId: string } }): Promise<DailyLineup | null> {
