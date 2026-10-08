@@ -7,6 +7,7 @@ import {
   NEGATIVE_ID,
   THREE_HEADED_ID,
   TRIPLE_DONUT_ID,
+  QUAD_DONUT_ID,
   PENNY_ID,
   BLUE_STREAK_ID,
   COLD_STREAK_ID,
@@ -18,6 +19,7 @@ import {
   ICE_COLD_STREAK_NEED,
   threeHeadedHit,
   tripleDonutHit,
+  quadDonutHit,
   pennyHit,
   blueStreakHit,
   coldStreakHit,
@@ -300,6 +302,49 @@ export async function maybeGrantTripleDonutWeekly(
     await grantFeat(sql, userId, TRIPLE_DONUT_ID);
   } catch (err) {
     console.error("[darkness] triple donut weekly failed", err);
+  }
+}
+
+export async function maybeGrantQuadDonutDaily(sql: Sql, userId: string): Promise<void> {
+  try {
+    const rows = await sql.query<{ year: number | string; week: number | string; picks: unknown }>(
+      `select d.year, d.week, r.picks
+         from darkness_daily_runs r
+         join darkness_daily_days d on d.day = r.day
+        where r.user_id = $1
+          and r.status = 'done'
+          and r.day >= $2::date
+          and r.picks is not null`,
+      [userId, TRIPLE_DONUT_FROM],
+    );
+    for (const row of rows) {
+      const picks = Array.isArray(row.picks) ? (row.picks as LinePick[]) : [];
+      if (!quadDonutHit(dailyLineupRealZeroCount(picks, Number(row.year), Number(row.week)))) continue;
+      await grantFeat(sql, userId, QUAD_DONUT_ID);
+      return;
+    }
+  } catch (err) {
+    console.error("[darkness] quad donut daily failed", err);
+  }
+}
+
+export async function maybeGrantQuadDonutWeekly(
+  sql: Sql,
+  userId: string,
+  picks: unknown,
+  live: Readonly<Record<string, number>>,
+  awardDay: string,
+  weekDone: boolean,
+  finalTeams: ReadonlySet<string>,
+): Promise<void> {
+  try {
+    if (!weekDone) return;
+    if (!awardDay || awardDay < TRIPLE_DONUT_FROM) return;
+    const rows = Array.isArray(picks) ? (picks as { id?: string; sid?: string; name?: string; team?: string; vs?: string }[]) : [];
+    if (!quadDonutHit(weeklyRealZeroCount(rows, live, finalTeams))) return;
+    await grantFeat(sql, userId, QUAD_DONUT_ID);
+  } catch (err) {
+    console.error("[darkness] quad donut weekly failed", err);
   }
 }
 

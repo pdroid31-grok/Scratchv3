@@ -15,6 +15,7 @@ import {
   COLD_STREAK_FROM,
   THREE_HEADED_NEED,
   TRIPLE_DONUT_NEED,
+  QUAD_DONUT_NEED,
   BLUE_STREAK_NEED,
   COLD_STREAK_NEED,
 } from "../avatars";
@@ -180,6 +181,10 @@ export function doubleDonutHit(zeroCount: number): boolean {
 
 export function tripleDonutHit(zeroCount: number): boolean {
   return zeroCount >= TRIPLE_DONUT_NEED;
+}
+
+export function quadDonutHit(zeroCount: number): boolean {
+  return zeroCount >= QUAD_DONUT_NEED;
 }
 
 /** Three picks share one NFL team. Blank teams do not count. */

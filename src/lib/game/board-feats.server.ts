@@ -35,6 +35,8 @@ export {
   maybeGrantThreeHeaded,
   maybeGrantTripleDonutDaily,
   maybeGrantTripleDonutWeekly,
+  maybeGrantQuadDonutDaily,
+  maybeGrantQuadDonutWeekly,
   maybeGrantPenny,
   maybeGrantBlueStreak,
   maybeGrantColdStreak,

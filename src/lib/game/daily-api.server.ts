@@ -440,9 +440,10 @@ async function completeDailyRun(
     if (day.day >= DOUBLE_DONUT_FROM) await maybeGrantDoubleDonutDaily(sql, userId);
     if (day.day >= NEGATIVE_FROM) await maybeGrantNegative(sql, userId);
     if (day.day >= "2026-09-17") await maybeGrantLumpedUp(sql, userId);
-    const { maybeGrantThreeHeaded, maybeGrantTripleDonutDaily, maybeGrantPenny, maybeGrantBlueStreak, maybeGrantColdStreak } = await import("./board-feats.server");
+    const { maybeGrantThreeHeaded, maybeGrantTripleDonutDaily, maybeGrantQuadDonutDaily, maybeGrantPenny, maybeGrantBlueStreak, maybeGrantColdStreak } = await import("./board-feats.server");
     if (day.day >= THREE_HEADED_FROM) await maybeGrantThreeHeaded(sql, userId, snap.map((pick) => pick.team));
     if (day.day >= TRIPLE_DONUT_FROM) await maybeGrantTripleDonutDaily(sql, userId);
+    if (day.day >= TRIPLE_DONUT_FROM) await maybeGrantQuadDonutDaily(sql, userId);
     if (day.day >= PENNY_FROM) await maybeGrantPenny(sql, userId);
     if (day.day >= BLUE_STREAK_FROM) await maybeGrantBlueStreak(sql, userId);
     await maybeGrantColdStreak(sql, userId);

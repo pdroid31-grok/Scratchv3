@@ -131,6 +131,7 @@ export const AVATARS = [
   { id: "ultrahunter", name: "Ultra Hunter", src: "/avatars/ultrahunter.jpg?v=1" },
   { id: "threeheaded", name: "3 Headed", src: "/avatars/threeheaded.jpg?v=1" },
   { id: "tripledonut", name: "Triple Donut", src: "/avatars/tripledonut.jpg?v=1" },
+  { id: "quaddonut", name: "Quad Donut", src: "/avatars/quaddonut.jpg?v=1" },
   { id: "penny", name: "Penny", src: "/avatars/penny.jpg?v=1" },
   { id: "bluestreak", name: "Blue Streak", src: "/avatars/bluestreak.jpg?v=1" },
   { id: "coldstreak", name: "Cold Streak", src: "/avatars/coldstreak.jpg?v=1" },
@@ -288,6 +289,8 @@ export const THREE_HEADED_ID = "threeheaded" as const satisfies AvatarId;
 
 export const TRIPLE_DONUT_ID = "tripledonut" as const satisfies AvatarId;
 
+export const QUAD_DONUT_ID = "quaddonut" as const satisfies AvatarId;
+
 export const PENNY_ID = "penny" as const satisfies AvatarId;
 
 export const BLUE_STREAK_ID = "bluestreak" as const satisfies AvatarId;
@@ -392,6 +395,8 @@ export const THREE_HEADED_NEED = 3;
 
 export const TRIPLE_DONUT_NEED = 3;
 
+export const QUAD_DONUT_NEED = 4;
+
 export const BLUE_STREAK_NEED = 4;
 
 export const COLD_STREAK_NEED = 15;
@@ -455,6 +460,7 @@ export const FEAT_IDS = new Set<string>([
   ULTRA_HUNTER_ID,
   THREE_HEADED_ID,
   TRIPLE_DONUT_ID,
+  QUAD_DONUT_ID,
   PENNY_ID,
   BLUE_STREAK_ID,
   COLD_STREAK_ID,
@@ -516,6 +522,7 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: ULTRA_HUNTER_ID, how: "Own 45 Achievements." },
   { id: THREE_HEADED_ID, how: "Start 3 players from the same NFL team in a Daily or Weekly Match." },
   { id: TRIPLE_DONUT_ID, how: "Start three or more players who score 0 in a Daily or Weekly Match." },
+  { id: QUAD_DONUT_ID, how: "Four real 0.0 scores on one lineup." },
   { id: PENNY_ID, how: "Spend $10 or less on a Daily lineup." },
   { id: BLUE_STREAK_ID, how: "Start 4 or more players who score in the blue in one Daily." },
   { id: COLD_STREAK_ID, how: "Finish 15 Daily Matches in a row with no Daily win." },
@@ -606,6 +613,7 @@ export {
   isNegativeScore,
   doubleDonutHit,
   tripleDonutHit,
+  quadDonutHit,
   threeHeadedHit,
   pennyHit,
   blueStreakHit,
