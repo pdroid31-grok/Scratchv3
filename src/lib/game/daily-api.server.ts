@@ -139,6 +139,8 @@ export async function importLegacyThenSettle(sql: Sql, today: string): Promise<v
     await grantHunterLadderV2(sql);
     await grantCryScratchPointsOnce(sql);
     await grantStarPepeOnce(sql);
+    const { grantBack2BackOnce } = await import("./board-feats.server");
+    await grantBack2BackOnce(sql);
   } catch (err) {
     console.error("[darkness] daily contest feats failed", err);
   }
@@ -242,6 +244,12 @@ async function settleYesterday(sql: Sql, today: string): Promise<void> {
     } catch (err) {
       console.error("[darkness] daily win scratch points failed", err);
     }
+  }
+  try {
+    const { maybeGrantBack2Back } = await import("./board-feats.server");
+    for (const id of ids) await maybeGrantBack2Back(sql, id, yday);
+  } catch (err) {
+    console.error("[darkness] back2back grant failed", err);
   }
   await sql.query(
     `update darkness_daily_days

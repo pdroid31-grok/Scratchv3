@@ -147,6 +147,7 @@ export const AVATARS = [
   { id: "musicalchairs", name: "Musical Chairs", src: "/avatars/musicalchairs.jpg?v=1" },
   { id: "hospital", name: "Hospital", src: "/avatars/hospital.jpg?v=1" },
   { id: "consistent", name: "Consistent", src: "/avatars/consistent.jpg?v=1" },
+  { id: "back2back", name: "Back2Back", src: "/avatars/back2back.jpg?v=1" },
 ] as const;
 
 export type AvatarId = (typeof AVATARS)[number]["id"];
@@ -317,6 +318,8 @@ export const HOSPITAL_NEED = 2;
 
 export const CONSISTENT_ID = "consistent" as const satisfies AvatarId;
 
+export const BACK2BACK_ID = "back2back" as const satisfies AvatarId;
+
 export const CONSISTENT_FROM = "2026-10-04";
 
 export const CONSISTENT_DAYS = 6;
@@ -470,6 +473,7 @@ export const FEAT_IDS = new Set<string>([
   MUSICAL_CHAIRS_ID,
   HOSPITAL_ID,
   CONSISTENT_ID,
+  BACK2BACK_ID,
 ]);
 
 export const ACHIEVEMENT_UNLOCKS = [
@@ -534,6 +538,7 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: MUSICAL_CHAIRS_ID, how: "Finish a Daily Match in each place 1 through 10." },
   { id: HOSPITAL_ID, how: "Two or more players on your Weekly lineup leave the week injured." },
   { id: CONSISTENT_ID, how: "Have the highest Daily average for a Sunday–Saturday week, with at least 6 days played." },
+  { id: BACK2BACK_ID, how: "Win two Dailies in a row." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];
 
 export const PRIZE_AVATARS = AVATARS.filter(
