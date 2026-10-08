@@ -147,7 +147,7 @@ export const AVATARS = [
   { id: "musicalchairs", name: "Musical Chairs", src: "/avatars/musicalchairs.jpg?v=1" },
   { id: "hospital", name: "Hospital", src: "/avatars/hospital.jpg?v=1" },
   { id: "consistent", name: "Consistent", src: "/avatars/consistent.jpg?v=1" },
-  { id: "back2back", name: "Back2Back", src: "/avatars/back2back.jpg?v=1" },
+  { id: "back2back", name: "Back2Back", src: "/avatars/back2back.jpg?v=2" },
 ] as const;
 
 export type AvatarId = (typeof AVATARS)[number]["id"];
