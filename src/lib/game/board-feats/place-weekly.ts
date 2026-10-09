@@ -17,6 +17,9 @@ import {
   HOSPITAL_FROM_SEASON,
   HOSPITAL_FROM_WEEK,
   HOSPITAL_NEED,
+  GROUP_WIN_ID,
+  GROUP_WIN_FROM_SEASON,
+  GROUP_WIN_FROM_WEEK,
   lineupSignature,
   overheadPassed,
   mirrorUserIds,
@@ -27,7 +30,7 @@ import { dailyDayStamp } from "../daily";
 import { teamBye } from "../elim-byes";
 import type { TeamId } from "../types";
 import { grantFeat, skipBoardRow, type Sql } from "./grant";
-import { weeklyInjuredSids } from "../weekly-sleeper";
+import { weeklyInjuredSids, weeklyWinningTeams } from "../weekly-sleeper";
 
 export function asTime(value: unknown): number {
   if (value instanceof Date) {
@@ -261,5 +264,28 @@ export async function maybeGrantHospital(
     }
   } catch (err) {
     console.error("[darkness] hospital grant failed", err);
+  }
+}
+
+/** Every locked pick's NFL team won. From 2026 week 5. A tie, a bye, or a missing result does not count. */
+export async function maybeGrantGroupWin(
+  sql: Sql,
+  season: number,
+  week: number,
+  runs: readonly { userId: string; picks: readonly { team?: string }[] }[],
+): Promise<void> {
+  try {
+    if (season < GROUP_WIN_FROM_SEASON || (season === GROUP_WIN_FROM_SEASON && week < GROUP_WIN_FROM_WEEK)) return;
+    const winners = await weeklyWinningTeams(season, week);
+    for (const run of runs) {
+      if (run.picks.length === 0) continue;
+      const won = run.picks.every((pick) => {
+        const team = String(pick.team || "").trim().toUpperCase();
+        return Boolean(team) && winners.has(team);
+      });
+      if (won) await grantFeat(sql, run.userId, GROUP_WIN_ID);
+    }
+  } catch (err) {
+    console.error("[darkness] group win grant failed", err);
   }
 }

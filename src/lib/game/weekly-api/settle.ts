@@ -212,8 +212,14 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
     }
   }
   try {
-    const { maybeGrantHospital } = await import("../board-feats.server");
+    const { maybeGrantHospital, maybeGrantGroupWin } = await import("../board-feats.server");
     await maybeGrantHospital(
+      sql,
+      season,
+      week,
+      scored.map((row) => ({ userId: row.userId, picks: row.picks })),
+    );
+    await maybeGrantGroupWin(
       sql,
       season,
       week,

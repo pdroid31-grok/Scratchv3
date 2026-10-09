@@ -146,6 +146,7 @@ export const AVATARS = [
   { id: "oneone", name: "1/1", src: "/avatars/oneone.jpg?v=1" },
   { id: "musicalchairs", name: "Musical Chairs", src: "/avatars/musicalchairs.jpg?v=1" },
   { id: "hospital", name: "Hospital", src: "/avatars/hospital.jpg?v=1" },
+  { id: "groupwin", name: "Group Win", src: "/avatars/groupwin.jpg?v=1" },
   { id: "consistent", name: "Consistent", src: "/avatars/consistent.jpg?v=1" },
   { id: "back2back", name: "Back2Back", src: "/avatars/back2back.jpg?v=2" },
 ] as const;
@@ -307,6 +308,12 @@ export const ONEONE_ID = "oneone" as const satisfies AvatarId;
 export const MUSICAL_CHAIRS_ID = "musicalchairs" as const satisfies AvatarId;
 
 export const HOSPITAL_ID = "hospital" as const satisfies AvatarId;
+
+export const GROUP_WIN_ID = "groupwin" as const satisfies AvatarId;
+
+export const GROUP_WIN_FROM_SEASON = 2026;
+
+export const GROUP_WIN_FROM_WEEK = 5;
 
 export const MUSICAL_CHAIRS_NEED = 10;
 
@@ -472,6 +479,7 @@ export const FEAT_IDS = new Set<string>([
   ONEONE_ID,
   MUSICAL_CHAIRS_ID,
   HOSPITAL_ID,
+  GROUP_WIN_ID,
   CONSISTENT_ID,
   BACK2BACK_ID,
 ]);
@@ -537,6 +545,7 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: ONEONE_ID, how: "Purchase a 1/1 from the showcase." },
   { id: MUSICAL_CHAIRS_ID, how: "Finish a Daily Match in each place 1 through 10." },
   { id: HOSPITAL_ID, how: "Two or more players on your Weekly lineup leave the week injured." },
+  { id: GROUP_WIN_ID, how: "Every player on your locked Weekly lineup won their NFL game." },
   { id: CONSISTENT_ID, how: "Have the highest Daily average for a Sunday–Saturday week, with at least 6 days played." },
   { id: BACK2BACK_ID, how: "Win two Dailies in a row." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];

@@ -20,6 +20,7 @@ export {
   maybeGrantMirrorWeek,
   maybeGrantTwinWeek,
   maybeGrantHospital,
+  maybeGrantGroupWin,
 } from "./board-feats/place-weekly";
 export {
   maybeGrantThrifty,

@@ -436,6 +436,28 @@ export async function weeklyInjuredSids(season: number, week: number): Promise<S
   return out;
 }
 
+/** Teams that won a final game this week. A tie, a bye, or a game that is not final is not a win. */
+export async function weeklyWinningTeams(season: number, week: number): Promise<Set<string>> {
+  const raw = await getJson<
+    {
+      status?: string;
+      metadata?: { home_team?: string; away_team?: string; home_score?: number | string; away_score?: number | string };
+    }[]
+  >(`https://api.sleeper.app/v1/scores/nfl/regular/${season}/${week}`, 60_000);
+  const winners = new Set<string>();
+  for (const game of Array.isArray(raw) ? raw : []) {
+    if (!isFinalNflStatus(String(game.status || ""))) continue;
+    const home = teamOf(game.metadata?.home_team);
+    const away = teamOf(game.metadata?.away_team);
+    const homeScore = Number(game.metadata?.home_score);
+    const awayScore = Number(game.metadata?.away_score);
+    if (!home || !away || !Number.isFinite(homeScore) || !Number.isFinite(awayScore)) continue;
+    if (homeScore === awayScore) continue;
+    winners.add(homeScore > awayScore ? home : away);
+  }
+  return winners;
+}
+
 export async function weeklyProjections(season: number, week: number): Promise<WeeklyPackedBoard> {
   const [raw, schedule] = await Promise.all([
     getJson<ProjRow[]>(

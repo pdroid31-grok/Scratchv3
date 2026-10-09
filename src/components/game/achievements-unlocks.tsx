@@ -54,6 +54,7 @@ const SHEET_ORDER = [
   "sniper",
   "heavyhitter",
   "hospital",
+  "groupwin",
   "flash",
   "ironboot",
   "doubletrouble",
