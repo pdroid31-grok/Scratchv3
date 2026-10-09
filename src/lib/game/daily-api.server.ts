@@ -139,8 +139,9 @@ export async function importLegacyThenSettle(sql: Sql, today: string): Promise<v
     await grantHunterLadderV2(sql);
     await grantCryScratchPointsOnce(sql);
     await grantStarPepeOnce(sql);
-    const { grantBack2BackOnce } = await import("./board-feats.server");
+    const { grantBack2BackOnce, grantBack2BackImportOnce } = await import("./board-feats.server");
     await grantBack2BackOnce(sql);
+    await grantBack2BackImportOnce(sql);
   } catch (err) {
     console.error("[darkness] daily contest feats failed", err);
   }
