@@ -323,7 +323,7 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
     </div>
     {pickedRow ? (
       <div
-        className="fixed inset-0 z-[60] flex items-end justify-center bg-bg/80 p-4 sm:items-center"
+        className="fixed inset-0 z-[60] flex items-center justify-center bg-bg/80 p-4"
         role="dialog"
         aria-modal="true"
         aria-label={avatarById(pickedRow.id).name}
@@ -360,7 +360,7 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
     ) : null}
     {ownersId ? (
       <div
-        className="fixed inset-0 z-[70] flex items-end justify-center bg-bg/80 p-4 sm:items-center"
+        className="fixed inset-0 z-[70] flex items-center justify-center bg-bg/80 p-4"
         role="dialog"
         aria-modal="true"
         aria-label="Owns this achievement"
