@@ -68,7 +68,7 @@ async function currentProfile(sql: Sql, name: string): Promise<string | null> {
     [name],
   );
   if (rows.length !== 1 || !rows[0]?.user_id) {
-    console.error("[darkness] back2back import profile", name, rows.length);
+    console.error("[darkness] back2back import profile", name, rows.map((row) => row.user_id));
     return null;
   }
   return rows[0].user_id;

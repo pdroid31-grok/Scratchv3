@@ -68,6 +68,12 @@ export async function getMyStatsHandler({ context }: { context: { userId: string
       } catch (err) {
         console.error("[darkness] pat box lunch check failed", err);
       }
+      try {
+        const { grantBack2BackImportOnce } = await import("../board-feats.server");
+        await grantBack2BackImportOnce(sql);
+      } catch (err) {
+        console.error("[darkness] back2back import failed", err);
+      }
       if (report.length) {
         try {
           await sql.query(`
