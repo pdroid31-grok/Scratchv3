@@ -4,10 +4,12 @@ import { grantFeat, skipWho, type Sql } from "./grant";
 import { maybeGrantHunters } from "./shop";
 
 const BACK2BACK_FLAG = "back2back-v1";
-const BACK2BACK_IMPORT_FLAG = "back2back-import-v1";
+const BACK2BACK_IMPORT_V2 = "back2back-import-v2";
 /** Sep 2–15 imported wins are not payout_win. Live pairs start the next day. */
 const PAYOUT_WIN_FROM = "2026-09-16";
-const IMPORT_NAMES = ["Marquis Scott", "Big Blender"] as const;
+/** Sign-in id. The seed id is 9Oc, not 90c. Do not grant the seed. */
+const MARQUIS_SIGNIN_ID = "FWuvVwD2j9Lnc3tG90cNJcGwLdrzR1L4";
+const BLENDER_SEED_ID = "9XfClEbu9fjWssgLlw8VUZFqYTqxIpCM";
 
 /** Two payout_win days on consecutive calendar dates. Sep 2–15 is not in this set. */
 export function back2backHit(days: readonly string[]): boolean {
@@ -41,15 +43,15 @@ export async function maybeGrantBack2Back(sql: Sql, userId: string, day: string)
   }
 }
 
-async function grantSilent(sql: Sql, userId: string): Promise<void> {
+async function grantSilent(sql: Sql, userId: string): Promise<boolean> {
   const rows = await sql.query<{ owned: unknown }>(
     `select owned from player_profiles where user_id = $1`,
     [userId],
   );
   const row = rows[0];
-  if (!row) return;
+  if (!row) return false;
   const owned = parseOwned(row.owned);
-  if (owned.includes(BACK2BACK_ID)) return;
+  if (owned.includes(BACK2BACK_ID)) return true;
   await sql.query(`update player_profiles set owned = $1, updated_at = now() where user_id = $2`, [
     JSON.stringify([...owned, BACK2BACK_ID]),
     userId,
@@ -57,24 +59,29 @@ async function grantSilent(sql: Sql, userId: string): Promise<void> {
   const { grantFeatScratchPoints } = await import("../scratch.server");
   await grantFeatScratchPoints(sql, userId, BACK2BACK_ID);
   await maybeGrantHunters(sql, userId);
+  return true;
 }
 
-/** One display name. An old id and a new id with the same name is not a guess. */
-async function currentProfile(sql: Sql, name: string): Promise<string | null> {
+/** Seed, unless exactly one other Big Blender profile has a login. Never both. */
+async function blenderGrantId(sql: Sql): Promise<string | null> {
   const rows = await sql.query<{ user_id: string }>(
-    `select user_id
-       from player_profiles
-      where lower(trim(display_name)) = lower($1)`,
-    [name],
+    `select p.user_id
+       from player_profiles p
+      where lower(trim(p.display_name)) = 'big blender'
+        and exists (select 1 from account a where a."userId" = p.user_id)
+        and p.user_id <> $1`,
+    [BLENDER_SEED_ID],
   );
-  if (rows.length !== 1 || !rows[0]?.user_id) {
-    console.error("[darkness] back2back import profile", name, rows.map((row) => row.user_id));
+  const newer = rows.map((row) => row.user_id);
+  if (newer.length > 1) {
+    console.error("[darkness] back2back blender logins", newer);
     return null;
   }
-  return rows[0].user_id;
+  if (newer.length === 1) return newer[0]!;
+  return BLENDER_SEED_ID;
 }
 
-/** Marquis Scott and Big Blender only. No News. No toast. No other Sep 2–15 names. */
+/** Marquis sign-in id and one Big Blender profile. No News. No toast. v1 does not skip this. */
 export async function grantBack2BackImportOnce(sql: Sql): Promise<void> {
   await sql.query(`
     create table if not exists darkness_feat_flags (
@@ -83,17 +90,14 @@ export async function grantBack2BackImportOnce(sql: Sql): Promise<void> {
     )`);
   const already = await sql.query<{ key: string }>(
     `select key from darkness_feat_flags where key = $1`,
-    [BACK2BACK_IMPORT_FLAG],
+    [BACK2BACK_IMPORT_V2],
   );
   if (already[0]) return;
-  const ids: string[] = [];
-  for (const name of IMPORT_NAMES) {
-    const userId = await currentProfile(sql, name);
-    if (!userId) return;
-    ids.push(userId);
-  }
-  for (const userId of ids) await grantSilent(sql, userId);
-  await sql.query(`insert into darkness_feat_flags (key) values ($1) on conflict do nothing`, [BACK2BACK_IMPORT_FLAG]);
+  const marquisOk = await grantSilent(sql, MARQUIS_SIGNIN_ID);
+  const blenderId = await blenderGrantId(sql);
+  const blenderOk = blenderId ? await grantSilent(sql, blenderId) : false;
+  if (!marquisOk || !blenderOk) return;
+  await sql.query(`insert into darkness_feat_flags (key) values ($1) on conflict do nothing`, [BACK2BACK_IMPORT_V2]);
 }
 
 /** Sep 16 on, payout_win only. No News. No toast. */
