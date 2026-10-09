@@ -253,7 +253,8 @@ export const auth = betterAuth({
               const email = String(profile.email ?? "").trim().toLowerCase();
               const mapped = mappedIdForEmail(email);
               if (!mapped) return {};
-              await bindLegacyEmailToMappedId(email, mapped);
+              const bound = await bindLegacyEmailToMappedId(email, mapped);
+              if (!bound) return {};
               await seedLegacyPlayer(mapped);
               return {};
             },

@@ -59,20 +59,14 @@ async function findUserById(id: string): Promise<AuthUserRow | null> {
   return rows[0] ?? null;
 }
 
-function throwEmailBound(existingUserId: string): never {
-  throw new APIError("CONFLICT", {
-    message: `LEGACY_EMAIL_MAP: email already has user ${existingUserId}`,
-  });
-}
-
-export async function assertLegacyEmailFree(email: string, mappedId: string): Promise<void> {
-  const existing = await findUserByEmail(email);
-  if (existing && existing.id !== mappedId) throwEmailBound(existing.id);
+function emailOwnedByOther(existing: AuthUserRow | null, mappedId: string): existing is AuthUserRow {
+  return Boolean(existing && existing.id !== mappedId);
 }
 
 export async function bindLegacyEmailToMappedId(email: string, mappedId: string): Promise<AuthUserRow | null> {
   const normalized = email.trim().toLowerCase();
-  await assertLegacyEmailFree(normalized, mappedId);
+  const taken = await findUserByEmail(normalized);
+  if (emailOwnedByOther(taken, mappedId)) return null;
   const existing = await findUserById(mappedId);
   if (!existing) return null;
   const sql = await getSql();
@@ -98,7 +92,9 @@ export async function legacyUserCreateBefore(user: {
   const mapped = mappedIdForEmail(email);
   if (!mapped) return { data: user };
 
-  await assertLegacyEmailFree(email, mapped);
+  const taken = await findUserByEmail(email);
+  if (emailOwnedByOther(taken, mapped)) return false;
+
   const bound = await bindLegacyEmailToMappedId(email, mapped);
   if (bound) return false;
 
@@ -127,7 +123,16 @@ export function legacyEmailMapPlugin(): BetterAuthPlugin {
             const mapped = mappedIdForEmail(email);
             if (!mapped) return;
 
-            await assertLegacyEmailFree(email, mapped);
+            const taken = await findUserByEmail(email);
+            if (emailOwnedByOther(taken, mapped)) {
+              const session = await ctx.context.internalAdapter.createSession(taken.id);
+              if (!session) throw new APIError("BAD_REQUEST", { message: "Failed to create session" });
+              const user = await ctx.context.internalAdapter.findUserById(taken.id);
+              if (!user) throw new APIError("BAD_REQUEST", { message: "Failed to load mapped user" });
+              await setSessionCookie(ctx, { session, user });
+              return ctx.json({ token: session.token, user });
+            }
+
             const bound = await bindLegacyEmailToMappedId(email, mapped);
             if (!bound) return;
 
