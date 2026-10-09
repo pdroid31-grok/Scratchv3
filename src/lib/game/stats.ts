@@ -119,7 +119,7 @@ export const getPublicProfile = createServerFn({ method: "GET" })
 
 export const listAchievementOwners = createServerFn({ method: "GET" })
   .validator((data: { id: string }) => ({ id: String(data.id ?? "").trim() }))
-  .handler(async ({ data }): Promise<{ src: string }[]> => {
+  .handler(async ({ data }): Promise<{ userId: string; src: string }[]> => {
     const { listAchievementOwnersHandler } = await import("./stats.server");
     return listAchievementOwnersHandler({ data });
   });

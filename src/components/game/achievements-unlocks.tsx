@@ -7,6 +7,7 @@ import { ACHIEVEMENT_UNLOCKS, avatarById, type AvatarId } from "@/lib/game/avata
 import { getFeatProgress } from "@/lib/game/feat-progress-api";
 import { getShowcase, listAchievementOwners } from "@/lib/game/stats";
 import { useProfile } from "@/lib/game/profile-store";
+import { PlayerProfileDialog } from "@/components/game/player-profile-dialog";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { cn } from "@/lib/utils";
 
@@ -156,7 +157,8 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
   const [progress, setProgress] = useState<Record<string, string> | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [ownersId, setOwnersId] = useState<string | null>(null);
-  const [ownerFaces, setOwnerFaces] = useState<string[] | null>(null);
+  const [ownerFaces, setOwnerFaces] = useState<{ userId: string; src: string }[] | null>(null);
+  const [ownerUserId, setOwnerUserId] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
@@ -199,7 +201,7 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
     setOwnerFaces(null);
     void listAchievementOwners({ data: { id: ownersId } })
       .then((rows) => {
-        if (live) setOwnerFaces(rows.map((row) => row.src));
+        if (live) setOwnerFaces(rows);
       })
       .catch(() => {
         if (live) setOwnerFaces([]);
@@ -210,16 +212,20 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
   }, [ownersId]);
 
   useEffect(() => {
-    if (!picked && !ownersId) return;
+    if (!picked && !ownersId && !ownerUserId) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       event.preventDefault();
+      if (ownerUserId) {
+        setOwnerUserId(null);
+        return;
+      }
       if (ownersId) setOwnersId(null);
       else setPicked(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [picked, ownersId]);
+  }, [picked, ownersId, ownerUserId]);
 
   const pickedRow = picked ? sheetRows().find((row) => row.id === picked) : null;
 
@@ -383,13 +389,23 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
           </h3>
           {ownerFaces && ownerFaces.length > 0 ? (
             <div className="mt-4 flex flex-wrap gap-2">
-              {ownerFaces.map((src, index) => (
-                <img key={`${src}-${index}`} src={src} alt="" className="size-12 rounded-full object-cover" />
+              {ownerFaces.map((face) => (
+                <button
+                  key={face.userId}
+                  type="button"
+                  className="size-12 overflow-hidden rounded-full"
+                  onClick={() => setOwnerUserId(face.userId)}
+                >
+                  <img src={face.src} alt="" className="size-full object-cover" />
+                </button>
               ))}
             </div>
           ) : null}
         </section>
       </div>
+    ) : null}
+    {ownerUserId ? (
+      <PlayerProfileDialog userId={ownerUserId} layer="z-[80]" onClose={() => setOwnerUserId(null)} />
     ) : null}
     </>
   );

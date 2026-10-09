@@ -646,7 +646,7 @@ export async function getPublicProfileHandler({ data }: { data: { userId: string
 }
 
 /** Current equipped avatar for each visible player who owns this achievement. */
-export async function listAchievementOwnersHandler({ data }: { data: { id: string } }): Promise<{ src: string }[]> {
+export async function listAchievementOwnersHandler({ data }: { data: { id: string } }): Promise<{ userId: string; src: string }[]> {
   const id = data.id;
   if (!ACHIEVEMENT_UNLOCKS.some((row) => row.id === id)) return [];
   const { getSql } = await import("@/lib/db");
@@ -660,11 +660,11 @@ export async function listAchievementOwnersHandler({ data }: { data: { id: strin
        left join "user" u on u.id = p.user_id
       order by lower(coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '')), p.user_id`,
   );
-  const faces: { src: string }[] = [];
+  const faces: { userId: string; src: string }[] = [];
   for (const row of rows) {
     if (isHiddenBoardId(row.user_id) || isHiddenBoardName(row.name)) continue;
     if (!parseOwned(row.owned).includes(id as AvatarId)) continue;
-    faces.push({ src: avatarById(clampAvatar(row.avatar_id ?? "poor")).src });
+    faces.push({ userId: row.user_id, src: avatarById(clampAvatar(row.avatar_id ?? "poor")).src });
   }
   return faces;
 }

@@ -21,7 +21,15 @@ export function PlayerProfileHost({ children }: { children: ReactNode }) {
   );
 }
 
-function PlayerProfileDialog({ userId, onClose }: { userId: string; onClose: () => void }) {
+export function PlayerProfileDialog({
+  userId,
+  onClose,
+  layer = "z-50",
+}: {
+  userId: string;
+  onClose: () => void;
+  layer?: string;
+}) {
   const [book, setBook] = useState<PublicBook | null | undefined>(undefined);
 
   useEffect(() => {
@@ -49,7 +57,11 @@ function PlayerProfileDialog({ userId, onClose }: { userId: string; onClose: () 
 
   return (
     <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-bg/90 p-4 pt-16"
+      className={
+        layer === "z-[80]"
+          ? "fixed inset-0 z-[80] overflow-y-auto bg-bg/90 p-4 pt-16"
+          : "fixed inset-0 z-50 overflow-y-auto bg-bg/90 p-4 pt-16"
+      }
       role="dialog"
       aria-modal="true"
       aria-label="Player profile"
