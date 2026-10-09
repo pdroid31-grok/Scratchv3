@@ -42,6 +42,7 @@ import {
   trailingAtLeast,
   musicalChairLine,
   placesHeld,
+  podiumLine,
   consistentLine,
   finishPlace,
   weekSunday,
@@ -205,6 +206,15 @@ export async function loadFeatProgress(sql: Sql, userId: string): Promise<FeatPr
         userId,
         MUSICAL_CHAIRS_NEED,
       ),
+    ),
+    podium: podiumLine(
+      [...byDay.keys()]
+        .filter((day) => day >= FEAT_TRACK_FROM)
+        .sort()
+        .flatMap((day) => {
+          const place = finishPlace(byDay.get(day) ?? [], userId);
+          return place == null ? [] : [place];
+        }),
     ),
     consistent: consistentLine(mine?.average ?? null, consistentPlace),
   };

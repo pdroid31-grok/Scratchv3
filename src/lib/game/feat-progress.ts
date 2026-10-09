@@ -154,6 +154,25 @@ export function podiumRowHit(places: readonly number[]): boolean {
   return false;
 }
 
+/** Places still on the row. A 4th or worse clears it. Skipped days are not in the list. */
+export function livePodiumRow(places: readonly number[]): number[] {
+  const row: number[] = [];
+  for (const place of places) {
+    if (place >= 4) {
+      row.length = 0;
+      continue;
+    }
+    row.push(place);
+  }
+  return row;
+}
+
+export function podiumLine(places: readonly number[]): string {
+  const row = livePodiumRow(places);
+  if (!row.length) return "need 3";
+  return `${row.join(", ")} · need 3`;
+}
+
 export function musicalChairLine(places: readonly number[]): string {
   const n = places.length;
   if (!n) return "0/10";
