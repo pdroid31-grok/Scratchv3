@@ -5,5 +5,5 @@ export { normalizeRecordNight, recordNightHandler, creditHostedMatch } from "./s
 export { grantStarLooks } from "./stats/stars";
 export { settleProfile } from "./stats/profile";
 export { grantPeeping, openMysteryBoxHandler, buyGoldenPepeHandler, getShowcaseHandler } from "./stats/shop";
-export { getMyStatsHandler, setMyAvatarHandler, setMyNameHandler, getPublicProfileHandler } from "./stats/book";
+export { getMyStatsHandler, setMyAvatarHandler, setMyNameHandler, getPublicProfileHandler, listAchievementOwnersHandler } from "./stats/book";
 export { loadLeaderboard, getLeaderboardHandler } from "./stats/leaderboard";

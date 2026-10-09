@@ -5,7 +5,7 @@ import { Trophy, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ACHIEVEMENT_UNLOCKS, avatarById, type AvatarId } from "@/lib/game/avatars";
 import { getFeatProgress } from "@/lib/game/feat-progress-api";
-import { getShowcase } from "@/lib/game/stats";
+import { getShowcase, listAchievementOwners } from "@/lib/game/stats";
 import { useProfile } from "@/lib/game/profile-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { cn } from "@/lib/utils";
@@ -155,6 +155,8 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
     : 0;
   const [progress, setProgress] = useState<Record<string, string> | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
+  const [ownersId, setOwnersId] = useState<string | null>(null);
+  const [ownerFaces, setOwnerFaces] = useState<string[] | null>(null);
   const [revealed, setRevealed] = useState(false);
 
   useEffect(() => {
@@ -189,15 +191,35 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
   }, [user?.id]);
 
   useEffect(() => {
-    if (!picked) return;
+    if (!ownersId) {
+      setOwnerFaces(null);
+      return;
+    }
+    let live = true;
+    setOwnerFaces(null);
+    void listAchievementOwners({ data: { id: ownersId } })
+      .then((rows) => {
+        if (live) setOwnerFaces(rows.map((row) => row.src));
+      })
+      .catch(() => {
+        if (live) setOwnerFaces([]);
+      });
+    return () => {
+      live = false;
+    };
+  }, [ownersId]);
+
+  useEffect(() => {
+    if (!picked && !ownersId) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       event.preventDefault();
-      setPicked(null);
+      if (ownersId) setOwnersId(null);
+      else setPicked(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [picked]);
+  }, [picked, ownersId]);
 
   const pickedRow = picked ? sheetRows().find((row) => row.id === picked) : null;
 
@@ -243,11 +265,11 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
             const how = hidden ? "?????" : row.how;
             const tappable = Boolean(user) && !unlocked && !hidden && PROGRESS_IDS.has(row.id);
             return (
-              <li key={row.id}>
+              <li key={row.id} className="relative">
                 {tappable ? (
                   <button
                     type="button"
-                    className="flex w-full items-center gap-3 rounded-lg bg-bg px-3 py-2.5 text-left shadow-[var(--shadow-border)]"
+                    className="flex w-full items-center gap-3 rounded-lg bg-bg px-3 py-2.5 pr-12 text-left shadow-[var(--shadow-border)]"
                     aria-label={`${label} progress`}
                     onClick={() => setPicked(row.id)}
                   >
@@ -264,7 +286,7 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
                     </span>
                   </button>
                 ) : (
-                  <div className="flex items-center gap-3 rounded-lg bg-bg px-3 py-2.5 shadow-[var(--shadow-border)]">
+                  <div className="flex items-center gap-3 rounded-lg bg-bg px-3 py-2.5 pr-12 shadow-[var(--shadow-border)]">
                     <div className="relative size-14 shrink-0 overflow-hidden rounded-md bg-black">
                       {unlocked ? (
                         <img src={avatar.src} alt="" className="size-full object-cover" />
@@ -285,6 +307,14 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
                     </div>
                   </div>
                 )}
+                <button
+                  type="button"
+                  className="absolute right-2 top-2 size-7 overflow-hidden rounded-full bg-black shadow-[var(--shadow-border)]"
+                  aria-label="Owns this achievement"
+                  onClick={() => setOwnersId(row.id)}
+                >
+                  <img src="/owners-pepe.jpg" alt="" className="size-full object-cover" />
+                </button>
               </li>
             );
           })}
@@ -325,6 +355,39 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
             </div>
           </div>
           <p className="mt-4 text-sm text-fg">{progress?.[pickedRow.id] ?? "…"}</p>
+        </section>
+      </div>
+    ) : null}
+    {ownersId ? (
+      <div
+        className="fixed inset-0 z-[70] flex items-end justify-center bg-bg/80 p-4 sm:items-center"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Owns this achievement"
+        onClick={() => setOwnersId(null)}
+      >
+        <section
+          className="relative w-full max-w-lg rounded-xl bg-surface px-4 py-5 shadow-[var(--shadow-border)] sm:px-5"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            className="absolute right-3 top-3 flex size-11 items-center justify-center rounded-full bg-bg text-fg shadow-[var(--shadow-border)]"
+            aria-label="Close"
+            onClick={() => setOwnersId(null)}
+          >
+            <X className="size-5" strokeWidth={2} />
+          </button>
+          <h3 className="pr-12 font-display text-lg font-semibold uppercase tracking-wide text-fg">
+            Owns this achievement
+          </h3>
+          {ownerFaces && ownerFaces.length > 0 ? (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {ownerFaces.map((src, index) => (
+                <img key={`${src}-${index}`} src={src} alt="" className="size-12 rounded-full object-cover" />
+              ))}
+            </div>
+          ) : null}
         </section>
       </div>
     ) : null}

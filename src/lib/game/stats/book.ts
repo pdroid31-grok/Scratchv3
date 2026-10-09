@@ -1,5 +1,5 @@
 /** Career book handlers. Move-only from stats.server. */
-import { clampAvatar, isAvatarId, type AvatarId } from "../avatars";
+import { ACHIEVEMENT_UNLOCKS, avatarById, clampAvatar, isAvatarId, parseOwned, type AvatarId } from "../avatars";
 import { clipDisplayName, isHiddenBoardId, isHiddenBoardName } from "../stats-shared";
 import { syncDailyStarsFromPayouts } from "../payouts";
 import type { BookSlice, CareerBook, CareerOpponent, PublicBook } from "../stats-types";
@@ -643,5 +643,29 @@ export async function getPublicProfileHandler({ data }: { data: { userId: string
       auction: mergedAuction,
       elimination: mergedElim,
     };
+}
+
+/** Current equipped avatar for each visible player who owns this achievement. */
+export async function listAchievementOwnersHandler({ data }: { data: { id: string } }): Promise<{ src: string }[]> {
+  const id = data.id;
+  if (!ACHIEVEMENT_UNLOCKS.some((row) => row.id === id)) return [];
+  const { getSql } = await import("@/lib/db");
+  const sql = await getSql();
+  const rows = await sql.query<{ user_id: string; name: string | null; avatar_id: string | null; owned: unknown }>(
+    `select p.user_id,
+            coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name,
+            coalesce(p.avatar_id, 'poor') as avatar_id,
+            p.owned
+       from player_profiles p
+       left join "user" u on u.id = p.user_id
+      order by lower(coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '')), p.user_id`,
+  );
+  const faces: { src: string }[] = [];
+  for (const row of rows) {
+    if (isHiddenBoardId(row.user_id) || isHiddenBoardName(row.name)) continue;
+    if (!parseOwned(row.owned).includes(id as AvatarId)) continue;
+    faces.push({ src: avatarById(clampAvatar(row.avatar_id ?? "poor")).src });
+  }
+  return faces;
 }
 
