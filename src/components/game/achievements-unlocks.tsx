@@ -38,6 +38,7 @@ const SHEET_ORDER = [
   "freefall",
   "musicalchairs",
   "back2back",
+  "podium",
   "lumpedup",
   "negative",
   "penny",

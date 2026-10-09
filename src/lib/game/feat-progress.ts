@@ -144,6 +144,16 @@ export function placesHeld(
   return [...held].sort((a, b) => a - b);
 }
 
+/** Three played days in a row are 1st, 2nd, and 3rd in any order. A 4th or worse breaks that row. */
+export function podiumRowHit(places: readonly number[]): boolean {
+  for (let i = 0; i + 2 < places.length; i += 1) {
+    const row = [places[i], places[i + 1], places[i + 2]];
+    if (row.some((place) => place == null || place >= 4)) continue;
+    if (row.includes(1) && row.includes(2) && row.includes(3)) return true;
+  }
+  return false;
+}
+
 export function musicalChairLine(places: readonly number[]): string {
   const n = places.length;
   if (!n) return "0/10";

@@ -11,6 +11,7 @@ import {
   POOP_NEED,
   MUSICAL_CHAIRS_ID,
   MUSICAL_CHAIRS_NEED,
+  PODIUM_ID,
   CONSISTENT_ID,
   CONSISTENT_FROM,
   CONSISTENT_DAYS,
@@ -32,7 +33,7 @@ import {
 import { clipGm } from "../stats-shared";
 import { dailyDayStamp, dailyYesterday } from "../daily";
 import { grantFeat, skipBoardRow, type Sql } from "./grant";
-import { placesHeld, ymdAdd, ymdWeekday } from "../feat-progress";
+import { finishPlace, placesHeld, podiumRowHit, ymdAdd, ymdWeekday } from "../feat-progress";
 import { asPicks, asTime, visibleContest, type DailyContestRow } from "./place-weekly";
 
 export const RAINY_DAY_FROM = "2026-09-19";
@@ -323,6 +324,54 @@ export async function maybeGrantMusicalChairs(sql: Sql, day: string): Promise<vo
     }
   } catch (err) {
     console.error("[darkness] musical chairs grant failed", err);
+  }
+}
+
+/** One pass of awarded Daily places from 2026-09-17. A skip is ignored. A 4th or worse breaks the row. */
+export async function maybeGrantPodium(sql: Sql, day: string): Promise<void> {
+  try {
+    if (!day || day < FEAT_TRACK_FROM) return;
+    if (!(await dayAwarded(sql, day))) return;
+    const rows = await sql.query<{ day: string; user_id: string; name: string | null; score: number | string }>(
+      `select r.day::text as day, r.user_id, r.score,
+              coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name
+         from darkness_daily_runs r
+         join darkness_daily_days d on d.day = r.day
+         left join player_profiles p on p.user_id = r.user_id
+         left join "user" u on u.id = r.user_id
+        where d.awarded is true
+          and r.day >= $1::date
+          and r.status = 'done'
+          and r.score is not null
+        order by r.day`,
+      [FEAT_TRACK_FROM],
+    );
+    const boards = new Map<string, { userId: string; score: number }[]>();
+    for (const row of rows) {
+      if (skipBoardRow(row.user_id, row.name) || skipBoardRow(row.user_id, clipGm(row.name ?? ""))) continue;
+      const score = Number(row.score);
+      if (!Number.isFinite(score)) continue;
+      const stamp = String(row.day).slice(0, 10);
+      const board = boards.get(stamp) ?? [];
+      board.push({ userId: row.user_id, score });
+      boards.set(stamp, board);
+    }
+    const places = new Map<string, number[]>();
+    for (const stamp of [...boards.keys()].sort()) {
+      const board = boards.get(stamp) ?? [];
+      for (const row of board) {
+        const place = finishPlace(board, row.userId);
+        if (place == null) continue;
+        const list = places.get(row.userId) ?? [];
+        list.push(place);
+        places.set(row.userId, list);
+      }
+    }
+    for (const [userId, list] of places) {
+      if (podiumRowHit(list)) await grantFeat(sql, userId, PODIUM_ID);
+    }
+  } catch (err) {
+    console.error("[darkness] podium grant failed", err);
   }
 }
 
