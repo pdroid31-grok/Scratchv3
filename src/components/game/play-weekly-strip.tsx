@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useState } from "react";
+import { subscribePlayStrips } from "@/components/game/play-daily-strip";
 import { avatarById } from "@/lib/game/avatars";
 import { dailyDayStamp } from "@/lib/game/daily";
 import { getWeekly, type WeeklyMeta } from "@/lib/game/weekly-api";
@@ -12,7 +13,7 @@ import {
   writeKeyedCache,
   writeWeeklyCur,
 } from "@/lib/game/play-strip-cache";
-import { fetchPlayStrips, type PlayFace } from "@/lib/game/play-public";
+import { type PlayFace, type PlayStrips } from "@/lib/game/play-public";
 import { formatWeeklyCountdown } from "@/lib/game/weekly";
 import { useProfile } from "@/lib/game/profile-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -57,10 +58,9 @@ export function PlayWeeklyStrip({ onOpen }: { onOpen?: () => void }) {
 
   useEffect(() => {
     let live = true;
-    const pull = () => {
+    const apply = (strips: PlayStrips | null) => {
       const day = dailyDayStamp();
       void (async () => {
-        const strips = await fetchPlayStrips();
         if (!live) return;
         const fresh = strips && strips.etDay === day ? strips : null;
         if (fresh) {
@@ -87,11 +87,12 @@ export function PlayWeeklyStrip({ onOpen }: { onOpen?: () => void }) {
         }
       })();
     };
-    pull();
-    const id = window.setInterval(pull, 30_000);
+    const stop = subscribePlayStrips((strips) => {
+      if (live) apply(strips);
+    });
     return () => {
       live = false;
-      window.clearInterval(id);
+      stop();
     };
   }, [user?.id]);
 

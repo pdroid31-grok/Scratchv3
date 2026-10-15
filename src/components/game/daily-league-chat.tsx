@@ -39,6 +39,7 @@ export function DailyLeagueChat() {
       return;
     }
     let live = true;
+    let id = 0;
     const pull = () => {
       void unreadLeagueChat({ data: {} })
         .then((next) => {
@@ -48,11 +49,30 @@ export function DailyLeagueChat() {
           if (live) setUnread(0);
         });
     };
-    pull();
-    const id = window.setInterval(pull, 8_000);
+    const stop = () => {
+      if (!id) return;
+      window.clearInterval(id);
+      id = 0;
+    };
+    const arm = () => {
+      stop();
+      if (!live || document.visibilityState !== "visible") return;
+      pull();
+      id = window.setInterval(pull, 60_000);
+    };
+    const onVis = () => {
+      if (document.visibilityState === "hidden") {
+        stop();
+        return;
+      }
+      arm();
+    };
+    if (document.visibilityState === "visible") arm();
+    document.addEventListener("visibilitychange", onVis);
     return () => {
       live = false;
-      window.clearInterval(id);
+      stop();
+      document.removeEventListener("visibilitychange", onVis);
     };
   }, [user, user?.id, displayName, open]);
 

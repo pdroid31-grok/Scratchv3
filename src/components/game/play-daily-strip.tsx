@@ -5,7 +5,7 @@ import { avatarById } from "@/lib/game/avatars";
 import { dailyDayStamp } from "@/lib/game/daily";
 import { getDaily, type DailyMeta } from "@/lib/game/daily-api";
 import { DAILY_STRIP_CACHE, readKeyedCache, writeKeyedCache } from "@/lib/game/play-strip-cache";
-import { fetchPlayStrips, type PlayFace } from "@/lib/game/play-public";
+import { fetchPlayStrips, type PlayFace, type PlayStrips } from "@/lib/game/play-public";
 import { useProfile } from "@/lib/game/profile-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 
@@ -18,6 +18,68 @@ type DailyStripCache = {
 
 function readTodayDailyCache(): DailyStripCache | null {
   return readKeyedCache<DailyStripCache>(DAILY_STRIP_CACHE, dailyDayStamp());
+}
+
+const STRIP_POLL_MS = 60_000;
+
+type StripListener = (strips: PlayStrips | null) => void;
+
+const stripListeners = new Set<StripListener>();
+let stripTimer = 0;
+let stripPull: Promise<void> | null = null;
+
+function tabVisible(): boolean {
+  return document.visibilityState === "visible";
+}
+
+function pullPlayStrips(): Promise<void> {
+  if (stripPull) return stripPull;
+  stripPull = fetchPlayStrips()
+    .then((strips) => {
+      for (const listener of stripListeners) listener(strips);
+    })
+    .finally(() => {
+      stripPull = null;
+    });
+  return stripPull;
+}
+
+function stopStripPoll() {
+  if (!stripTimer) return;
+  window.clearInterval(stripTimer);
+  stripTimer = 0;
+}
+
+function startStripPoll() {
+  if (stripTimer || stripListeners.size === 0 || !tabVisible()) return;
+  stripTimer = window.setInterval(() => {
+    if (!tabVisible()) return;
+    void pullPlayStrips();
+  }, STRIP_POLL_MS);
+}
+
+function onStripVisibility() {
+  if (!tabVisible()) {
+    stopStripPoll();
+    return;
+  }
+  void pullPlayStrips();
+  startStripPoll();
+}
+
+export function subscribePlayStrips(listener: StripListener): () => void {
+  stripListeners.add(listener);
+  if (stripListeners.size === 1) document.addEventListener("visibilitychange", onStripVisibility);
+  if (tabVisible()) {
+    void pullPlayStrips();
+    startStripPoll();
+  }
+  return () => {
+    stripListeners.delete(listener);
+    if (stripListeners.size > 0) return;
+    stopStripPoll();
+    document.removeEventListener("visibilitychange", onStripVisibility);
+  };
 }
 
 export function PlayDailyStrip({ onOpen }: { onOpen?: () => void }) {
@@ -43,10 +105,9 @@ export function PlayDailyStrip({ onOpen }: { onOpen?: () => void }) {
 
   useEffect(() => {
     let live = true;
-    const pull = () => {
+    const apply = (strips: PlayStrips | null) => {
       const day = dailyDayStamp();
       void (async () => {
-        const strips = await fetchPlayStrips();
         if (!live) return;
         if (strips && strips.etDay === day) {
           setYesterdayWinner(strips.yesterdayWinner);
@@ -69,11 +130,12 @@ export function PlayDailyStrip({ onOpen }: { onOpen?: () => void }) {
         }
       })();
     };
-    pull();
-    const id = window.setInterval(pull, 30_000);
+    const stop = subscribePlayStrips((strips) => {
+      if (live) apply(strips);
+    });
     return () => {
       live = false;
-      window.clearInterval(id);
+      stop();
     };
   }, [user?.id]);
 
