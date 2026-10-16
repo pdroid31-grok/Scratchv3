@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Gavel, Settings, Star, X } from "lucide-react";
-import { ACHIEVEMENT_IDS, CLOSET_AVATARS, SHIRT_AVATARS, STAR_IDS, avatarById, isShirtAvatar, isUnlocked, lookSource, ownsAvatar, remainingToUnlock, type AvatarId } from "@/lib/game/avatars";
+import { ACHIEVEMENT_IDS, CLOSET_AVATARS, SHIRT_AVATARS, STAR_IDS, avatarById, isUnlocked, lookSource, ownsAvatar, remainingToUnlock, type AvatarId } from "@/lib/game/avatars";
 import { useProfile } from "@/lib/game/profile-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { authEnabled, signOut } from "@/lib/auth/client";
@@ -305,7 +305,6 @@ function Closet({
   left: number;
 }) {
   const cols = useClosetCols();
-  const selected = avatarById(avatarId);
   return (
     <>
       <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-fg">The closet</h2>
@@ -313,14 +312,11 @@ function Closet({
         {left === 0 ? "All unlocked" : `${left} left to unlock`}
       </p>
       <ul className={cn("mt-4", closetGridClass(cols))}>
-        {CLOSET_AVATARS.filter((avatar) => isUnlocked(avatar.id, owned)).map((avatar) => {
-          const shirt = avatar.id === "holy";
-          const worn = shirt ? isShirtAvatar(avatarId) : avatar.id === avatarId;
-          const shownLook = shirt
-            ? worn
-              ? selected
-              : (SHIRT_AVATARS.find((option) => owned.includes(option.id)) ?? avatar)
-            : avatar;
+        {CLOSET_AVATARS.flatMap((avatar) => {
+          if (avatar.id !== "holy") return isUnlocked(avatar.id, owned) ? [avatar] : [];
+          return SHIRT_AVATARS.filter((option) => ownsAvatar(option.id, owned));
+        }).map((avatar) => {
+          const worn = avatar.id === avatarId;
           const active = user && worn;
           return (
             <li key={avatar.id}>
@@ -331,51 +327,23 @@ function Closet({
                 )}
               >
                 <AvatarPeek
-                  src={shownLook.src}
-                  alt={shownLook.name}
-                  name={shownLook.name}
-                  source={lookSource(shownLook.id)}
+                  src={avatar.src}
+                  alt={avatar.name}
+                  name={avatar.name}
+                  source={lookSource(avatar.id)}
                   className="size-full object-cover"
                   buttonClassName="relative block aspect-square w-full overflow-hidden bg-surface-2"
                   equip={user}
-                  equipped={user && shownLook.id === avatarId}
-                  onEquip={user ? () => void pick(shownLook.id) : undefined}
+                  equipped={user && worn}
+                  onEquip={user ? () => void pick(avatar.id) : undefined}
                 />
                 <span className="px-2 py-2">
                   <span className={`block truncate font-display text-sm font-semibold uppercase tracking-wide ${lookNameTone(avatar.id) || "text-fg"}`}>
-                    {shirt ? "Shirt" : avatar.name}
+                    {avatar.name}
                   </span>
                   <span className="mt-0.5 block text-xs tabular-nums text-muted">
                     {avatar.id === "poor" ? "Starter" : "Owned"}
                   </span>
-                  {shirt ? (
-                    <span className="mt-2 flex gap-1.5">
-                      {SHIRT_AVATARS.filter((option) => ownsAvatar(option.id, owned)).map((option) => {
-                        const on = avatarId === option.id;
-                        const tone =
-                          option.shirt === "red"
-                            ? "bg-[#c4122f]"
-                            : option.shirt === "blue"
-                              ? "bg-[#1d4ed8]"
-                              : "bg-white";
-                        return (
-                          <button
-                            key={option.id}
-                            type="button"
-                            disabled={!user}
-                            aria-label={option.name}
-                            aria-pressed={on}
-                            onClick={() => void pick(option.id)}
-                            className={cn(
-                              "size-5 rounded-full shadow-[var(--shadow-border)]",
-                              tone,
-                              on && "ring-2 ring-accent ring-offset-1 ring-offset-bg",
-                            )}
-                          />
-                        );
-                      })}
-                    </span>
-                  ) : null}
                 </span>
               </div>
             </li>

@@ -6,7 +6,7 @@ import { SliceStats } from "@/components/game/book-slice";
 import type { RankTabId } from "@/components/game/rank-tabs";
 import { AvatarPeek } from "@/components/game/avatar-peek";
 import { closetGridClass, useClosetCols } from "@/components/game/closet-cols";
-import { ACHIEVEMENT_IDS, CLOSET_AVATARS, SHIRT_AVATARS, STAR_IDS, avatarById, isShirtAvatar, isUnlocked, lookSource, remainingToUnlock } from "@/lib/game/avatars";
+import { ACHIEVEMENT_IDS, CLOSET_AVATARS, SHIRT_AVATARS, STAR_IDS, avatarById, isUnlocked, lookSource, remainingToUnlock } from "@/lib/game/avatars";
 import type { PublicBook } from "@/lib/game/stats";
 
 export function PlayerBook({ book, board, popup = false }: { book: PublicBook; board?: RankTabId; popup?: boolean }) {
@@ -80,29 +80,26 @@ function UnlockedCloset({ owned, wearing }: { owned: string[]; wearing: string }
         {left === 0 ? "All unlocked" : `${left} left to unlock`}
       </p>
       <ul className={`mt-3 ${closetGridClass(cols)}`}>
-        {unlocked.map((avatar) => {
-          const shirt = avatar.id === "holy";
-          const shown = shirt
-            ? SHIRT_AVATARS.find((option) => option.id === wearing) ??
-              SHIRT_AVATARS.find((option) => owned.includes(option.id)) ??
-              avatar
-            : avatar;
-          const on = shirt ? isShirtAvatar(wearing) : avatar.id === wearing;
+        {unlocked.flatMap((avatar) => {
+          if (avatar.id !== "holy") return [avatar];
+          return SHIRT_AVATARS.filter((option) => owned.includes(option.id));
+        }).map((avatar) => {
+          const on = avatar.id === wearing;
           return (
             <li key={avatar.id} className="overflow-hidden rounded-lg bg-bg shadow-[var(--shadow-border)]">
               <div className="relative aspect-square overflow-hidden bg-surface-2">
                 <AvatarPeek
-                  src={shown.src}
-                  alt={shown.name}
-                  name={shown.name}
-                  source={lookSource(shown.id)}
+                  src={avatar.src}
+                  alt={avatar.name}
+                  name={avatar.name}
+                  source={lookSource(avatar.id)}
                   className="size-full object-cover"
                   buttonClassName="block size-full"
                 />
                 {on ? <span className="pointer-events-none absolute inset-0 ring-2 ring-inset ring-accent" /> : null}
               </div>
               <p className={`truncate px-2 py-1.5 text-center font-display text-xs font-semibold uppercase tracking-wide ${lookNameTone(avatar.id) || "text-fg"}`}>
-                {shirt ? "Shirt" : avatar.name}
+                {avatar.name}
               </p>
             </li>
           );
