@@ -12,6 +12,9 @@ import {
   MUSICAL_CHAIRS_ID,
   MUSICAL_CHAIRS_NEED,
   PODIUM_ID,
+  HALLOWEEN_ID,
+  TURKEY_DAY_ID,
+  NEW_YEARS_ID,
   CONSISTENT_ID,
   CONSISTENT_FROM,
   CONSISTENT_DAYS,
@@ -372,6 +375,41 @@ export async function maybeGrantPodium(sql: Sql, day: string): Promise<void> {
     }
   } catch (err) {
     console.error("[darkness] podium grant failed", err);
+  }
+}
+
+/** Fourth Thursday of November. Thanksgiving, not a fixed day number. */
+function fourthThursdayOfNovember(year: number): string {
+  const first = new Date(Date.UTC(year, 10, 1));
+  const offset = (4 - first.getUTCDay() + 7) % 7;
+  const date = 1 + offset + 21;
+  return `${year}-11-${String(date).padStart(2, "0")}`;
+}
+
+/** October 31, Thanksgiving, or December 31. January 1 is not New Years. */
+export function dailyDateFeatId(day: string): typeof HALLOWEEN_ID | typeof TURKEY_DAY_ID | typeof NEW_YEARS_ID | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
+  const md = day.slice(5);
+  if (md === "10-31") return HALLOWEEN_ID;
+  if (md === "12-31") return NEW_YEARS_ID;
+  if (day === fourthThursdayOfNovember(Number(day.slice(0, 4)))) return TURKEY_DAY_ID;
+  return null;
+}
+
+/** Awarded Daily win on that date only. Ties share first. Other dates do nothing. */
+export async function maybeGrantDailyDateFeat(sql: Sql, day: string): Promise<void> {
+  try {
+    const featId = dailyDateFeatId(day);
+    if (!featId) return;
+    if (!(await dayAwarded(sql, day))) return;
+    const rows = await sql.query<{ user_id: string }>(
+      `select user_id from darkness_daily_runs
+        where day = $1::date and status = 'done' and payout_win is true`,
+      [day],
+    );
+    for (const row of rows) await grantFeat(sql, row.user_id, featId);
+  } catch (err) {
+    console.error("[darkness] daily date feat failed", err);
   }
 }
 

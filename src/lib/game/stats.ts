@@ -123,3 +123,10 @@ export const listAchievementOwners = createServerFn({ method: "GET" })
     const { listAchievementOwnersHandler } = await import("./stats.server");
     return listAchievementOwnersHandler({ data });
   });
+
+export const dateFeatReveal = createServerFn({ method: "GET" }).handler(
+  async (): Promise<{ halloween: boolean; turkeyday: boolean; newyears: boolean }> => {
+    const { dateFeatRevealHandler } = await import("./stats.server");
+    return dateFeatRevealHandler();
+  },
+);

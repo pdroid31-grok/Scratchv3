@@ -669,3 +669,17 @@ export async function listAchievementOwnersHandler({ data }: { data: { id: strin
   return faces;
 }
 
+/** Whether anyone owns each hidden Daily-date achievement. Not the 1/1 showcase flag. */
+export async function dateFeatRevealHandler(): Promise<{ halloween: boolean; turkeyday: boolean; newyears: boolean }> {
+  const { getSql } = await import("@/lib/db");
+  const sql = await getSql();
+  const rows = await sql.query<{ halloween: boolean; turkeyday: boolean; newyears: boolean }>(
+    `select
+       coalesce(bool_or(position('"halloween"' in owned::text) > 0), false) as halloween,
+       coalesce(bool_or(position('"turkeyday"' in owned::text) > 0), false) as turkeyday,
+       coalesce(bool_or(position('"newyears"' in owned::text) > 0), false) as newyears
+     from player_profiles`,
+  );
+  return rows[0] ?? { halloween: false, turkeyday: false, newyears: false };
+}
+

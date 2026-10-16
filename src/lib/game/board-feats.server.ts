@@ -11,6 +11,7 @@ export {
   maybeGrantPoop,
   maybeGrantMusicalChairs,
   maybeGrantPodium,
+  maybeGrantDailyDateFeat,
   maybeGrantConsistent,
 } from "./board-feats/place-daily";
 export {

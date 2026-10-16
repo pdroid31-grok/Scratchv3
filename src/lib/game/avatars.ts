@@ -150,6 +150,9 @@ export const AVATARS = [
   { id: "consistent", name: "Consistent", src: "/avatars/consistent.jpg?v=1" },
   { id: "back2back", name: "Back2Back", src: "/avatars/back2back.jpg?v=2" },
   { id: "podium", name: "Podium", src: "/avatars/podium.jpg?v=1" },
+  { id: "halloween", name: "Halloween", src: "/avatars/halloween.jpg?v=1" },
+  { id: "turkeyday", name: "Turkey Day", src: "/avatars/turkeyday.jpg?v=1" },
+  { id: "newyears", name: "New Years", src: "/avatars/newyears.jpg?v=1" },
 ] as const;
 
 export type AvatarId = (typeof AVATARS)[number]["id"];
@@ -330,6 +333,12 @@ export const BACK2BACK_ID = "back2back" as const satisfies AvatarId;
 
 export const PODIUM_ID = "podium" as const satisfies AvatarId;
 
+export const HALLOWEEN_ID = "halloween" as const satisfies AvatarId;
+
+export const TURKEY_DAY_ID = "turkeyday" as const satisfies AvatarId;
+
+export const NEW_YEARS_ID = "newyears" as const satisfies AvatarId;
+
 export const CONSISTENT_FROM = "2026-10-04";
 
 export const CONSISTENT_DAYS = 6;
@@ -486,6 +495,9 @@ export const FEAT_IDS = new Set<string>([
   CONSISTENT_ID,
   BACK2BACK_ID,
   PODIUM_ID,
+  HALLOWEEN_ID,
+  TURKEY_DAY_ID,
+  NEW_YEARS_ID,
 ]);
 
 export const ACHIEVEMENT_UNLOCKS = [
@@ -553,6 +565,9 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: CONSISTENT_ID, how: "Have the highest Daily average for a Sunday–Saturday week, with at least 6 days played." },
   { id: BACK2BACK_ID, how: "Win two Dailies in a row." },
   { id: PODIUM_ID, how: "Finish 1st, 2nd, and 3rd on three played Daily days in a row." },
+  { id: HALLOWEEN_ID, how: "Win the Daily on Halloween." },
+  { id: TURKEY_DAY_ID, how: "Win the Daily on Thanksgiving." },
+  { id: NEW_YEARS_ID, how: "Win the Daily on New Year's Eve." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];
 
 export const PRIZE_AVATARS = AVATARS.filter(

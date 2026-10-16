@@ -5,7 +5,7 @@ import { Trophy, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ACHIEVEMENT_UNLOCKS, avatarById, type AvatarId } from "@/lib/game/avatars";
 import { getFeatProgress } from "@/lib/game/feat-progress-api";
-import { getShowcase, listAchievementOwners } from "@/lib/game/stats";
+import { dateFeatReveal, getShowcase, listAchievementOwners } from "@/lib/game/stats";
 import { useProfile } from "@/lib/game/profile-store";
 import { PlayerProfileDialog } from "@/components/game/player-profile-dialog";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
@@ -39,6 +39,9 @@ const SHEET_ORDER = [
   "musicalchairs",
   "back2back",
   "podium",
+  "halloween",
+  "turkeyday",
+  "newyears",
   "lumpedup",
   "negative",
   "penny",
@@ -163,12 +166,18 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
   const [ownerFaces, setOwnerFaces] = useState<{ userId: string; src: string }[] | null>(null);
   const [ownerUserId, setOwnerUserId] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
+  const [dateRevealed, setDateRevealed] = useState({ halloween: false, turkeyday: false, newyears: false });
 
   useEffect(() => {
     let live = true;
     void getShowcase()
       .then((next) => {
         if (live) setRevealed(next.revealed);
+      })
+      .catch(() => {});
+    void dateFeatReveal()
+      .then((next) => {
+        if (live) setDateRevealed(next);
       })
       .catch(() => {});
     return () => {
@@ -269,7 +278,12 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
           {sheetRows().map((row) => {
             const avatar = avatarById(row.id);
             const unlocked = owned.includes(row.id);
-            const hidden = row.id === "oneone" && !revealed && !unlocked;
+            const hidden =
+              (row.id === "oneone" && !revealed && !unlocked) ||
+              (((row.id === "halloween" && !dateRevealed.halloween) ||
+                (row.id === "turkeyday" && !dateRevealed.turkeyday) ||
+                (row.id === "newyears" && !dateRevealed.newyears)) &&
+                !unlocked);
             const label = hidden ? "???" : avatar.name;
             const how = hidden ? "?????" : row.how;
             const tappable = Boolean(user) && !unlocked && !hidden && PROGRESS_IDS.has(row.id);
