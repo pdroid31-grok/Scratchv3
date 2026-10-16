@@ -27,6 +27,7 @@ import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CommishAvatars } from "@/components/game/commish-avatars";
+import { pepeThemeOn, setPepeTheme } from "@/lib/game/pepe-theme";
 
 export function CommishSettingsPage() {
   const { user, isPending } = useCurrentUserState();
@@ -42,6 +43,7 @@ export function CommishSettingsPage() {
   const [tab, setTab] = useState<"tools" | "avatars">("tools");
   const [booksOpen, setBooksOpen] = useState(false);
   const [bankOpen, setBankOpen] = useState(false);
+  const [pepe, setPepe] = useState(false);
 
   async function reload() {
     const next = await listCommishBooks({ data: {} });
@@ -75,6 +77,11 @@ export function CommishSettingsPage() {
     return () => {
       live = false;
     };
+  }, [allowed]);
+
+  useEffect(() => {
+    if (!allowed) return;
+    setPepe(pepeThemeOn());
   }, [allowed]);
 
   if (isPending) return <div className="mt-6 h-48 animate-pulse rounded-xl bg-surface/90" />;
@@ -125,6 +132,41 @@ export function CommishSettingsPage() {
 
       {tab === "avatars" ? <CommishAvatars /> : (
         <>
+
+      <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-display text-xl font-semibold uppercase tracking-wide text-fg">Pepe Theme</h2>
+            <p className="mt-1 text-sm text-muted">This device only.</p>
+          </div>
+          <div className="grid shrink-0 grid-cols-2 gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={pepe ? "default" : "secondary"}
+              className="font-display uppercase tracking-wider"
+              onClick={() => {
+                setPepeTheme(true);
+                setPepe(true);
+              }}
+            >
+              On
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={pepe ? "secondary" : "default"}
+              className="font-display uppercase tracking-wider"
+              onClick={() => {
+                setPepeTheme(false);
+                setPepe(false);
+              }}
+            >
+              Off
+            </Button>
+          </div>
+        </div>
+      </section>
 
       <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
         <button

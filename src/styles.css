@@ -89,6 +89,26 @@
   }
 }
 
+/* CEO Pepe test. Off is the block above. Score, money, and star tokens stay put. */
+html[data-pepe="on"] {
+  --color-bg: #07140c;
+  --color-surface: #102418;
+  --color-surface-2: #17301f;
+  --color-fg: #eef6ea;
+  --color-muted: #b7cbb8;
+  --color-subtle: #7f9a86;
+  --color-border: #2c5a38;
+  --color-accent: #7dce4a;
+  --color-accent-fg: #0b1a0c;
+  --shadow-border: 0 0 0 1px rgb(180 230 160 / 0.16);
+  --shadow-border-hover: 0 0 0 1px rgb(180 230 160 / 0.28);
+}
+
+html[data-pepe="on"] body {
+  background-color: #07140c;
+  background-image: linear-gradient(180deg, #0c2416 0%, #07140c 55%, #04100a 100%);
+}
+
 @keyframes fade-up {
   from {
     opacity: 0;

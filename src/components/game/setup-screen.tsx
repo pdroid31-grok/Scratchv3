@@ -31,6 +31,7 @@ import {
 } from "@/lib/game/rank-tabs";
 import type { Leaderboard as Boards } from "@/lib/game/stats";
 import { cn } from "@/lib/utils";
+import { applyPepeTheme, pepeThemeOn } from "@/lib/game/pepe-theme";
 
 export function SetupScreen({
   prefillRoom = "",
@@ -74,6 +75,7 @@ export function SetupScreen({
   const [dailyOpen, setDailyOpen] = useState(false);
   const [weeklyOpen, setWeeklyOpen] = useState(false);
   const [newsOpen, setNewsOpen] = useState(false);
+  const [pepe, setPepe] = useState(false);
   const fromNews = useRef(false);
   const [hostCard, setHostCard] = useState(false);
   const [phoneCard, setPhoneCard] = useState(false);
@@ -82,6 +84,12 @@ export function SetupScreen({
   useEffect(() => {
     if (forceLobby) setLobbyOpen(true);
   }, [forceLobby]);
+
+  useEffect(() => {
+    const on = pepeThemeOn();
+    setPepe(on);
+    applyPepeTheme(on);
+  }, []);
 
   useEffect(() => {
     if (wantsPlayHome()) {
@@ -181,6 +189,9 @@ export function SetupScreen({
     <main className="relative mx-auto flex min-h-full w-full min-w-0 max-w-lg flex-1 flex-col overflow-x-hidden px-5 py-6 sm:py-8">
       <header className="flex items-start justify-between gap-3">
         <div>
+          {pepe ? (
+            <img src="/themes/pepe/title.png" alt="" className="mb-1 h-16 w-16 object-contain" />
+          ) : null}
           <h1 className="font-display text-5xl font-semibold uppercase leading-none tracking-tight text-fg sm:text-6xl">
             Darkness
           </h1>
@@ -226,7 +237,11 @@ export function SetupScreen({
               tab === row.id ? "bg-surface-2 text-fg" : "text-muted hover:text-fg",
             )}
           >
-            <row.Icon className="size-4" strokeWidth={2} />
+            {pepe ? (
+              <img src={`/themes/pepe/${row.id}.png`} alt="" className="size-5 object-contain" />
+            ) : (
+              <row.Icon className="size-4" strokeWidth={2} />
+            )}
             {row.label}
           </button>
         ))}
@@ -289,7 +304,7 @@ export function SetupScreen({
               className="w-full font-display uppercase tracking-wider"
               onClick={() => setLobbyOpen(true)}
             >
-              <Users className="size-4" />
+              {pepe ? <img src="/themes/pepe/lobby.png" alt="" className="size-5 object-contain" /> : <Users className="size-4" />}
               Public Lobby
             </Button>
             <LiveMatchCard
@@ -310,7 +325,7 @@ export function SetupScreen({
               className="w-full font-display uppercase tracking-wider"
               onClick={() => setDailyOpen(true)}
             >
-              <Sun className="size-4" />
+              {pepe ? <img src="/themes/pepe/daily.png" alt="" className="size-5 object-contain" /> : <Sun className="size-4" />}
               Daily Match
             </Button>
             <PlayDailyStrip
@@ -327,7 +342,7 @@ export function SetupScreen({
               className="w-full font-display uppercase tracking-wider"
               onClick={() => setWeeklyOpen(true)}
             >
-              <CalendarRange className="size-4" />
+              {pepe ? <img src="/themes/pepe/weekly.png" alt="" className="size-5 object-contain" /> : <CalendarRange className="size-4" />}
               Weekly Match
             </Button>
             <PlayWeeklyStrip

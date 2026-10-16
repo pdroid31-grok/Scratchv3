@@ -46,6 +46,11 @@ export const Route = createRootRoute({
   component: () => (
     <html lang="en" className="antialiased" suppressHydrationWarning>
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{if(localStorage.getItem("dks-pepe-theme")==="on")document.documentElement.dataset.pepe="on"}catch(e){}`,
+          }}
+        />
         <HeadContent />
         <style
           dangerouslySetInnerHTML={{
