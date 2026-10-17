@@ -184,13 +184,14 @@ export async function lockWeeklyHandler({ context, data }: { context: { userId: 
       [week.season, week.week, context.userId, JSON.stringify(snap)],
     );
     try {
-      const { maybeGrantMirrorWeek, maybeGrantThreeHeaded } = await import("../board-feats.server");
+      const { maybeGrantMirrorWeek, maybeGrantThreeHeaded, maybeGrantNumberOneFan } = await import("../board-feats.server");
       await maybeGrantThreeHeaded(
         sql,
         context.userId,
         snap.map((pick) => pick.team),
       );
       await maybeGrantMirrorWeek(sql, week.season, week.week);
+      await maybeGrantNumberOneFan(sql, context.userId);
     } catch (err) {
       console.error("[darkness] weekly lock feat failed", err);
     }

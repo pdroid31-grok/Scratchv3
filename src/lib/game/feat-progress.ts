@@ -217,3 +217,93 @@ export function consistentLine(average: number | null, place: number | null): st
   if (average == null || place == null || !Number.isFinite(average)) return "—";
   return `${average.toFixed(1)} · ${placeWord(place)}`;
 }
+
+/** Clock hour 1–12 in ET. Noon and midnight are 12. 1 AM and 1 PM are both 1. */
+export function etClockHour(at: number): number | null {
+  if (!at) return null;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour: "numeric",
+    hourCycle: "h12",
+  }).formatToParts(new Date(at));
+  const hour = Number(parts.find((part) => part.type === "hour")?.value);
+  if (!Number.isInteger(hour) || hour < 1 || hour > 12) return null;
+  return hour;
+}
+
+export function etYmd(at: number): string {
+  if (!at) return "";
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(at));
+  const year = parts.find((part) => part.type === "year")?.value ?? "";
+  const month = parts.find((part) => part.type === "month")?.value ?? "";
+  const day = parts.find((part) => part.type === "day")?.value ?? "";
+  if (!year || !month || !day) return "";
+  return `${year}-${month}-${day}`;
+}
+
+export function sundialHours(times: readonly number[]): number[] {
+  const held = new Set<number>();
+  for (const at of times) {
+    const hour = etClockHour(at);
+    if (hour != null) held.add(hour);
+  }
+  return [...held].sort((a, b) => a - b);
+}
+
+export function sundialLine(hours: readonly number[]): string {
+  if (!hours.length) return "0/12";
+  return `${hours.join(", ")} · ${hours.length}/12`;
+}
+
+export function tenth(score: number): number | null {
+  if (!Number.isFinite(score)) return null;
+  return Math.round(score * 10);
+}
+
+export function hitScore1234(score: number): boolean {
+  return tenth(score) === 1234;
+}
+
+export function closestTenth(scores: readonly number[]): number | null {
+  let best: number | null = null;
+  let dist = Infinity;
+  for (const score of scores) {
+    const hit = tenth(score);
+    if (hit == null) continue;
+    const away = Math.abs(hit - 1234);
+    if (away < dist || (away === dist && best != null && hit < best)) {
+      dist = away;
+      best = hit;
+    }
+  }
+  return best;
+}
+
+export function score1234Line(scores: readonly number[]): string {
+  const best = closestTenth(scores);
+  if (best == null) return "—";
+  return (best / 10).toFixed(1);
+}
+
+export function teamCounts(teams: readonly string[]): { team: string; n: number }[] {
+  const map = new Map<string, number>();
+  for (const raw of teams) {
+    const team = raw.trim().toUpperCase();
+    if (!team) continue;
+    map.set(team, (map.get(team) ?? 0) + 1);
+  }
+  return [...map.entries()]
+    .map(([team, n]) => ({ team, n }))
+    .sort((a, b) => b.n - a.n || a.team.localeCompare(b.team));
+}
+
+export function fanLine(counts: readonly { team: string; n: number }[]): string {
+  const top = counts.slice(0, 5);
+  if (!top.length) return "0";
+  return top.map((row) => `${row.team} ${row.n}`).join(", ");
+}

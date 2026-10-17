@@ -203,8 +203,9 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
       }
     }
     try {
-      const { maybeGrantBullseye, maybeGrantHeavyHitter, maybeGrantIronBoot } = await import("../board-feats.server");
+      const { maybeGrantBullseye, maybeGrantHeavyHitter, maybeGrantIronBoot, maybeGrantScore1234 } = await import("../board-feats.server");
       await maybeGrantBullseye(sql, row.userId, row.score);
+      await maybeGrantScore1234(sql, row.userId);
       await maybeGrantHeavyHitter(sql, row.userId, season, week, row.picks);
       await maybeGrantIronBoot(sql, row.userId, season, week, row.picks, live);
     } catch (err) {

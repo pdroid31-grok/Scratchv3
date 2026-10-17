@@ -20,7 +20,7 @@ import {
 } from "./daily";
 import { scoredWeek, type ElimPick } from "./elim";
 import { clipDisplayName, isAwardSkippedName, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
-import { clampAvatar, BLUE_STREAK_FROM, DOUBLE_DONUT_FROM, NEGATIVE_FROM, PENNY_FROM, THREE_HEADED_FROM, TRIPLE_DONUT_FROM, type AvatarId } from "./avatars";
+import { clampAvatar, BLUE_STREAK_FROM, COLD_STREAK_FROM, DOUBLE_DONUT_FROM, NEGATIVE_FROM, PENNY_FROM, THREE_HEADED_FROM, TRIPLE_DONUT_FROM, type AvatarId } from "./avatars";
 
 type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
 
@@ -462,6 +462,11 @@ async function completeDailyRun(
     if (day.day >= PENNY_FROM) await maybeGrantPenny(sql, userId);
     if (day.day >= BLUE_STREAK_FROM) await maybeGrantBlueStreak(sql, userId);
     await maybeGrantColdStreak(sql, userId);
+    const { maybeGrantSundial, maybeGrantScore1234 } = await import("./board-feats.server");
+    if (day.day >= COLD_STREAK_FROM) {
+      await maybeGrantSundial(sql, userId);
+      await maybeGrantScore1234(sql, userId);
+    }
     const { maybeGrantScoreTrend, maybeGrantEasyDollar, maybeGrantHeroRobbed } = await import("./board-feats.server");
     await maybeGrantScoreTrend(sql, userId, day.day);
     await maybeGrantEasyDollar(sql, userId, day.day);

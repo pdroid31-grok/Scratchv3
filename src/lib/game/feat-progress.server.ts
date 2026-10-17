@@ -29,6 +29,7 @@ import { EASY_DOLLAR_LINE, EASY_DOLLAR_NEED } from "./avatars/money";
 import { RAINY_DAY_FROM, consistentWeekRows } from "./board-feats/place-daily";
 import { asTime } from "./board-feats/place-weekly";
 import { skipBoardRow } from "./board-feats/grant";
+import { fanTeams, score1234Scores, sundialLockTimes } from "./board-feats/track";
 import { dailyDayStamp, dailyYesterday } from "./daily";
 import { clipGm } from "./stats-shared";
 import {
@@ -44,6 +45,11 @@ import {
   placesHeld,
   podiumLine,
   consistentLine,
+  sundialHours,
+  sundialLine,
+  teamCounts,
+  fanLine,
+  score1234Line,
   finishPlace,
   weekSunday,
   ymdAdd,
@@ -217,5 +223,8 @@ export async function loadFeatProgress(sql: Sql, userId: string): Promise<FeatPr
         }),
     ),
     consistent: consistentLine(mine?.average ?? null, consistentPlace),
+    sundial: sundialLine(sundialHours(await sundialLockTimes(sql, userId))),
+    numberonefan: fanLine(teamCounts(await fanTeams(sql, userId))),
+    score1234: score1234Line(await score1234Scores(sql, userId)),
   };
 }

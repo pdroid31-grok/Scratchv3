@@ -34,6 +34,7 @@ const SHEET_ORDER = [
   "earlybird",
   "lost",
   "nightowl",
+  "sundial",
   "comebackkid",
   "freefall",
   "musicalchairs",
@@ -50,6 +51,7 @@ const SHEET_ORDER = [
   "icecoldstreak",
   "club200",
   "bullseye",
+  "score1234",
   "doubledonut",
   "tripledonut",
   "quaddonut",
@@ -59,6 +61,7 @@ const SHEET_ORDER = [
   "heavyhitter",
   "hospital",
   "groupwin",
+  "numberonefan",
   "flash",
   "ironboot",
   "doubletrouble",
@@ -106,6 +109,9 @@ const PROGRESS_IDS = new Set<string>([
   "musicalchairs",
   "consistent",
   "podium",
+  "sundial",
+  "numberonefan",
+  "score1234",
 ]);
 
 function sheetRows() {

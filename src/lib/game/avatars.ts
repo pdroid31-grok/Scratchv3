@@ -153,6 +153,9 @@ export const AVATARS = [
   { id: "halloween", name: "Halloween", src: "/avatars/halloween.jpg?v=1" },
   { id: "turkeyday", name: "Turkey Day", src: "/avatars/turkeyday.jpg?v=1" },
   { id: "newyears", name: "New Years", src: "/avatars/newyears.jpg?v=1" },
+  { id: "sundial", name: "Sundial", src: "/avatars/sundial.jpg?v=1" },
+  { id: "numberonefan", name: "#1 Fan", src: "/avatars/numberonefan.jpg?v=1" },
+  { id: "score1234", name: "1234", src: "/avatars/score1234.jpg?v=1" },
 ] as const;
 
 export type AvatarId = (typeof AVATARS)[number]["id"];
@@ -339,6 +342,16 @@ export const TURKEY_DAY_ID = "turkeyday" as const satisfies AvatarId;
 
 export const NEW_YEARS_ID = "newyears" as const satisfies AvatarId;
 
+export const SUNDIAL_ID = "sundial" as const satisfies AvatarId;
+
+export const NUMBER_ONE_FAN_ID = "numberonefan" as const satisfies AvatarId;
+
+export const SCORE_1234_ID = "score1234" as const satisfies AvatarId;
+
+export const SUNDIAL_NEED = 12;
+
+export const NUMBER_ONE_FAN_NEED = 20;
+
 export const CONSISTENT_FROM = "2026-10-04";
 
 export const CONSISTENT_DAYS = 6;
@@ -498,6 +511,9 @@ export const FEAT_IDS = new Set<string>([
   HALLOWEEN_ID,
   TURKEY_DAY_ID,
   NEW_YEARS_ID,
+  SUNDIAL_ID,
+  NUMBER_ONE_FAN_ID,
+  SCORE_1234_ID,
 ]);
 
 export const ACHIEVEMENT_UNLOCKS = [
@@ -568,6 +584,9 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: HALLOWEEN_ID, how: "Win the Daily on Halloween." },
   { id: TURKEY_DAY_ID, how: "Win the Daily on Thanksgiving." },
   { id: NEW_YEARS_ID, how: "Win the Daily on New Year's Eve." },
+  { id: SUNDIAL_ID, how: "Lock a Daily in each clock hour 1 through 12." },
+  { id: NUMBER_ONE_FAN_ID, how: "Lock 20 Weekly picks on one NFL team." },
+  { id: SCORE_1234_ID, how: "Score exactly 123.4 on a Daily or a Weekly." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];
 
 export const PRIZE_AVATARS = AVATARS.filter(
