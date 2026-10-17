@@ -119,6 +119,16 @@ const PROGRESS_IDS = new Set<string>([
   "jackpot",
 ]);
 
+const OWNED_BOTTOM_KEY = "dks-achievements-owned-bottom";
+
+function readOwnedBottom(): boolean {
+  try {
+    return localStorage.getItem(OWNED_BOTTOM_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
 function sheetRows() {
   const byId = new Map(ACHIEVEMENT_UNLOCKS.map((row) => [row.id, row]));
   const named = new Set<string>(SHEET_ORDER);
@@ -178,6 +188,7 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
   const [ownerUserId, setOwnerUserId] = useState<string | null>(null);
   const [revealed, setRevealed] = useState(false);
   const [dateRevealed, setDateRevealed] = useState({ halloween: false, turkeyday: false, newyears: false });
+  const [ownedBottom, setOwnedBottom] = useState(readOwnedBottom);
 
   useEffect(() => {
     let live = true;
@@ -251,6 +262,10 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
   }, [picked, ownersId, ownerUserId]);
 
   const pickedRow = picked ? sheetRows().find((row) => row.id === picked) : null;
+  const rows = sheetRows();
+  const listed = ownedBottom
+    ? [...rows.filter((row) => !owned.includes(row.id)), ...rows.filter((row) => owned.includes(row.id))]
+    : rows;
 
   return (
     <>
@@ -273,6 +288,22 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
               <span className="tabular-nums">
                 {ownedCount}/{ACHIEVEMENT_UNLOCKS.length}
               </span>
+              <input
+                type="checkbox"
+                role="switch"
+                className="size-4 shrink-0 self-center accent-fg"
+                aria-label="Owned last"
+                checked={ownedBottom}
+                onChange={(event) => {
+                  const next = event.target.checked;
+                  setOwnedBottom(next);
+                  try {
+                    localStorage.setItem(OWNED_BOTTOM_KEY, next ? "1" : "0");
+                  } catch {
+                    /* private mode */
+                  }
+                }}
+              />
             </h2>
             <p className="mt-1 text-sm text-muted">All obtained Achievements award +50 scratch points.</p>
           </div>
@@ -286,7 +317,7 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
           </button>
         </div>
         <ul className="grid gap-2 overflow-y-auto p-4">
-          {sheetRows().map((row) => {
+          {listed.map((row) => {
             const avatar = avatarById(row.id);
             const unlocked = owned.includes(row.id);
             const hidden =
