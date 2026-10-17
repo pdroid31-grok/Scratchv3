@@ -111,22 +111,40 @@ export function WeeklyWeekBoard({
   const [peek, setPeek] = useState<string | null>(null);
   const [review, setReview] = useState(false);
   const [view, setView] = useState<"list" | "board">(readWeekView);
+  const loadedWeek = useRef<{ week: number; live: boolean } | null>(null);
 
   useEffect(() => {
     let stop = false;
     let timer: ReturnType<typeof setInterval> | undefined;
+    const refresh = (requested: number) => {
+      void listWeeklyBoard({ data: { season: SEASON_YEAR, week: requested } })
+        .then((next) => {
+          if (stop) return;
+          setBoard(next);
+        })
+        .catch(() => {});
+    };
+    const arm = (live: boolean, requested: number) => {
+      if (!live || timer) return;
+      timer = setInterval(() => refresh(requested), 30_000);
+    };
+    if (loadedWeek.current?.week === week && week >= 1) {
+      arm(loadedWeek.current.live, week);
+      return () => {
+        stop = true;
+        if (timer) clearInterval(timer);
+      };
+    }
     const load = () =>
       listWeeklyBoard({ data: { season: SEASON_YEAR, week } })
         .then((next) => {
           if (stop) return;
           setBoard(next);
           const open = openWeekOf(next.currentWeek);
-          setWeek((prev) => (prev < 1 || prev > open ? open : prev));
-          if (next.live && !timer) {
-            timer = setInterval(() => {
-              void load();
-            }, 30_000);
-          }
+          const landed = week < 1 ? (next.week >= 1 && next.week <= open ? next.week : open) : week > open ? open : week;
+          loadedWeek.current = { week: landed, live: Boolean(next.live) };
+          if (landed !== week) setWeek(landed);
+          else arm(Boolean(next.live), week);
         })
         .catch(() => {
           if (stop) return;

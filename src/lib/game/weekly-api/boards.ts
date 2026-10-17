@@ -71,18 +71,15 @@ export async function weeklyBoardPackHandler({ context }: { context: { userId: s
 export async function listWeeklyBoardHandler({ data }: { data: { season: number; week: number; peek?: boolean } }): Promise<WeeklyBoard> {
     const sql = await getSql();
     await ensureWeeklyTables(sql);
-    try {
-      const { importLegacyHistory } = await import("../legacy-import.server");
-      await importLegacyHistory(sql);
-    } catch (err) {
-      console.error("[darkness] legacy weekly import failed", err);
-    }
     const { clock } = await resolveClock(sql);
     const season = data.season || clock.season;
     const weekNo = data.week || clock.week;
-    if (!data.peek) await settleSafe(sql, season, weekNo);
-    const week = await loadWeek(sql, season, weekNo);
+    let week = await loadWeek(sql, season, weekNo);
     const window = await weekWindow(season, weekNo);
+    if (!data.peek && window.done && week && !week.awarded) {
+      await settleSafe(sql, season, weekNo);
+      week = await loadWeek(sql, season, weekNo);
+    }
     if (!week) {
       return {
         season,
@@ -125,24 +122,13 @@ export async function listWeeklyBoardHandler({ data }: { data: { season: number;
     );
     const ranked = rows
       .map((row) => {
-        const picks = hydrateWeeklyPicks(row.picks, live, window.live ? "zero" : "stored");
+        const name = clipDisplayName(row.name ?? "") || "GM";
+        if (isHiddenBoardId(row.user_id) || isHiddenBoardName(name) || isHiddenBoardName(row.name)) return null;
         const score = week.awarded
           ? asNum(row.score)
           : window.live
-            ? weeklyTotal(picks)
+            ? weeklyTotal(hydrateWeeklyPicks(row.picks, live, "zero"))
             : null;
-        const name = clipDisplayName(row.name ?? "") || "GM";
-        if (window.live) {
-          void import("../board-feats.server")
-            .then(({ maybeGrantHeavyHitter, maybeGrantIronBoot }) =>
-              Promise.all([
-                maybeGrantHeavyHitter(sql, row.user_id, season, weekNo, picks),
-                maybeGrantIronBoot(sql, row.user_id, season, weekNo, picks, live),
-              ]),
-            )
-            .catch((err) => console.error("[darkness] weekly live feat failed", err));
-        }
-        if (isHiddenBoardId(row.user_id) || isHiddenBoardName(name) || isHiddenBoardName(row.name)) return null;
         return {
           id: row.user_id,
           name,
@@ -156,21 +142,6 @@ export async function listWeeklyBoardHandler({ data }: { data: { season: number;
       })
       .filter((row): row is NonNullable<typeof row> => Boolean(row))
       .sort((a, b) => rankWeeklyBoard(a, b, week.awarded || window.live));
-    if (window.live) {
-      void import("../board-feats.server")
-        .then(({ maybeGrantFlashWeek, maybeGrantMirrorWeek }) =>
-          Promise.all([
-            maybeGrantFlashWeek(
-              sql,
-              season,
-              weekNo,
-              ranked.flatMap((row) => (typeof row.score === "number" ? [{ userId: row.id, score: row.score }] : [])),
-            ),
-            maybeGrantMirrorWeek(sql, season, weekNo),
-          ]),
-        )
-        .catch((err) => console.error("[darkness] flash live failed", err));
-    }
     if (await weekFinishedOwn(Boolean(week.awarded), season, weekNo, clock, window)) {
       const seasonRuns = await loadSeasonDoneRuns(sql, season);
       const floorScore = weekFloorMin(ranked.filter((row): row is WeeklyBoardRow & { score: number } => typeof row.score === "number"));

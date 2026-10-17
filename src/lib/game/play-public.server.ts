@@ -61,6 +61,22 @@ export async function computePlayStrips(): Promise<PlayStrips> {
   const yest =
     yesterday.rows.find((row) => row.winner || row.id === yesterday.winnerId) ?? yesterday.rows[0] ?? null;
   const weekLive = Boolean(weekBoard.live);
+  if (weekLive) {
+    try {
+      const sql = await getSql();
+      const { maybeGrantFlashWeek } = await import("./board-feats.server");
+      await maybeGrantFlashWeek(
+        sql,
+        weekBoard.season,
+        weekBoard.week,
+        weekBoard.rows.flatMap((row) =>
+          row.floor || typeof row.score !== "number" ? [] : [{ userId: row.id, score: row.score }],
+        ),
+      );
+    } catch (err) {
+      console.error("[darkness] flash live failed", err);
+    }
+  }
   const weekRow = weekLive ? (weekBoard.rows.find((row) => row.hasPicks) ?? null) : null;
   return {
     etDay,
