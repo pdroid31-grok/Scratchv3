@@ -156,6 +156,9 @@ export const AVATARS = [
   { id: "sundial", name: "Sundial", src: "/avatars/sundial.jpg?v=1" },
   { id: "numberonefan", name: "#1 Fan", src: "/avatars/numberonefan.jpg?v=1" },
   { id: "score1234", name: "1234", src: "/avatars/score1234.jpg?v=1" },
+  { id: "almost", name: "Almost", src: "/avatars/almost.jpg?v=1" },
+  { id: "jackpot", name: "Jackpot", src: "/avatars/jackpot.jpg?v=1" },
+  { id: "triplepoint", name: "TriplePoint", src: "/avatars/triplepoint.jpg?v=1" },
 ] as const;
 
 export type AvatarId = (typeof AVATARS)[number]["id"];
@@ -348,6 +351,16 @@ export const NUMBER_ONE_FAN_ID = "numberonefan" as const satisfies AvatarId;
 
 export const SCORE_1234_ID = "score1234" as const satisfies AvatarId;
 
+export const ALMOST_ID = "almost" as const satisfies AvatarId;
+
+export const JACKPOT_ID = "jackpot" as const satisfies AvatarId;
+
+export const TRIPLEPOINT_ID = "triplepoint" as const satisfies AvatarId;
+
+export const JACKPOT_DAYS = 3;
+
+export const TRIPLEPOINT_NEED = 3;
+
 export const SUNDIAL_NEED = 12;
 
 export const NUMBER_ONE_FAN_NEED = 20;
@@ -514,6 +527,9 @@ export const FEAT_IDS = new Set<string>([
   SUNDIAL_ID,
   NUMBER_ONE_FAN_ID,
   SCORE_1234_ID,
+  ALMOST_ID,
+  JACKPOT_ID,
+  TRIPLEPOINT_ID,
 ]);
 
 export const ACHIEVEMENT_UNLOCKS = [
@@ -587,6 +603,9 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: SUNDIAL_ID, how: "Lock a Daily in each clock hour 1 through 12." },
   { id: NUMBER_ONE_FAN_ID, how: "Lock 20 Weekly picks on one NFL team." },
   { id: SCORE_1234_ID, how: "Score exactly 123.4 on a Daily or a Weekly." },
+  { id: ALMOST_ID, how: "Score 99.9 on a Daily." },
+  { id: JACKPOT_ID, how: "Post the same Daily score on three different days." },
+  { id: TRIPLEPOINT_ID, how: "Three players have the same avatar equipped." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];
 
 export const PRIZE_AVATARS = AVATARS.filter(

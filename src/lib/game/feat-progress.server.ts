@@ -29,7 +29,7 @@ import { EASY_DOLLAR_LINE, EASY_DOLLAR_NEED } from "./avatars/money";
 import { RAINY_DAY_FROM, consistentWeekRows } from "./board-feats/place-daily";
 import { asTime } from "./board-feats/place-weekly";
 import { skipBoardRow } from "./board-feats/grant";
-import { fanTeams, score1234Scores, sundialLockTimes } from "./board-feats/track";
+import { dailyScoreRows, fanTeams, score1234Scores, sundialLockTimes } from "./board-feats/track";
 import { dailyDayStamp, dailyYesterday } from "./daily";
 import { clipGm } from "./stats-shared";
 import {
@@ -50,6 +50,8 @@ import {
   teamCounts,
   fanLine,
   score1234Line,
+  almostLine,
+  jackpotLine,
   finishPlace,
   weekSunday,
   ymdAdd,
@@ -176,6 +178,7 @@ export async function loadFeatProgress(sql: Sql, userId: string): Promise<FeatPr
   const consistentPlace = mine
     ? finishPlace(openWeek.map((row) => ({ userId: row.userId, score: row.average })), userId)
     : null;
+  const dailyScores = await dailyScoreRows(sql, userId);
 
   return {
     crossword: line(currentCalendarRun(doneDays, today), CROSSWORD_STREAK_NEED, "A skipped Daily breaks it."),
@@ -226,5 +229,7 @@ export async function loadFeatProgress(sql: Sql, userId: string): Promise<FeatPr
     sundial: sundialLine(sundialHours(await sundialLockTimes(sql, userId))),
     numberonefan: fanLine(teamCounts(await fanTeams(sql, userId))),
     score1234: score1234Line(await score1234Scores(sql, userId)),
+    almost: almostLine(dailyScores.map((row) => row.score)),
+    jackpot: jackpotLine(dailyScores),
   };
 }

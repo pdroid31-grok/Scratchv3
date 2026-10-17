@@ -52,6 +52,8 @@ const SHEET_ORDER = [
   "club200",
   "bullseye",
   "score1234",
+  "almost",
+  "jackpot",
   "doubledonut",
   "tripledonut",
   "quaddonut",
@@ -62,6 +64,7 @@ const SHEET_ORDER = [
   "hospital",
   "groupwin",
   "numberonefan",
+  "triplepoint",
   "flash",
   "ironboot",
   "doubletrouble",
@@ -112,6 +115,8 @@ const PROGRESS_IDS = new Set<string>([
   "sundial",
   "numberonefan",
   "score1234",
+  "almost",
+  "jackpot",
 ]);
 
 function sheetRows() {

@@ -242,6 +242,12 @@ export async function setMyAvatarHandler({ context, data }: { context: { userId:
        on conflict (user_id) do update set avatar_id = excluded.avatar_id, updated_at = now()`,
       [context.userId, avatarId],
     );
+    try {
+      const { maybeGrantTriplePoint } = await import("../board-feats.server");
+      await maybeGrantTriplePoint(sql, avatarId);
+    } catch (err) {
+      console.error("[darkness] triple point grant failed", err);
+    }
     return { avatarId };
 }
 

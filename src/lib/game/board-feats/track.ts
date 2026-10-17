@@ -1,13 +1,18 @@
 import {
+  ALMOST_ID,
   COLD_STREAK_FROM,
+  JACKPOT_DAYS,
+  JACKPOT_ID,
   NUMBER_ONE_FAN_ID,
   NUMBER_ONE_FAN_NEED,
   SCORE_1234_ID,
   SUNDIAL_ID,
   SUNDIAL_NEED,
+  TRIPLEPOINT_ID,
+  TRIPLEPOINT_NEED,
 } from "../avatars";
-import { etYmd, hitScore1234, sundialHours, teamCounts } from "../feat-progress";
-import { grantFeat, type Sql } from "./grant";
+import { etYmd, hitAlmost, hitScore1234, jackpotDays, sundialHours, teamCounts } from "../feat-progress";
+import { grantFeat, skipWho, type Sql } from "./grant";
 import { asTime } from "./place-weekly";
 
 function pickTeams(raw: unknown): string[] {
@@ -103,6 +108,60 @@ export async function maybeGrantNumberOneFan(sql: Sql, userId: string): Promise<
     if (hit) await grantFeat(sql, userId, NUMBER_ONE_FAN_ID);
   } catch (err) {
     console.error("[darkness] number one fan grant failed", err);
+  }
+}
+
+export async function dailyScoreRows(sql: Sql, userId: string): Promise<{ day: string; score: number }[]> {
+  const rows = await sql.query<{ day: string; score: number | string | null }>(
+    `select day::text as day, score
+       from darkness_daily_runs
+      where user_id = $1
+        and status = 'done'
+        and day >= $2::date
+        and score is not null`,
+    [userId, COLD_STREAK_FROM],
+  );
+  return rows.flatMap((row) => {
+    const score = asScore(row.score);
+    if (score == null) return [];
+    return [{ day: String(row.day).slice(0, 10), score }];
+  });
+}
+
+export async function maybeGrantAlmost(sql: Sql, userId: string): Promise<void> {
+  try {
+    const rows = await dailyScoreRows(sql, userId);
+    if (rows.some((row) => hitAlmost(row.score))) await grantFeat(sql, userId, ALMOST_ID);
+  } catch (err) {
+    console.error("[darkness] almost grant failed", err);
+  }
+}
+
+export async function maybeGrantJackpot(sql: Sql, userId: string): Promise<void> {
+  try {
+    const hit = [...jackpotDays(await dailyScoreRows(sql, userId)).values()].some((n) => n >= JACKPOT_DAYS);
+    if (hit) await grantFeat(sql, userId, JACKPOT_ID);
+  } catch (err) {
+    console.error("[darkness] jackpot grant failed", err);
+  }
+}
+
+export async function maybeGrantTriplePoint(sql: Sql, avatarId: string): Promise<void> {
+  try {
+    if (!avatarId) return;
+    const rows = await sql.query<{ user_id: string; name: string | null }>(
+      `select p.user_id,
+              coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name
+         from player_profiles p
+         left join "user" u on u.id = p.user_id
+        where p.avatar_id = $1`,
+      [avatarId],
+    );
+    const wearing = rows.filter((row) => row.user_id && !skipWho(row.user_id, row.name));
+    if (wearing.length < TRIPLEPOINT_NEED) return;
+    for (const row of wearing) await grantFeat(sql, row.user_id, TRIPLEPOINT_ID);
+  } catch (err) {
+    console.error("[darkness] triple point grant failed", err);
   }
 }
 

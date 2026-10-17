@@ -269,6 +269,46 @@ export function hitScore1234(score: number): boolean {
   return tenth(score) === 1234;
 }
 
+export function hitAlmost(score: number): boolean {
+  return tenth(score) === 999;
+}
+
+/** Closest Daily tenth still under 99.9. 99.9 and anything over it are left out. */
+export function almostLine(scores: readonly number[]): string {
+  let best: number | null = null;
+  for (const score of scores) {
+    const hit = tenth(score);
+    if (hit == null || hit >= 999) continue;
+    if (best == null || hit > best) best = hit;
+  }
+  if (best == null) return "—";
+  return (best / 10).toFixed(1);
+}
+
+/** Distinct days per one-decimal score. 0.0 is not a score. */
+export function jackpotDays(rows: readonly { day: string; score: number }[]): Map<number, number> {
+  const days = new Map<number, Set<string>>();
+  for (const row of rows) {
+    const hit = tenth(row.score);
+    const day = String(row.day).slice(0, 10);
+    if (hit == null || hit === 0 || !/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+    const held = days.get(hit) ?? new Set<string>();
+    held.add(day);
+    days.set(hit, held);
+  }
+  const counts = new Map<number, number>();
+  for (const [hit, held] of days) counts.set(hit, held.size);
+  return counts;
+}
+
+export function jackpotLine(rows: readonly { day: string; score: number }[]): string {
+  const hits = [...jackpotDays(rows).entries()]
+    .filter(([, n]) => n >= 2)
+    .sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+  if (!hits.length) return "—";
+  return hits.map(([hit]) => (hit / 10).toFixed(1)).join(", ");
+}
+
 export function closestTenth(scores: readonly number[]): number | null {
   let best: number | null = null;
   let dist = Infinity;

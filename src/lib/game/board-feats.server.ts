@@ -57,4 +57,4 @@ export {
 export { grantHunterLadderOnce, grantVegasCatchupOnce, grantRosterFeatsOnce, grantPennyCap10TodayOnce, grantCryScratchPointsOnce, grantStarPepeOnce } from "./board-feats/once";
 export { grantNewsClick } from "./board-feats/grant";
 export { maybeGrantBack2Back, grantBack2BackOnce, grantBack2BackImportOnce } from "./board-feats/back2back";
-export { maybeGrantSundial, maybeGrantNumberOneFan, maybeGrantScore1234 } from "./board-feats/track";
+export { maybeGrantSundial, maybeGrantNumberOneFan, maybeGrantScore1234, maybeGrantAlmost, maybeGrantJackpot, maybeGrantTriplePoint } from "./board-feats/track";
