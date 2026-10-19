@@ -425,7 +425,7 @@ function NplCard({ guest, coins }: { guest: boolean; coins: number }) {
     return (
       <div className="flex min-w-0 flex-col rounded-lg bg-bg p-3 shadow-[var(--shadow-border)]">
         <img
-          src={kind === "team" ? "/store/npl-team.jpg?v=1" : "/store/npl-player.jpg?v=1"}
+          src={kind === "team" ? "/store/npl-team.jpg?v=2" : "/store/npl-player.jpg?v=2"}
           alt={kind === "team" ? "Name a Team" : "Name a Player"}
           className="aspect-square w-full rounded-md bg-surface object-cover"
         />
