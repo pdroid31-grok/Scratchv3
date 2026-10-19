@@ -77,6 +77,7 @@ const SHEET_ORDER = [
   "boxaddict",
   "thanos",
   "oneone",
+  "npl",
   "tinyhunter",
   "hunter",
   "bighunter",

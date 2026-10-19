@@ -1,5 +1,5 @@
 /** Mystery box, Golden Pepe, Peeping. Move-only from stats.server. */
-import { avatarById, pickPrize, BOX_COST, GOLDEN_COST, ONEONE_ID, PEEPING_ID, type AvatarId } from "../avatars";
+import { avatarById, pickPrize, BOX_COST, GOLDEN_COST, ONEONE_ID, NPL_ID, PEEPING_ID, type AvatarId } from "../avatars";
 import type { BoxResult, ShopResult } from "../stats-types";
 import { announceFeatUnlocks } from "./feats";
 import { settleProfile } from "./profile";
@@ -300,6 +300,12 @@ export async function buyNplHandler({
     );
   }
   if (!inserted[0]) return { ok: false, reason: "sold", coins: settled.coins };
+  try {
+    const { grantFeat } = await import("../board-feats/grant");
+    await grantFeat(sql, context.userId, NPL_ID);
+  } catch (err) {
+    console.error("[darkness] npl grant failed", err);
+  }
   const next = await settleProfile(sql, context.userId);
   return { ok: true, id: Math.floor(Number(inserted[0].id) || 0), kind, coins: next.coins };
 }
