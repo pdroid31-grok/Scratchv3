@@ -144,7 +144,7 @@ export const AVATARS = [
   { id: "rubberduck", name: "Rubber Duck", src: "/avatars/rubberduck.jpg?v=1" },
   { id: "golden", name: "Golden", src: "/avatars/golden.jpg?v=1" },
   { id: "oneone", name: "1/1", src: "/avatars/oneone.jpg?v=1" },
-  { id: "npl", name: "NPL", src: "/avatars/npl.jpg" },
+  { id: "npl", name: "NPL", src: "/avatars/npl.jpg?v=1" },
   { id: "musicalchairs", name: "Musical Chairs", src: "/avatars/musicalchairs.jpg?v=1" },
   { id: "hospital", name: "Hospital", src: "/avatars/hospital.jpg?v=1" },
   { id: "groupwin", name: "Group Win", src: "/avatars/groupwin.jpg?v=2" },
