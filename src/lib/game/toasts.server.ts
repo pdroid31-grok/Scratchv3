@@ -184,6 +184,7 @@ function asTime(value: unknown): number {
 export async function listUnseenToasts(sql: Sql, userId: string): Promise<ToastItem[]> {
   await ensureToastsTable(sql);
   await ensureWeeklyUpdateNotice(sql, userId);
+  await ensureNplStoreNotice(sql, userId);
   await seedInspector1TestToastsIfSelf(sql, userId);
   const rows = await sql.query<{ source_key: string; kind: string; payload: unknown; created_at: Date | string }>(
     `select source_key, kind, payload, created_at
@@ -224,6 +225,20 @@ export async function ensureWeeklyUpdateNotice(sql: Sql, userId: string): Promis
      values ($1, 'weekly_update', $2, $3::jsonb)
      on conflict (source_key) do nothing`,
     [userId, `${WEEKLY_UPDATE_KEY}:${userId}`, JSON.stringify({ kind: "weekly_update" })],
+  );
+}
+
+const NPL_STORE_KEY = "npl-store-notice-v1";
+
+/** One unseen notice per signed-in user. Includes QA names. Does not rewrite a seen row. Does not grant. */
+export async function ensureNplStoreNotice(sql: Sql, userId: string): Promise<void> {
+  if (!userId) return;
+  await ensureToastsTable(sql);
+  await sql.query(
+    `insert into darkness_toasts (user_id, kind, source_key, payload)
+     values ($1, 'npl_store', $2, $3::jsonb)
+     on conflict (source_key) do nothing`,
+    [userId, `${NPL_STORE_KEY}:${userId}`, JSON.stringify({ kind: "npl_store" })],
   );
 }
 

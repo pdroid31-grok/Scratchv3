@@ -308,6 +308,21 @@ function withWeeklyUpdate(items: NewsItem[]): NewsItem[] {
   return [notice, ...items.filter((row) => row.kind !== "weekly_update")];
 }
 
+/** Pinned for 7 days from 2026-10-19 20:00 ET. Not stored, so it cannot linger in the lookback. */
+function withNplStore(items: NewsItem[]): NewsItem[] {
+  const at = etOnDay("2026-10-19", 20, 0);
+  const until = at + 7 * 24 * 60 * 60 * 1000;
+  if (Date.now() >= until) return items.filter((row) => row.kind !== "npl_store");
+  const notice: NewsItem = {
+    id: -1,
+    at,
+    event_at: at,
+    kind: "npl_store",
+    faces: [],
+  };
+  return [notice, ...items.filter((row) => row.kind !== "npl_store")];
+}
+
 async function backfillWindow(sql: Sql, startDay: string, startEt: string): Promise<NewsItem[]> {
   const out: (NewsItem & { created_at: number })[] = [];
   const seen = new Set<string>();
@@ -511,7 +526,7 @@ export async function listNewsHandler(): Promise<NewsItem[]> {
   const startDay = newsLookbackDay();
   const startEt = `${startDay} 00:00:00`;
   try {
-    return withWeeklyUpdate(await backfillWindow(sql, startDay, startEt));
+    return withNplStore(withWeeklyUpdate(await backfillWindow(sql, startDay, startEt)));
   } catch (err) {
     console.error("[darkness] news backfill failed", err);
     const weeks = await loadWeekStamps(sql);
@@ -536,7 +551,7 @@ export async function listNewsHandler(): Promise<NewsItem[]> {
       if (!item) continue;
       out.push(item);
     }
-    return withWeeklyUpdate(rankNews(out));
+    return withNplStore(withWeeklyUpdate(rankNews(out)));
   }
 }
 

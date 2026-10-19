@@ -9,7 +9,8 @@ export type NewsKind =
   | "weekly_win"
   | "star_unlock"
   | "feat_unlock"
-  | "weekly_update";
+  | "weekly_update"
+  | "npl_store";
 
 export type NewsFace = {
   name: string;

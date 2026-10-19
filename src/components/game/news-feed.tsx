@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, X } from "lucide-react";
 import { WeeklyUpdateDialog } from "@/components/game/weekly-update-notice";
+import { NplStoreDialog } from "@/components/game/npl-store-notice";
 import { ACHIEVEMENT_UNLOCKS, avatarById, lookSource, starNeed } from "@/lib/game/avatars";
 import { formatNewsTime, type NewsFace, type NewsItem } from "@/lib/game/news";
 import { listNews, markNewsSeen, peekNewsUnseen, claimNewsFeat } from "@/lib/game/news-api";
@@ -67,6 +68,7 @@ export function NewsFeed({ onPlay }: { onPlay: () => void }) {
   const [peek, setPeek] = useState<LookPeek | null>(null);
   const [hideUnlocks, setHideUnlocks] = useState(false);
   const [notice, setNotice] = useState(false);
+  const [nplNotice, setNplNotice] = useState(false);
   const startX = useRef<number | null>(null);
   const startY = useRef<number | null>(null);
 
@@ -152,6 +154,10 @@ export function NewsFeed({ onPlay }: { onPlay: () => void }) {
                   setNotice(true);
                   if (user) void claimNewsFeat().catch(() => undefined);
                 }}
+                onNpl={() => {
+                  setNplNotice(true);
+                  if (user) void claimNewsFeat().catch(() => undefined);
+                }}
               />
             </li>
           ))}
@@ -161,6 +167,7 @@ export function NewsFeed({ onPlay }: { onPlay: () => void }) {
     </div>
     {peek ? <NewsLookPeek look={peek} onClose={() => setPeek(null)} /> : null}
     {notice ? <WeeklyUpdateDialog onClose={() => setNotice(false)} /> : null}
+    {nplNotice ? <NplStoreDialog onClose={() => setNplNotice(false)} /> : null}
     </>
   );
 }
@@ -288,17 +295,26 @@ function NewsLine({
   onPeek,
   hideUnlocks,
   onNotice,
+  onNpl,
 }: {
   item: NewsItem;
   onPeek: (look: LookPeek) => void;
   hideUnlocks: boolean;
   onNotice: () => void;
+  onNpl: () => void;
 }) {
   const a = item.faces[0];
   if (item.kind === "weekly_update") {
     return (
       <button type="button" className="mt-1 text-left text-sm text-fg" onClick={onNotice}>
         Weekly Update notice - Click Here to View
+      </button>
+    );
+  }
+  if (item.kind === "npl_store") {
+    return (
+      <button type="button" className="mt-1 text-left text-sm text-[#3b9eff]" onClick={onNpl}>
+        New Store Items Added (NPL)
       </button>
     );
   }
