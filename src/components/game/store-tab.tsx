@@ -115,6 +115,39 @@ export function StoreTab({ onProfile }: { onProfile?: () => void }) {
     }, 1000);
   }
 
+  async function buyShowcase() {
+    if (busy || sold || hasGolden) return;
+    setBusy(true);
+    setShopNote(null);
+    const result = await buyGolden();
+    setBusy(false);
+    if (!result) {
+      setShopNote("Could not buy Golden. Try again.");
+      return;
+    }
+    if (!result.ok) {
+      if (result.reason === "sold") {
+        setSold(true);
+        return;
+      }
+      setShopNote(result.reason === "owned" ? "You already own Golden." : `Need $${GOLDEN_COST}.`);
+      return;
+    }
+    setSold(true);
+  }
+
+  function startGoldenHold(event: React.PointerEvent<HTMLButtonElement>) {
+    if (event.button !== 0) return;
+    if (busy || sold || hasGolden || coins < GOLDEN_COST || !user) return;
+    if (event.pointerType === "mouse") event.preventDefault();
+    clearHold();
+    window.addEventListener("scroll", clearHold, { capture: true, once: true });
+    holdTimer.current = window.setTimeout(() => {
+      holdTimer.current = null;
+      void buyShowcase();
+    }, 1000);
+  }
+
   if (isPending && !user) {
     return <div className="mt-5 h-64 animate-pulse rounded-xl bg-surface/90" />;
   }
@@ -259,30 +292,14 @@ export function StoreTab({ onProfile }: { onProfile?: () => void }) {
             type="button"
             size="lg"
             variant={sold ? "secondary" : "default"}
-            className="mt-5 w-full font-display uppercase tracking-wider"
+            className="mt-5 w-full touch-pan-y font-display uppercase tracking-wider"
             disabled={busy || sold || hasGolden || coins < GOLDEN_COST}
-            onClick={async () => {
-              if (busy || sold || hasGolden) return;
-              setBusy(true);
-              setShopNote(null);
-              const result = await buyGolden();
-              setBusy(false);
-              if (!result) {
-                setShopNote("Could not buy Golden. Try again.");
-                return;
-              }
-              if (!result.ok) {
-                if (result.reason === "sold") {
-                  setSold(true);
-                  return;
-                }
-                setShopNote(result.reason === "owned" ? "You already own Golden." : `Need $${GOLDEN_COST}.`);
-                return;
-              }
-              setSold(true);
-            }}
+            onPointerDown={startGoldenHold}
+            onPointerUp={clearHold}
+            onPointerCancel={clearHold}
+            onPointerLeave={clearHold}
           >
-            {sold ? "Sold out" : hasGolden ? "Owned" : busy ? "Buying…" : `Buy · $${GOLDEN_COST}`}
+            {sold ? "Sold out" : hasGolden ? "Owned" : busy ? "Buying…" : `Hold · $${GOLDEN_COST}`}
           </Button>
         )}
       </section>
