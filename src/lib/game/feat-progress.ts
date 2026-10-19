@@ -169,8 +169,12 @@ export function livePodiumRow(places: readonly number[]): number[] {
 
 export function podiumLine(places: readonly number[]): string {
   const row = livePodiumRow(places);
-  if (!row.length) return "need 3";
-  return `${row.join(", ")} · need 3`;
+  const word = (place: number) => (place === 1 ? "1st" : place === 2 ? "2nd" : "3rd");
+  const held = row.map(word);
+  const missing = [1, 2, 3].filter((place) => !row.includes(place)).map(word);
+  if (!held.length) return `need ${missing.join(", ")}`;
+  if (!missing.length) return held.join(", ");
+  return `${held.join(", ")} · need ${missing.join(", ")}`;
 }
 
 export function musicalChairLine(places: readonly number[]): string {
