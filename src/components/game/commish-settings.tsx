@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CommishAvatars } from "@/components/game/commish-avatars";
 import { pepeThemeOn, setPepeTheme } from "@/lib/game/pepe-theme";
+import { approveNpl, denyNpl, listNpl, type NplCeoSlot } from "@/lib/game/stats";
 
 export function CommishSettingsPage() {
   const { user, isPending } = useCurrentUserState();
@@ -40,7 +41,7 @@ export function CommishSettingsPage() {
   const [busy, setBusy] = useState(false);
   const [pwStatus, setPwStatus] = useState<CommishPasswordStatus | null>(null);
   const [botStatus, setBotStatus] = useState<CommishPasswordStatus | null>(null);
-  const [tab, setTab] = useState<"tools" | "avatars">("tools");
+  const [tab, setTab] = useState<"tools" | "avatars" | "npl">("tools");
   const [booksOpen, setBooksOpen] = useState(false);
   const [bankOpen, setBankOpen] = useState(false);
   const [pepe, setPepe] = useState(false);
@@ -108,7 +109,7 @@ export function CommishSettingsPage() {
         <Link to="/" search={{ tab: "profile" }} className="mt-2 inline-flex text-sm text-muted hover:text-fg">
           Back to Profile
         </Link>
-        <div className="mt-4 grid grid-cols-2 gap-2">
+        <div className="mt-4 grid grid-cols-3 gap-2">
           <Button
             type="button"
             size="lg"
@@ -127,10 +128,19 @@ export function CommishSettingsPage() {
           >
             Avatars
           </Button>
+          <Button
+            type="button"
+            size="lg"
+            variant={tab === "npl" ? "default" : "secondary"}
+            className="font-display uppercase tracking-wider"
+            onClick={() => setTab("npl")}
+          >
+            NPL
+          </Button>
         </div>
       </section>
 
-      {tab === "avatars" ? <CommishAvatars /> : (
+      {tab === "avatars" ? <CommishAvatars /> : tab === "npl" ? <NplSettings /> : (
         <>
 
       <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
@@ -587,4 +597,132 @@ function formatBankWhen(iso: string): string {
     hour: "numeric",
     minute: "2-digit",
   }).format(stamp);
+}
+
+function NplSettings() {
+  const [board, setBoard] = useState<{ teams: (NplCeoSlot | null)[]; players: (NplCeoSlot | null)[] } | null>(null);
+  const [reasons, setReasons] = useState<Record<number, string>>({});
+  const [note, setNote] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function reload() {
+    const next = await listNpl({ data: {} });
+    if (!next.ok) {
+      setBoard(null);
+      setNote("Settings is locked.");
+      return;
+    }
+    setBoard(next);
+  }
+
+  useEffect(() => {
+    let live = true;
+    void listNpl({ data: {} })
+      .then((next) => {
+        if (!live) return;
+        if (!next.ok) {
+          setBoard(null);
+          setNote("Settings is locked.");
+          return;
+        }
+        setBoard(next);
+      })
+      .catch(() => {
+        if (live) {
+          setBoard(null);
+          setNote("Could not load NPL.");
+        }
+      });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  async function approve(id: number) {
+    if (busy) return;
+    setBusy(true);
+    setNote(null);
+    try {
+      const result = await approveNpl({ data: { id } });
+      setNote(result.ok ? "Approved." : "Could not approve.");
+      if (result.ok) await reload();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deny(id: number) {
+    const reason = (reasons[id] ?? "").trim();
+    if (busy || !reason) return;
+    setBusy(true);
+    setNote(null);
+    try {
+      const result = await denyNpl({ data: { id, reason } });
+      setNote(result.ok ? "Denied." : result.reason === "empty" ? "A reason is required." : "Could not deny.");
+      if (result.ok) await reload();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function slotCard(slot: NplCeoSlot | null, n: number, kind: "team" | "player") {
+    return (
+      <li key={`${kind}-${n}`} className="rounded-lg bg-bg p-3 shadow-[var(--shadow-border)]">
+        <p className="font-display text-sm font-semibold uppercase tracking-wide text-fg">
+          {n} {slot ? (slot.status === "form" ? "not submitted" : slot.status) : "open"}
+        </p>
+        {slot ? (
+          <>
+            <p className="mt-1 text-sm text-fg">{slot.buyer}</p>
+            {kind === "team" ? (
+              <p className="mt-1 text-sm text-muted">
+                {slot.name || "—"}
+                <br />
+                {slot.logo || "—"}
+                <br />
+                {slot.colors || "—"}
+              </p>
+            ) : (
+              <p className="mt-1 text-sm text-muted">
+                {slot.firstName || "—"} {slot.lastName}
+              </p>
+            )}
+            {slot.status === "denied" && slot.denyReason ? <p className="mt-1 text-sm text-muted">{slot.denyReason}</p> : null}
+            {slot.status === "pending" ? (
+              <div className="mt-3 grid gap-2">
+                <Button type="button" size="sm" className="font-display uppercase tracking-wider" disabled={busy} onClick={() => void approve(slot.id)}>
+                  Approve
+                </Button>
+                <Input
+                  aria-label={`Deny reason ${n}`}
+                  placeholder="Reason"
+                  value={reasons[slot.id] ?? ""}
+                  onChange={(event) => setReasons((prev) => ({ ...prev, [slot.id]: event.target.value }))}
+                  maxLength={200}
+                />
+                <Button type="button" size="sm" variant="secondary" className="font-display uppercase tracking-wider" disabled={busy || !(reasons[slot.id] ?? "").trim()} onClick={() => void deny(slot.id)}>
+                  Deny
+                </Button>
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <p className="mt-1 text-sm text-muted">Open</p>
+        )}
+      </li>
+    );
+  }
+
+  if (!board) return <p className="text-sm text-muted">{note ?? "Loading NPL…"}</p>;
+
+  return (
+    <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
+      <h2 className="font-display text-xl font-semibold uppercase tracking-wide text-fg">NPL</h2>
+      {note ? <p className="mt-2 text-sm text-muted">{note}</p> : null}
+      <h3 className="mt-4 font-display text-sm font-semibold uppercase tracking-wide text-fg">Teams</h3>
+      <ul className="mt-2 grid gap-2">{board.teams.map((slot, index) => slotCard(slot, index + 1, "team"))}</ul>
+      <h3 className="mt-5 font-display text-sm font-semibold uppercase tracking-wide text-fg">Players</h3>
+      <ul className="mt-2 grid gap-2">{board.players.map((slot, index) => slotCard(slot, index + 1, "player"))}</ul>
+    </section>
+  );
 }

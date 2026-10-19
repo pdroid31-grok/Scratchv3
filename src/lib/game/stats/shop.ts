@@ -136,3 +136,304 @@ export async function buyGoldenPepeHandler({ context }: { context: { userId: str
     return { ok: true, coins: next.coins, owned: next.owned, avatarId: "golden" };
 }
 
+const NPL_TEAM_COST = 100;
+const NPL_PLAYER_COST = 20;
+const NPL_TEAM_CAP = 6;
+const NPL_PLAYER_CAP = 20;
+
+type NplSql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
+type NplKind = "team" | "player";
+type NplStatus = "form" | "pending" | "denied" | "approved";
+
+type NplRow = {
+  id: number | string;
+  kind: string;
+  n: number | string;
+  user_id: string;
+  status: string;
+  name: string | null;
+  logo: string | null;
+  colors: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  deny_reason: string | null;
+  note: string | null;
+  buyer: string | null;
+};
+
+function nplCost(kind: NplKind): number {
+  return kind === "team" ? NPL_TEAM_COST : NPL_PLAYER_COST;
+}
+
+function nplCap(kind: NplKind): number {
+  return kind === "team" ? NPL_TEAM_CAP : NPL_PLAYER_CAP;
+}
+
+function clipNpl(value: unknown, max = 80): string {
+  return String(value ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+}
+
+function nplKind(value: unknown): NplKind | null {
+  return value === "team" || value === "player" ? value : null;
+}
+
+function nplStatus(value: string): NplStatus {
+  if (value === "pending" || value === "denied" || value === "approved" || value === "form") return value;
+  return "form";
+}
+
+async function ensureNpl(sql: NplSql): Promise<void> {
+  await sql.query(`
+    create table if not exists darkness_npl (
+      id serial primary key,
+      kind text not null,
+      n int not null,
+      user_id text not null,
+      status text not null,
+      name text not null default '',
+      logo text not null default '',
+      colors text not null default '',
+      first_name text not null default '',
+      last_name text not null default '',
+      deny_reason text not null default '',
+      note text not null default '',
+      created_at timestamptz not null default now()
+    )`);
+  await sql.query(`create unique index if not exists darkness_npl_kind_n on darkness_npl (kind, n)`);
+}
+
+export async function nplSpend(sql: NplSql, userId: string): Promise<number> {
+  try {
+    const rows = await sql.query<{ n: number | string | null }>(
+      `select coalesce(sum(case kind when 'team' then $2 when 'player' then $3 else 0 end), 0)::int as n
+         from darkness_npl
+        where user_id = $1`,
+      [userId, NPL_TEAM_COST, NPL_PLAYER_COST],
+    );
+    return Math.max(0, Math.floor(Number(rows[0]?.n) || 0));
+  } catch (err) {
+    const code = err && typeof err === "object" && "code" in err ? String((err as { code?: string }).code) : "";
+    if (code === "42P01") return 0;
+    throw err;
+  }
+}
+
+async function nplLeft(sql: NplSql): Promise<{ teamLeft: number; playerLeft: number }> {
+  await ensureNpl(sql);
+  const rows = await sql.query<{ kind: string; n: number | string }>(
+    `select kind, count(*)::int as n from darkness_npl group by kind`,
+  );
+  const used = new Map(rows.map((row) => [row.kind, Math.floor(Number(row.n) || 0)]));
+  return {
+    teamLeft: Math.max(0, NPL_TEAM_CAP - (used.get("team") ?? 0)),
+    playerLeft: Math.max(0, NPL_PLAYER_CAP - (used.get("player") ?? 0)),
+  };
+}
+
+function mineSlot(row: NplRow) {
+  return {
+    id: Math.floor(Number(row.id) || 0),
+    kind: row.kind === "player" ? "player" as const : "team" as const,
+    status: nplStatus(row.status),
+    name: row.name ?? "",
+    logo: row.logo ?? "",
+    colors: row.colors ?? "",
+    firstName: row.first_name ?? "",
+    lastName: row.last_name ?? "",
+    denyReason: row.deny_reason ?? "",
+    note: row.note ?? "",
+  };
+}
+
+const NPL_MINE_SQL = `select id, kind, n, user_id, status, name, logo, colors, first_name, last_name, deny_reason, note, '' as buyer
+  from darkness_npl where user_id = $1 order by id`;
+
+export async function getNplStockHandler(): Promise<{ teamLeft: number; playerLeft: number; teamCost: number; playerCost: number }> {
+  const { getSql } = await import("@/lib/db");
+  const sql = await getSql();
+  const left = await nplLeft(sql);
+  return { ...left, teamCost: NPL_TEAM_COST, playerCost: NPL_PLAYER_COST };
+}
+
+export async function getNplMineHandler({ context }: { context: { userId: string } }) {
+  const { getSql } = await import("@/lib/db");
+  const sql = await getSql();
+  const stock = await getNplStockHandler();
+  const rows = await sql.query<NplRow>(NPL_MINE_SQL, [context.userId]);
+  return { ...stock, slots: rows.map(mineSlot) };
+}
+
+export async function buyNplHandler({
+  context,
+  data,
+}: {
+  context: { userId: string };
+  data: { kind: string };
+}): Promise<{ ok: true; id: number; kind: NplKind; coins: number } | { ok: false; reason: "kind" | "sold" | "broke"; coins: number }> {
+  const kind = nplKind(data.kind);
+  const { getSql } = await import("@/lib/db");
+  const sql = await getSql();
+  if (!kind) {
+    const settled = await settleProfile(sql, context.userId);
+    return { ok: false, reason: "kind", coins: settled.coins };
+  }
+  await ensureNpl(sql);
+  const settled = await settleProfile(sql, context.userId);
+  const cost = nplCost(kind);
+  if (settled.coins < cost) return { ok: false, reason: "broke", coins: settled.coins };
+  const cap = nplCap(kind);
+  let inserted: { id: number | string }[] = [];
+  for (let attempt = 0; attempt < 3 && !inserted[0]; attempt += 1) {
+    inserted = await sql.query<{ id: number | string }>(
+      `with nxt as (
+         select coalesce(max(n), 0) + 1 as n
+           from darkness_npl
+          where kind = $1
+       )
+       insert into darkness_npl (kind, n, user_id, status)
+       select $1, nxt.n, $2, 'form'
+         from nxt
+        where nxt.n <= $3
+       on conflict (kind, n) do nothing
+       returning id`,
+      [kind, context.userId, cap],
+    );
+  }
+  if (!inserted[0]) return { ok: false, reason: "sold", coins: settled.coins };
+  const next = await settleProfile(sql, context.userId);
+  return { ok: true, id: Math.floor(Number(inserted[0].id) || 0), kind, coins: next.coins };
+}
+
+export async function submitNplHandler({
+  context,
+  data,
+}: {
+  context: { userId: string };
+  data: { id: number; name: string; logo: string; colors: string; firstName: string; lastName: string };
+}): Promise<{ ok: true } | { ok: false; reason: "empty" | "closed" }> {
+  const { getSql } = await import("@/lib/db");
+  const sql = await getSql();
+  await ensureNpl(sql);
+  const rows = await sql.query<NplRow>(
+    `select id, kind, n, user_id, status, name, logo, colors, first_name, last_name, deny_reason, note, '' as buyer
+       from darkness_npl where id = $1 and user_id = $2`,
+    [data.id, context.userId],
+  );
+  const row = rows[0];
+  if (!row || (row.status !== "form" && row.status !== "denied")) return { ok: false, reason: "closed" };
+  const name = clipNpl(data.name);
+  const logo = clipNpl(data.logo);
+  const colors = clipNpl(data.colors);
+  const firstName = clipNpl(data.firstName);
+  const lastName = clipNpl(data.lastName);
+  if (row.kind === "team" ? !name || !logo || !colors : !firstName || !lastName) return { ok: false, reason: "empty" };
+  const saved = await sql.query<{ id: number | string }>(
+    `update darkness_npl
+        set status = 'pending', name = $3, logo = $4, colors = $5, first_name = $6, last_name = $7, deny_reason = ''
+      where id = $1 and user_id = $2 and status in ('form', 'denied')
+      returning id`,
+    [data.id, context.userId, name, logo, colors, firstName, lastName],
+  );
+  if (!saved[0]) return { ok: false, reason: "closed" };
+  return { ok: true };
+}
+
+async function assertNplCeo(userId: string): Promise<boolean> {
+  const { COMMISH_SETTINGS_ID } = await import("../commish-types");
+  return userId === COMMISH_SETTINGS_ID;
+}
+
+function ceoSlot(row: NplRow) {
+  return {
+    id: Math.floor(Number(row.id) || 0),
+    n: Math.floor(Number(row.n) || 0),
+    buyer: clipNpl(row.buyer, 16) || "GM",
+    status: nplStatus(row.status),
+    name: row.name ?? "",
+    logo: row.logo ?? "",
+    colors: row.colors ?? "",
+    firstName: row.first_name ?? "",
+    lastName: row.last_name ?? "",
+    denyReason: row.deny_reason ?? "",
+  };
+}
+
+export async function listNplHandler({ context }: { context: { userId: string } }) {
+  if (!(await assertNplCeo(context.userId))) return { ok: false as const, reason: "locked" as const };
+  const { getSql } = await import("@/lib/db");
+  const sql = await getSql();
+  await ensureNpl(sql);
+  const rows = await sql.query<NplRow>(
+    `select s.id, s.kind, s.n, s.user_id, s.status, s.name, s.logo, s.colors, s.first_name, s.last_name, s.deny_reason, s.note,
+            coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), 'GM') as buyer
+       from darkness_npl s
+       left join player_profiles p on p.user_id = s.user_id
+       left join "user" u on u.id = s.user_id
+      order by s.kind, s.n`,
+  );
+  const pad = (kind: NplKind, cap: number) => {
+    const mine = rows.filter((row) => row.kind === kind);
+    const byN = new Map(mine.map((row) => [Math.floor(Number(row.n) || 0), ceoSlot(row)]));
+    return Array.from({ length: cap }, (_, index) => byN.get(index + 1) ?? null);
+  };
+  return { ok: true as const, teams: pad("team", NPL_TEAM_CAP), players: pad("player", NPL_PLAYER_CAP) };
+}
+
+export async function approveNplHandler({
+  context,
+  data,
+}: {
+  context: { userId: string };
+  data: { id: number };
+}): Promise<{ ok: true } | { ok: false; reason: "locked" | "closed" }> {
+  if (!(await assertNplCeo(context.userId))) return { ok: false, reason: "locked" };
+  const { getSql } = await import("@/lib/db");
+  const sql = await getSql();
+  await ensureNpl(sql);
+  const saved = await sql.query<{ id: number | string; user_id: string }>(
+    `update darkness_npl
+        set status = 'approved',
+            deny_reason = '',
+            note = case
+              when kind = 'player' then 'Congratulations your submission for the upcoming NPL player has been approved +50 scratch points'
+              else 'Congratulations your submission for the upcoming NPL team has been approved +50 scratch points'
+            end
+      where id = $1 and status = 'pending'
+      returning id, user_id`,
+    [data.id],
+  );
+  const row = saved[0];
+  if (!row) return { ok: false, reason: "closed" };
+  try {
+    const { grantNplScratchPoints } = await import("../scratch.server");
+    await grantNplScratchPoints(sql, row.user_id, Math.floor(Number(row.id) || 0));
+  } catch (err) {
+    console.error("[darkness] npl scratch points failed", err);
+  }
+  return { ok: true };
+}
+
+export async function denyNplHandler({
+  context,
+  data,
+}: {
+  context: { userId: string };
+  data: { id: number; reason: string };
+}): Promise<{ ok: true } | { ok: false; reason: "locked" | "empty" | "closed" }> {
+  if (!(await assertNplCeo(context.userId))) return { ok: false, reason: "locked" };
+  const reason = clipNpl(data.reason, 200);
+  if (!reason) return { ok: false, reason: "empty" };
+  const { getSql } = await import("@/lib/db");
+  const sql = await getSql();
+  await ensureNpl(sql);
+  const saved = await sql.query<{ id: number | string }>(
+    `update darkness_npl
+        set status = 'denied', deny_reason = $2, note = $2
+      where id = $1 and status = 'pending'
+      returning id`,
+    [data.id, reason],
+  );
+  if (!saved[0]) return { ok: false, reason: "closed" };
+  return { ok: true };
+}
+

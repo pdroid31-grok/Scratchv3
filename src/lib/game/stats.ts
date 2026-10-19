@@ -83,6 +83,116 @@ export const buyGoldenPepe = createServerFn({ method: "POST" })
     return buyGoldenPepeHandler({ context });
   });
 
+export type NplKind = "team" | "player";
+
+export type NplMineSlot = {
+  id: number;
+  kind: NplKind;
+  status: "form" | "pending" | "denied" | "approved";
+  name: string;
+  logo: string;
+  colors: string;
+  firstName: string;
+  lastName: string;
+  denyReason: string;
+  note: string;
+};
+
+export type NplStock = {
+  teamLeft: number;
+  playerLeft: number;
+  teamCost: number;
+  playerCost: number;
+};
+
+export type NplMine = NplStock & { slots: NplMineSlot[] };
+
+export type NplCeoSlot = {
+  id: number;
+  n: number;
+  buyer: string;
+  status: NplMineSlot["status"];
+  name: string;
+  logo: string;
+  colors: string;
+  firstName: string;
+  lastName: string;
+  denyReason: string;
+};
+
+export type NplBoard =
+  | { ok: true; teams: (NplCeoSlot | null)[]; players: (NplCeoSlot | null)[] }
+  | { ok: false; reason: "locked" };
+
+function clipNplLine(value: unknown, max: number): string {
+  return String(value ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+}
+
+export const getNplStock = createServerFn({ method: "GET" }).handler(async (): Promise<NplStock> => {
+  const { getNplStockHandler } = await import("./stats.server");
+  return getNplStockHandler();
+});
+
+export const getNplMine = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(() => ({}))
+  .handler(async ({ context }): Promise<NplMine> => {
+    const { getNplMineHandler } = await import("./stats.server");
+    return getNplMineHandler({ context });
+  });
+
+export const buyNpl = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((data: { kind?: string }) => ({
+    kind: data.kind === "player" ? "player" : data.kind === "team" ? "team" : "",
+  }))
+  .handler(async ({ context, data }) => {
+    const { buyNplHandler } = await import("./stats.server");
+    return buyNplHandler({ context, data });
+  });
+
+export const submitNpl = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((data: { id?: number; name?: string; logo?: string; colors?: string; firstName?: string; lastName?: string }) => ({
+    id: Math.floor(Number(data.id) || 0),
+    name: clipNplLine(data.name, 80),
+    logo: clipNplLine(data.logo, 80),
+    colors: clipNplLine(data.colors, 80),
+    firstName: clipNplLine(data.firstName, 80),
+    lastName: clipNplLine(data.lastName, 80),
+  }))
+  .handler(async ({ context, data }) => {
+    const { submitNplHandler } = await import("./stats.server");
+    return submitNplHandler({ context, data });
+  });
+
+export const listNpl = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator(() => ({}))
+  .handler(async ({ context }): Promise<NplBoard> => {
+    const { listNplHandler } = await import("./stats.server");
+    return listNplHandler({ context });
+  });
+
+export const approveNpl = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((data: { id?: number }) => ({ id: Math.floor(Number(data.id) || 0) }))
+  .handler(async ({ context, data }) => {
+    const { approveNplHandler } = await import("./stats.server");
+    return approveNplHandler({ context, data });
+  });
+
+export const denyNpl = createServerFn({ method: "POST" })
+  .middleware([authMiddleware])
+  .validator((data: { id?: number; reason?: string }) => ({
+    id: Math.floor(Number(data.id) || 0),
+    reason: clipNplLine(data.reason, 200),
+  }))
+  .handler(async ({ context, data }) => {
+    const { denyNplHandler } = await import("./stats.server");
+    return denyNplHandler({ context, data });
+  });
+
 export const getLeaderboard = createServerFn({ method: "GET" }).handler(async (): Promise<Leaderboard> => {
   const { getLeaderboardHandler } = await import("./stats.server");
   return getLeaderboardHandler();

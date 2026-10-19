@@ -144,6 +144,15 @@ export async function grantFeatScratchPoints(sql: Sql, userId: string, featId: s
   ]);
 }
 
+/** +50 scratch points once per NPL slot, on CEO approve only. Same point counter as a feat. */
+export async function grantNplScratchPoints(sql: Sql, userId: string, slotId: number): Promise<void> {
+  if (!userId || !slotId) return;
+  await ensureScratchFlags(sql);
+  await sql.query(`insert into darkness_scratch_flags (key) values ($1) on conflict (key) do nothing`, [
+    `feat-scratch:${userId}:npl:${slotId}`,
+  ]);
+}
+
 /** +100 / +200 on a new win award. Points only — does not mint a ticket. No historic backfill. */
 export async function grantWinScratchPoints(sql: Sql, userId: string, key: string): Promise<void> {
   if (!userId || !key.startsWith("win-scratch:")) return;

@@ -178,9 +178,10 @@ async function settleSeededProfile(
   const extraBoxes = Math.max(0, paidLooks(owned) - paidLooks(seedOwned));
   const extraGold = owned.includes("golden") && !seedOwned.includes("golden") ? 1 : 0;
   const scratchPay = await countScratchCoins(sql, userId);
+  const npl = await nplPaid(sql, userId);
   const coins = Math.max(
     0,
-    seedBank + asInt(winsRow[0]?.wins) * WIN_PAY + earned.credit - extraBoxes * BOX_COST - extraGold * GOLDEN_COST + scratchPay,
+    seedBank + asInt(winsRow[0]?.wins) * WIN_PAY + earned.credit - extraBoxes * BOX_COST - extraGold * GOLDEN_COST + scratchPay - npl,
   );
   const fromPayouts = await countPayoutStars(sql, userId);
   const liveStars = fromPayouts != null ? fromPayouts : Math.max(0, asInt(row?.daily_stars));
@@ -340,7 +341,8 @@ export async function settleProfile(
     gifts.filter((id) => owned.includes(id) && !isFeatAvatar(id) && !isStarAvatar(id)).length * BOX_COST;
   credit = earned.credit + giftOffset + boxForgive;
   const scratchPay = await countScratchCoins(sql, userId);
-  const coins = walletBalance(wins, owned, credit) + scratchPay;
+  const npl = await nplPaid(sql, userId);
+  const coins = Math.max(0, walletBalance(wins, owned, credit) + scratchPay - npl);
   const beforeCoins = asInt(row?.coins);
   if (
     coins !== beforeCoins ||
@@ -368,5 +370,13 @@ export async function settleProfile(
     ]);
   }
   return { coins, owned, avatarId, displayName, dailyStars };
+}
+
+async function nplPaid(
+  sql: { query: <T>(text: string, params?: unknown[]) => Promise<T[]> },
+  userId: string,
+): Promise<number> {
+  const { nplSpend } = await import("./shop");
+  return nplSpend(sql, userId);
 }
 
