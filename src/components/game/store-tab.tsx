@@ -424,9 +424,11 @@ function NplCard({ guest, coins }: { guest: boolean; coins: number }) {
     const soldOut = left === 0;
     return (
       <div className="flex min-w-0 flex-col rounded-lg bg-bg p-3 shadow-[var(--shadow-border)]">
-        <div className="flex aspect-square items-center justify-center rounded-md bg-surface text-[11px] font-semibold uppercase tracking-wider text-muted">
-          Placeholder
-        </div>
+        <img
+          src={kind === "team" ? "/store/npl-team.jpg?v=1" : "/store/npl-player.jpg?v=1"}
+          alt={kind === "team" ? "Name a Team" : "Name a Player"}
+          className="aspect-square w-full rounded-md bg-surface object-cover"
+        />
         <p className="mt-3 font-display text-sm font-semibold uppercase leading-tight tracking-wide text-fg">{title}</p>
         <p className="mt-1 text-sm text-muted">${cost}</p>
         <p className="text-sm tabular-nums text-muted">{left == null ? "—" : `${left} left`}</p>
