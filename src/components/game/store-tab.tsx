@@ -15,6 +15,16 @@ import { DailyUnlocksSheet } from "@/components/game/daily-unlocks";
 import { AchievementsSheet } from "@/components/game/achievements-unlocks";
 import type { AvatarId } from "@/lib/game/avatars";
 
+const STORE_CARDS = ["box", "scratch", "showcase", "npl"] as const;
+
+function swipeBlocked(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  if (target.closest("canvas")) return true;
+  if (target.closest("[role='dialog']")) return true;
+  if (target.closest("input, textarea, select")) return true;
+  return false;
+}
+
 export function StoreTab({ onProfile }: { onProfile?: () => void }) {
   const { user, isPending } = useCurrentUserState();
   const book = useProfile((s) => s.book);
@@ -37,10 +47,14 @@ export function StoreTab({ onProfile }: { onProfile?: () => void }) {
   const [resultOpen, setResultOpen] = useState(false);
   const [unlocksOpen, setUnlocksOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
-  const [card, setCard] = useState<"box" | "scratch" | "showcase" | "npl">("box");
+  const [card, setCard] = useState<(typeof STORE_CARDS)[number]>("box");
   const boxRef = useRef<MysteryBoxHandle>(null);
   const opening = useRef(false);
   const holdTimer = useRef<number | null>(null);
+  const swipe = useRef<{ x: number; y: number; id: number } | null>(null);
+  const paneRef = useRef<HTMLDivElement>(null);
+  const slideDir = useRef(0);
+  const cardReady = useRef(false);
 
   useEffect(() => {
     let live = true;
@@ -148,6 +162,56 @@ export function StoreTab({ onProfile }: { onProfile?: () => void }) {
     }, 1000);
   }
 
+  function goCard(next: (typeof STORE_CARDS)[number]) {
+    if (next === card) return;
+    slideDir.current = STORE_CARDS.indexOf(next) > STORE_CARDS.indexOf(card) ? 1 : -1;
+    setCard(next);
+  }
+
+  useEffect(() => {
+    if (!cardReady.current) {
+      cardReady.current = true;
+      return;
+    }
+    const dir = slideDir.current;
+    if (!dir) return;
+    paneRef.current?.animate(
+      [{ transform: `translateX(${dir * 100}%)` }, { transform: "translateX(0)" }],
+      { duration: 300, easing: "ease-out" },
+    );
+  }, [card]);
+
+  function onCardPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) return;
+    if (swipeBlocked(event.target)) {
+      swipe.current = null;
+      return;
+    }
+    swipe.current = { x: event.clientX, y: event.clientY, id: event.pointerId };
+  }
+
+  function onCardPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    const start = swipe.current;
+    if (!start || start.id !== event.pointerId) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (Math.abs(dx) > 12 && Math.abs(dx) > Math.abs(dy)) clearHold();
+  }
+
+  function onCardPointerUp(event: React.PointerEvent<HTMLDivElement>) {
+    const start = swipe.current;
+    swipe.current = null;
+    if (!start || start.id !== event.pointerId) return;
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (Math.abs(dx) < 60 || Math.abs(dx) <= Math.abs(dy)) return;
+    clearHold();
+    const index = STORE_CARDS.indexOf(card);
+    const next = index + (dx < 0 ? 1 : -1);
+    if (next < 0 || next >= STORE_CARDS.length) return;
+    goCard(STORE_CARDS[next]);
+  }
+
   if (isPending && !user) {
     return <div className="mt-5 h-64 animate-pulse rounded-xl bg-surface/90" />;
   }
@@ -208,13 +272,23 @@ export function StoreTab({ onProfile }: { onProfile?: () => void }) {
             size="sm"
             variant={card === id ? "default" : "secondary"}
             className="h-auto min-h-11 whitespace-normal px-1 text-center font-display text-[11px] uppercase leading-tight tracking-wider"
-            onClick={() => setCard(id)}
+            onClick={() => goCard(id)}
           >
             {label}
           </Button>
         ))}
       </div>
 
+      <div
+        className="overflow-hidden touch-pan-y"
+        onPointerDown={onCardPointerDown}
+        onPointerMove={onCardPointerMove}
+        onPointerUp={onCardPointerUp}
+        onPointerCancel={() => {
+          swipe.current = null;
+        }}
+      >
+      <div ref={paneRef}>
       {card === "box" ? (
       <section className="w-full rounded-xl bg-surface/90 p-4 text-center shadow-[var(--shadow-border)] sm:p-6">
         <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-turf">
@@ -306,6 +380,8 @@ export function StoreTab({ onProfile }: { onProfile?: () => void }) {
       ) : null}
 
       {card === "npl" ? <NplCard guest={guest} coins={guest ? 0 : coins} /> : null}
+      </div>
+      </div>
     </div>
   );
 }
