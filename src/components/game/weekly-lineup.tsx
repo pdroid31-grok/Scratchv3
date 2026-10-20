@@ -40,7 +40,7 @@ export function WeeklyLineupSheet({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-bg/80 p-4 sm:items-center"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-bg/80 p-4"
       role="dialog"
       aria-modal="true"
       aria-label="Weekly lineup"
@@ -157,7 +157,7 @@ export function WeeklyReviewSheet({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-bg/80 p-4 sm:items-center"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-bg/80 p-4"
       role="dialog"
       aria-modal="true"
       aria-label="Review Line Up Options"
