@@ -685,7 +685,7 @@ export async function listDailyBoardHandler({ data }: { data: { day: string } })
     return {
       day: day.day,
       year: day.year,
-      week: day.awarded || day.day < today ? day.week : day.week,
+      week: day.awarded || day.day < today ? day.week : null,
       awarded: day.awarded,
       winnerId: day.awarded_user_id,
       rows: rows.flatMap((row) => {
