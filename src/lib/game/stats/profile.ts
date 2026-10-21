@@ -2,7 +2,6 @@
 import {
   clampAvatar,
   parseOwned,
-  walletBalance,
   BANANA_ID,
   BOX_COST,
   CLUB_200,
@@ -342,7 +341,9 @@ export async function settleProfile(
   credit = earned.credit + giftOffset + boxForgive;
   const scratchPay = await countScratchCoins(sql, userId);
   const npl = await nplPaid(sql, userId);
-  const coins = Math.max(0, walletBalance(wins, owned, credit) + scratchPay - npl);
+  const boxPrizes = owned.filter((id) => id !== "poor" && id !== "golden" && !isStarAvatar(id) && !isFeatAvatar(id)).length;
+  const golden = owned.includes("golden") ? GOLDEN_COST : 0;
+  const coins = Math.max(0, wins * WIN_PAY + Math.floor(credit) + scratchPay - boxPrizes * BOX_COST - golden - npl);
   const beforeCoins = asInt(row?.coins);
   if (
     coins !== beforeCoins ||
