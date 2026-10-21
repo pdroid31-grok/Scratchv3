@@ -91,14 +91,21 @@ async function winScratchPointTotal(sql: Sql, userId: string): Promise<number> {
 
 async function featScratchPointTotal(sql: Sql, userId: string): Promise<number> {
   await ensureScratchFlags(sql);
-  const rows = await sql.query<{ n: number | string }>(
-    `select count(*)::int as n
+  const rows = await sql.query<{ key: string }>(
+    `select key
        from darkness_scratch_flags
       where split_part(key, ':', 1) = 'feat-scratch'
         and split_part(key, ':', 2) = $1`,
     [userId],
   );
-  return asInt(rows[0]?.n) * FEAT_SCRATCH_POINTS;
+  const own = await sql.query<{ owned: unknown }>(`select owned from player_profiles where user_id = $1`, [userId]);
+  const owned: string[] = parseOwned(own[0]?.owned);
+  const prefix = `feat-scratch:${userId}:`;
+  const live = rows.filter((r) => {
+    const featId = r.key.slice(prefix.length);
+    return featId.startsWith("npl:") || owned.includes(featId);
+  });
+  return live.length * FEAT_SCRATCH_POINTS;
 }
 
 /** +50 once per newly granted feat. No toast, no News, no backfill of feats already owned. */
