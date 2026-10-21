@@ -9,12 +9,6 @@ export function clipDisplayName(name: string): string {
   return trimmed;
 }
 
-/** Pat-only bank watch. Not Ty, not anyone else. */
-export function isBankCommish(name: string): boolean {
-  const key = name.trim().toLowerCase();
-  return key === "pat" || key === "pastry pat";
-}
-
 /** Auction-era leftover profiles. Hide from public boards; do not delete the user rows. */
 export const HIDDEN_BOARD_IDS = new Set([
   "L2L2Tf1HXAeB5rhgLvhogF921BKsICsN",

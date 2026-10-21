@@ -2,6 +2,7 @@
 import { parseOwned, starLooksFor, starNeed, clampAvatar, type AvatarId } from "./avatars";
 import { clipGm, isAwardSkippedName, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
 import { clipToastPicks, isToastKind, sortToasts, TOAST_TEST_KEYS, type ToastItem, type ToastKind, type ToastPayload } from "./toasts";
+import { INSPECTOR1_ID } from "./commish-types";
 
 type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
 
@@ -246,14 +247,13 @@ async function inspectorScratchFace(
   sql: Sql,
   userId: string,
 ): Promise<{ name: string; avatarId: AvatarId } | null> {
+  if (userId !== INSPECTOR1_ID) return null;
   const rows = await sql.query<{ name: string | null; avatar_id: string | null }>(
     `select coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), 'Inspector1') as name,
             p.avatar_id
        from (select $1::text as user_id) me
        left join player_profiles p on p.user_id = me.user_id
        left join "user" u on u.id = me.user_id
-      where lower(trim(coalesce(p.display_name, ''))) = 'inspector1'
-         or lower(trim(coalesce(u.name, ''))) = 'inspector1'
       limit 1`,
     [userId],
   );
@@ -338,34 +338,9 @@ const FAKE_DAILY_PICKS = [
 
 const FAKE_WEEKLY_PICKS = FAKE_DAILY_PICKS.map((row) => ({ ...row, score: 0 }));
 
-async function inspector1IdsFor(sql: Sql, userId?: string): Promise<string[]> {
-  const rows = await sql.query<{ user_id: string }>(
-    userId
-      ? `select distinct x.user_id
-           from (
-             select p.user_id
-               from player_profiles p
-              where p.user_id = $1 and lower(trim(coalesce(p.display_name, ''))) = 'inspector1'
-             union
-             select u.id
-               from "user" u
-              where u.id = $1 and lower(trim(coalesce(u.name, ''))) = 'inspector1'
-           ) x
-          where x.user_id is not null and x.user_id <> ''`
-      : `select distinct x.user_id
-           from (
-             select p.user_id
-               from player_profiles p
-              where lower(trim(coalesce(p.display_name, ''))) = 'inspector1'
-             union
-             select u.id
-               from "user" u
-              where lower(trim(coalesce(u.name, ''))) = 'inspector1'
-           ) x
-          where x.user_id is not null and x.user_id <> ''`,
-    userId ? [userId] : undefined,
-  );
-  return rows.map((row) => String(row.user_id)).filter(Boolean);
+function inspector1IdsFor(userId?: string): string[] {
+  if (userId) return userId === INSPECTOR1_ID ? [INSPECTOR1_ID] : [];
+  return [INSPECTOR1_ID];
 }
 
 async function inspectorFace(
@@ -445,7 +420,7 @@ async function insertInspector1TestToasts(sql: Sql, userId: string): Promise<voi
 
 async function seedInspector1TestToastsIfSelf(sql: Sql, userId: string): Promise<void> {
   try {
-    const ids = await inspector1IdsFor(sql, userId);
+    const ids = inspector1IdsFor(userId);
     if (!ids.includes(userId)) return;
     await insertInspector1TestToasts(sql, userId);
   } catch (err) {

@@ -1,6 +1,9 @@
 import type { AvatarId } from "./avatars";
 
 export const COMMISH_SETTINGS_ID = "Sth5J7JYgRUEnwGxVWFVh3foFcPf9Erh";
+export const INSPECTOR1_ID = "NacCwkAGFt5aUMzB8yAl3BphRPaOFKK9";
+export const HEISENBERG_ID = "HaJ3Q1l3AEVrtrPDvrnRG0qCE2OlnHl9";
+export const GROKBOT1_ID = "I7wFKnsqIZn6osRyJ5yfuFPJ4csjB6Ud";
 export const COMMISH_PASSWORD_NAME = "Heisenberg";
 export const GROKBOT_PASSWORD_NAME = "GrokBot1";
 

@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import { BOX_COST } from "./avatars";
-import { clipDisplayName, hiddenBoardIdSql, hiddenBoardNameSql, isBankCommish, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
+import { clipDisplayName, hiddenBoardIdSql, hiddenBoardNameSql, isHiddenBoardId, isHiddenBoardName } from "./stats-shared";
+import { COMMISH_SETTINGS_ID } from "./commish-types";
 
 type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
 
@@ -108,19 +109,8 @@ export async function recordBankChange(
   }
 }
 
-async function callerIsCommish(
-  sql: Sql,
-  userId: string,
-): Promise<boolean> {
-  const rows = await sql.query<{ display_name: string | null; auth_name: string | null }>(
-    `select p.display_name, u.name as auth_name
-       from "user" u
-       left join player_profiles p on p.user_id = u.id
-      where u.id = $1`,
-    [userId],
-  );
-  const row = rows[0];
-  return isBankCommish(row?.display_name ?? "") || isBankCommish(row?.auth_name ?? "");
+function callerIsCommish(userId: string): boolean {
+  return userId === COMMISH_SETTINGS_ID;
 }
 
 export async function loadBankWatch(sql: Sql): Promise<BankWatch> {
@@ -199,7 +189,7 @@ export const getBankWatch = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<BankWatch | null> => {
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
-    if (!(await callerIsCommish(sql, context.userId))) return null;
+    if (!callerIsCommish(context.userId)) return null;
     try {
       const { settleProfile } = await import("./stats.server");
       const ids = await sql.query<{ user_id: string }>(`select user_id from player_profiles`);

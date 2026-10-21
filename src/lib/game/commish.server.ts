@@ -1,7 +1,7 @@
 /** Commish settings. Do not import from client modules. */
 import { clampAvatar, type AvatarId } from "./avatars";
 import { clipDisplayName } from "./stats-shared";
-import { COMMISH_SETTINGS_ID, COMMISH_PASSWORD_NAME, GROKBOT_PASSWORD_NAME, type CommishList, type CommishOk, type CommishPasswordStatus } from "./commish-types";
+import { COMMISH_SETTINGS_ID, COMMISH_PASSWORD_NAME, GROKBOT_PASSWORD_NAME, HEISENBERG_ID, GROKBOT1_ID, INSPECTOR1_ID, type CommishList, type CommishOk, type CommishPasswordStatus } from "./commish-types";
 
 type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
 
@@ -232,14 +232,36 @@ export async function clearCommishClaimHandler({
   return { ok: true };
 }
 
-async function resolveNamedProfile(sql: Sql, name: string): Promise<{ kind: "ok"; userId: string } | { kind: "missing" } | { kind: "ambiguous" }> {
-  const rows = await sql.query<{ user_id: string }>(
-    `select user_id from player_profiles where trim(display_name) = $1`,
-    [name],
+async function passwordStatus(sql: Sql, userId: string): Promise<CommishPasswordStatus> {
+  const kind = await credentialAccount(sql, userId);
+  if (kind === "none") return { kind: "missing" };
+  if (kind === "credential") return { kind: "credential", userId };
+  return { kind: "google", userId };
+}
+
+async function setPasswordFor(
+  sql: Sql,
+  actor: string,
+  userId: string,
+  name: string,
+  data: { password: string; confirm: string; userId: string },
+  wrongUser: string,
+): Promise<CommishOk> {
+  if (data.userId && data.userId !== userId) return { ok: false, reason: wrongUser };
+  const kind = await credentialAccount(sql, userId);
+  if (kind !== "credential") return { ok: false, reason: "google" };
+  if (data.password !== data.confirm) return { ok: false, reason: "mismatch" };
+  if (data.password.length < 8 || data.password.length > 128) return { ok: false, reason: "length" };
+  const { hashPassword } = await import("better-auth/crypto");
+  const hashed = await hashPassword(data.password);
+  await sql.query(
+    `update account
+        set password = $1, "updatedAt" = now()
+      where "userId" = $2 and "providerId" = 'credential'`,
+    [hashed, userId],
   );
-  if (rows.length === 0) return { kind: "missing" };
-  if (rows.length !== 1) return { kind: "ambiguous" };
-  return { kind: "ok", userId: rows[0].user_id };
+  await audit(sql, actor, "set_password", { name, userId });
+  return { ok: true };
 }
 
 async function credentialAccount(sql: Sql, userId: string): Promise<"credential" | "google" | "none"> {
@@ -254,40 +276,6 @@ async function credentialAccount(sql: Sql, userId: string): Promise<"credential"
   return "none";
 }
 
-async function namedPasswordStatus(sql: Sql, name: string): Promise<CommishPasswordStatus> {
-  const found = await resolveNamedProfile(sql, name);
-  if (found.kind !== "ok") return found;
-  const kind = await credentialAccount(sql, found.userId);
-  if (kind === "credential") return { kind: "credential", userId: found.userId };
-  return { kind: "google", userId: found.userId };
-}
-
-async function setNamedPassword(
-  sql: Sql,
-  actor: string,
-  name: string,
-  data: { password: string; confirm: string; userId: string },
-  wrongUser: string,
-): Promise<CommishOk> {
-  const found = await resolveNamedProfile(sql, name);
-  if (found.kind !== "ok") return { ok: false, reason: found.kind };
-  if (data.userId && data.userId !== found.userId) return { ok: false, reason: wrongUser };
-  const kind = await credentialAccount(sql, found.userId);
-  if (kind !== "credential") return { ok: false, reason: "google" };
-  if (data.password !== data.confirm) return { ok: false, reason: "mismatch" };
-  if (data.password.length < 8 || data.password.length > 128) return { ok: false, reason: "length" };
-  const { hashPassword } = await import("better-auth/crypto");
-  const hashed = await hashPassword(data.password);
-  await sql.query(
-    `update account
-        set password = $1, "updatedAt" = now()
-      where "userId" = $2 and "providerId" = 'credential'`,
-    [hashed, found.userId],
-  );
-  await audit(sql, actor, "set_password", { name, userId: found.userId });
-  return { ok: true };
-}
-
 export async function heisenbergPasswordStatusHandler({
   context,
 }: {
@@ -296,7 +284,7 @@ export async function heisenbergPasswordStatusHandler({
   await assertCommish(context.userId);
   const sql = await getSql();
   await ensure(sql);
-  return namedPasswordStatus(sql, COMMISH_PASSWORD_NAME);
+  return passwordStatus(sql, HEISENBERG_ID);
 }
 
 export async function setHeisenbergPasswordHandler({
@@ -309,7 +297,7 @@ export async function setHeisenbergPasswordHandler({
   await assertCommish(context.userId);
   const sql = await getSql();
   await ensure(sql);
-  return setNamedPassword(sql, context.userId, COMMISH_PASSWORD_NAME, data, "not-heisenberg");
+  return setPasswordFor(sql, context.userId, HEISENBERG_ID, COMMISH_PASSWORD_NAME, data, "not-heisenberg");
 }
 
 export async function grokbotPasswordStatusHandler({
@@ -320,7 +308,7 @@ export async function grokbotPasswordStatusHandler({
   await assertCommish(context.userId);
   const sql = await getSql();
   await ensure(sql);
-  return namedPasswordStatus(sql, GROKBOT_PASSWORD_NAME);
+  return passwordStatus(sql, GROKBOT1_ID);
 }
 
 export async function setGrokbotPasswordHandler({
@@ -333,24 +321,11 @@ export async function setGrokbotPasswordHandler({
   await assertCommish(context.userId);
   const sql = await getSql();
   await ensure(sql);
-  return setNamedPassword(sql, context.userId, GROKBOT_PASSWORD_NAME, data, "not-grokbot1");
+  return setPasswordFor(sql, context.userId, GROKBOT1_ID, GROKBOT_PASSWORD_NAME, data, "not-grokbot1");
 }
 
-async function lookupInspector1Ids(sql: Sql): Promise<string[]> {
-  const rows = await sql.query<{ user_id: string }>(
-    `select distinct x.user_id
-       from (
-         select p.user_id
-           from player_profiles p
-          where lower(trim(coalesce(p.display_name, ''))) = 'inspector1'
-         union
-         select u.id
-           from "user" u
-          where lower(trim(coalesce(u.name, ''))) = 'inspector1'
-       ) x
-      where x.user_id is not null and x.user_id <> ''`,
-  );
-  return rows.map((row) => String(row.user_id)).filter(Boolean);
+async function lookupInspector1Ids(): Promise<string[]> {
+  return [INSPECTOR1_ID];
 }
 
 export async function resetInspector1DailyHandler({
@@ -360,7 +335,7 @@ export async function resetInspector1DailyHandler({
 }): Promise<CommishOk> {
   await assertCommish(context.userId);
   const sql = await getSql();
-  const ids = await lookupInspector1Ids(sql);
+  const ids = await lookupInspector1Ids();
   if (!ids.length) return { ok: false, reason: "not found" };
   const { dailyDayStamp } = await import("./daily");
   const day = dailyDayStamp();
@@ -376,7 +351,7 @@ export async function resetInspector1WeeklyHandler({
 }): Promise<CommishOk> {
   await assertCommish(context.userId);
   const sql = await getSql();
-  const ids = await lookupInspector1Ids(sql);
+  const ids = await lookupInspector1Ids();
   if (!ids.length) return { ok: false, reason: "not found" };
   const { nflClock } = await import("./weekly-sleeper");
   const clock = await nflClock();
@@ -395,7 +370,7 @@ export async function replayInspector1ToastsHandler({
 }): Promise<CommishOk> {
   await assertCommish(context.userId);
   const sql = await getSql();
-  const ids = await lookupInspector1Ids(sql);
+  const ids = await lookupInspector1Ids();
   if (!ids.length) return { ok: false, reason: "not found" };
   const { replayInspector1TestToasts } = await import("./toasts.server");
   await replayInspector1TestToasts(sql, ids);
@@ -410,7 +385,7 @@ export async function giveInspector1ScratchHandler({
 }): Promise<CommishOk> {
   await assertCommish(context.userId);
   const sql = await getSql();
-  const ids = await lookupInspector1Ids(sql);
+  const ids = await lookupInspector1Ids();
   if (!ids.length) return { ok: false, reason: "not found" };
   const { mintMissing, keepInspectorScratchCards } = await import("./scratch.server");
   for (const id of ids) {

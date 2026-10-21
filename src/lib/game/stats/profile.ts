@@ -4,11 +4,8 @@ import {
   parseOwned,
   BANANA_ID,
   BOX_COST,
-  CLUB_200,
-  CLUB_200_CAP,
   CLUB_200_ID,
   GOLDEN_COST,
-  PEEPING_ID,
   WIN_PAY,
   isFeatAvatar,
   isStarAvatar,
@@ -76,83 +73,8 @@ async function earnedChallenge(
   return { credit, stars };
 }
 
-const TESTER_NAMES = new Set(["pat", "pastry pat", "ty"]);
-const GIFT_LOOKS: Record<string, AvatarId[]> = {
-  pat: [PEEPING_ID],
-  "pastry pat": [PEEPING_ID],
-  heisenberg: [PEEPING_ID],
-  "marquis scott": ["birthday", PEEPING_ID],
-};
-const CLOSET_RESET_GEN = 2;
-const TY_RETURN_GEN = 3;
 const RETURN_BOX_GEN = 4;
-const TY_RETURN_IDS = new Set(["holy", "holy-red", "holy-blue", "gladiator"]);
 const RETURN_BOX_IDS = new Set(["holy", "holy-red", "holy-blue", "pirate", "ninja", "cyborg", "zombie", "chef"]);
-
-function isTester(name: string): boolean {
-  return TESTER_NAMES.has(name.trim().toLowerCase());
-}
-
-function isTy(name: string): boolean {
-  return name.trim().toLowerCase() === "ty";
-}
-
-function giftLooksFor(name: string): AvatarId[] {
-  const key = name.trim().toLowerCase();
-  if (GIFT_LOOKS[key]) return GIFT_LOOKS[key]!;
-  if (key === "marquis" || key.startsWith("marquis ")) return ["birthday", PEEPING_ID];
-  return [];
-}
-
-async function pushGifts(sql: { query: <T>(text: string, params?: unknown[]) => Promise<T[]> }) {
-  const gifted = await sql.query<{ user_id: string }>(
-    `select p.user_id
-       from player_profiles p
-       left join "user" u on u.id = p.user_id
-      where lower(trim(coalesce(p.display_name, ''))) in ('marquis scott', 'marquis', 'pat', 'pastry pat', 'heisenberg')
-         or lower(trim(coalesce(u.name, ''))) in ('marquis scott', 'marquis', 'pat', 'pastry pat', 'heisenberg')
-         or lower(trim(coalesce(p.display_name, ''))) like 'marquis %'
-         or lower(trim(coalesce(u.name, ''))) like 'marquis %'`,
-  );
-  const starred = await sql.query<{ user_id: string }>(
-    `select user_id from player_profiles where coalesce(daily_stars, 0) >= 1`,
-  );
-  let club: { user_id: string }[] = [];
-  try {
-    club = await sql.query<{ user_id: string }>(
-      `select user_id from player_nights
-        where coalesce(kind, 'auction') = 'elimination'
-          and night_key not like 'bonus-win:%'
-          and score > $1 and score <= $2
-        union
-        select user_id from darkness_daily_runs
-         where status = 'done' and score > $1 and score <= $2
-        union
-        select user_id from player_profiles
-         where owned::text like '%club200%'`,
-      [CLUB_200, CLUB_200_CAP],
-    );
-  } catch {
-    club = await sql.query<{ user_id: string }>(
-      `select user_id from player_nights
-        where coalesce(kind, 'auction') = 'elimination'
-          and night_key not like 'bonus-win:%'
-          and score > $1 and score <= $2
-        union
-        select user_id from player_profiles
-         where owned::text like '%club200%'`,
-      [CLUB_200, CLUB_200_CAP],
-    );
-  }
-  const ids = new Set([...gifted, ...starred, ...club].map((row) => row.user_id));
-  try {
-    const everyone = await sql.query<{ user_id: string }>(`select user_id from player_profiles`);
-    for (const row of everyone) ids.add(row.user_id);
-  } catch {
-    /* ignore */
-  }
-  for (const id of ids) await settleProfile(sql, id);
-}
 
 function careerDump(book: unknown): Record<string, unknown> {
   if (book && typeof book === "object" && !Array.isArray(book)) return { ...(book as Record<string, unknown>) };
@@ -261,40 +183,6 @@ export async function settleProfile(
   let boxForgive = asInt(row?.box_forgive);
   let avatarId = clampAvatar(row?.avatar_id ?? "poor", owned);
   const jailed = await jailAvatarLocked(sql, userId);
-  if (
-    (isTester(displayName) || isTester(authName)) &&
-    asInt(row?.closet_reset) < CLOSET_RESET_GEN
-  ) {
-    owned = ["poor"];
-    if (!jailed) avatarId = "poor";
-    await sql.query(
-      jailed
-        ? `update player_profiles
-            set owned = $1, closet_reset = $2, updated_at = now()
-          where user_id = $3`
-        : `update player_profiles
-            set owned = $1, avatar_id = 'poor', closet_reset = $2, updated_at = now()
-          where user_id = $3`,
-      [JSON.stringify(owned), CLOSET_RESET_GEN, userId],
-    );
-  }
-  if ((isTy(displayName) || isTy(authName)) && asInt(row?.closet_reset) < TY_RETURN_GEN) {
-    const next = owned.filter((id) => !TY_RETURN_IDS.has(id));
-    if (!next.includes("poor")) next.unshift("poor");
-    owned = next;
-    if (!jailed && TY_RETURN_IDS.has(avatarId)) avatarId = "poor";
-    if (!jailed) avatarId = clampAvatar(avatarId, owned);
-    await sql.query(
-      jailed
-        ? `update player_profiles
-            set owned = $1, closet_reset = $2, updated_at = now()
-          where user_id = $3`
-        : `update player_profiles
-            set owned = $1, avatar_id = $2, closet_reset = $3, updated_at = now()
-          where user_id = $4`,
-      jailed ? [JSON.stringify(owned), TY_RETURN_GEN, userId] : [JSON.stringify(owned), avatarId, TY_RETURN_GEN, userId],
-    );
-  }
   if (asInt(row?.closet_reset) < RETURN_BOX_GEN) {
     const taken = owned.filter((id) => RETURN_BOX_IDS.has(id));
     if (taken.length) {
@@ -320,15 +208,6 @@ export async function settleProfile(
   }
   await keepCommishBook(sql, userId, displayName, authName);
   await backfillHostedNights(sql, userId, displayName || authName);
-  const gifts = [...new Set([...giftLooksFor(displayName), ...giftLooksFor(authName)])];
-  const missing = gifts.filter((id) => !owned.includes(id));
-  if (missing.length) {
-    owned = [...owned, ...missing];
-    await sql.query(`update player_profiles set owned = $1, updated_at = now() where user_id = $2`, [
-      JSON.stringify(owned),
-      userId,
-    ]);
-  }
   const earned = await earnedChallenge(sql, userId);
   const fromPayouts = await countPayoutStars(sql, userId);
   const dailyStars = fromPayouts != null ? fromPayouts : Math.max(asInt(row?.daily_stars), earned.stars);
@@ -366,9 +245,7 @@ export async function settleProfile(
     [userId],
   );
   const wins = asInt(winsRow[0]?.wins);
-  const giftOffset =
-    gifts.filter((id) => owned.includes(id) && !isFeatAvatar(id) && !isStarAvatar(id)).length * BOX_COST;
-  credit = earned.credit + giftOffset + boxForgive;
+  credit = earned.credit + boxForgive;
   const scratchPay = await countScratchCoins(sql, userId);
   const npl = await nplPaid(sql, userId);
   const boxPrizes = owned.filter((id) => id !== "poor" && id !== "golden" && !isStarAvatar(id) && !isFeatAvatar(id)).length;

@@ -4,7 +4,8 @@ import { auctionBonusOpen, auctionCellOpen, auctionExtraSteps, auctionRevealDone
 import { applyAction, lobbyState, startAuction, type GameState } from "./engine";
 import { listingFromRoom, liveSeriesScore } from "./lobby-list";
 import { applyPrize, bagLegend, HALFTIME_BAG, prizeLabel, redactHalftime, type Prize } from "./halftime";
-import { clipDisplayName, hostedNightKey, nightKey, opponentKey, planHostedNightWrite, isBankCommish } from "./stats-shared";
+import { clipDisplayName, hostedNightKey, nightKey, opponentKey, planHostedNightWrite } from "./stats-shared";
+import { COMMISH_SETTINGS_ID, isCommishSettingsUser } from "./commish-types";
 import { parseRankTab } from "./rank-tabs";
 import { hostedMatchView, historyLineScore } from "./hosted-match";
 import { clampAvatar, isUnlocked, longestDayStreak, parseOwned, pickPrize, silverSecondDayCount, sniperWeekHit, walletBalance, PRIZE_AVATARS, WIN_PAY, BOX_COST, GOLDEN_COST, boxPoolOwnedCount, hitBananaScore, hitBoxAddict, justUnlockedBanana, justUnlockedScratchLook, BOX_ADDICT_POOL_NEED, BANANA_SCORE_UNDER, avatarById, hitHeavyHitterScore, skipHeavyHitterWeek, stampDayGap, lostGapHit, earlyBirdDayCount, nightOwlDayCount, comebackKidHit, freeFallHit, EARLY_BIRD_NEED, NIGHT_OWL_NEED, FEAT_TRACK_FROM, DOUBLE_DONUT_FROM, NEGATIVE_FROM, FEAT_SCRATCH_POINTS, THRIFTY_CAP, IRON_BOOT_POINTS, featWeekFromW3, hitFlashTotal, thriftyHit, thriftySlotCosts, OVERHEAD_FROM, MIRROR_FROM, OVERHEAD_SCORE, lineupSignature, overheadPassed, mirrorUserIds, TWIN_FROM, twinUserIds, threeLeafHit, THREE_LEAF_NEED, huntersToGrant, LOST_GAP_DAYS, HEAVY_HITTER_PPR, lumpedUpHit, weeklyRealZeroCount, doubleDonutHit, isExactZeroScore, isNegativeScore, lookSource, threeHeadedHit, tripleDonutHit, pennyHit, blueStreakHit, coldStreakHit } from "./avatars";
@@ -900,11 +901,13 @@ describe("career book keys", () => {
     assert.equal(clipDisplayName("Pat"), "Pat");
   });
 
-  it("locks the bank watch to Pat only", () => {
-    assert.equal(isBankCommish("Pat"), true);
-    assert.equal(isBankCommish(" pastry pat "), true);
-    assert.equal(isBankCommish("Ty"), false);
-    assert.equal(isBankCommish("Marquis Scott"), false);
+  it("locks the bank watch to the CEO id", () => {
+    assert.equal(COMMISH_SETTINGS_ID, "Sth5J7JYgRUEnwGxVWFVh3foFcPf9Erh");
+    assert.equal(isCommishSettingsUser(COMMISH_SETTINGS_ID), true);
+    assert.equal(isCommishSettingsUser("Pat"), false);
+    assert.equal(isCommishSettingsUser(" pastry pat "), false);
+    assert.equal(isCommishSettingsUser("Ty"), false);
+    assert.equal(isCommishSettingsUser("Marquis Scott"), false);
   });
 
   it("makes remounts of the same night collide", () => {

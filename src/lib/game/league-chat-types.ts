@@ -16,9 +16,8 @@ export type LeagueChatUnread = {
   unread: number;
 };
 
-export function isStevoChatUser(id?: string | null, name?: string | null): boolean {
-  if (id && id === STEVO_CHAT_ID) return true;
-  return (name ?? "").trim().toLowerCase() === "stevo";
+export function isStevoChatUser(id?: string | null, _name?: string | null): boolean {
+  return Boolean(id && id === STEVO_CHAT_ID);
 }
 
 export function isCeoBoardUser(id?: string | null): boolean {
