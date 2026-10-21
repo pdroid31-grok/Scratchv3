@@ -44,6 +44,7 @@ export async function recordNightHandler({ context, data }: { context: { userId:
     } catch {
       hosted = null;
     }
+    if (!hosted) return { ok: false as const };
     const planned = planHostedNightWrite(
       {
         ...data,
