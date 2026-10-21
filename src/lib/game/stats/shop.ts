@@ -144,8 +144,8 @@ export async function buyGoldenPepeHandler({ context }: { context: { userId: str
     return { ok: true, coins: next.coins, owned: next.owned, avatarId: jailed ? next.avatarId : "golden" };
 }
 
-const NPL_TEAM_COST = 100;
-const NPL_PLAYER_COST = 20;
+const NPL_TEAM_COST = 50;
+const NPL_PLAYER_COST = 10;
 const NPL_TEAM_CAP = 6;
 const NPL_PLAYER_CAP = 20;
 
