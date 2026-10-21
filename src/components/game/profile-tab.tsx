@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { BookFormats, bookHasScores } from "@/components/game/book-slice";
 import { AchievementsSheet } from "@/components/game/achievements-unlocks";
 import { DailyUnlocksSheet } from "@/components/game/daily-unlocks";
-import { AvatarPeek } from "@/components/game/avatar-peek";
+import { AvatarPeek, jailLockLabel } from "@/components/game/avatar-peek";
 import { closetGridClass, useClosetCols, writeClosetCols } from "@/components/game/closet-cols";
 import { isCommishSettingsUser } from "@/lib/game/commish";
 import { cn } from "@/lib/utils";
@@ -134,7 +134,7 @@ export function ProfileTab() {
       )}
 
       <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
-        <Closet owned={owned} avatarId={avatarId} user={Boolean(user)} pick={pick} left={left} />
+        <Closet owned={owned} avatarId={avatarId} user={Boolean(user)} pick={pick} left={left} jailUntil={book?.jailUntil ?? null} />
       </section>
       {user && authEnabled ? (
         <button
@@ -297,14 +297,17 @@ function Closet({
   user,
   pick,
   left,
+  jailUntil,
 }: {
   owned: readonly string[];
   avatarId: AvatarId;
   user: boolean;
   pick: (id: AvatarId) => void | Promise<unknown>;
   left: number;
+  jailUntil: string | null;
 }) {
   const cols = useClosetCols();
+  const lockedLabel = jailLockLabel(jailUntil);
   return (
     <>
       <h2 className="font-display text-2xl font-semibold uppercase tracking-wide text-fg">The closet</h2>
@@ -335,6 +338,7 @@ function Closet({
                   buttonClassName="relative block aspect-square w-full overflow-hidden bg-surface-2"
                   equip={user}
                   equipped={user && worn}
+                  lockedLabel={user && !worn ? lockedLabel : null}
                   onEquip={user ? () => void pick(avatar.id) : undefined}
                 />
                 <span className="px-2 py-2">

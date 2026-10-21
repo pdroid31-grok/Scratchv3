@@ -40,6 +40,7 @@ export type CareerBook = {
   dailyStars: number;
   scratchBank: number;
   scratchReady: number;
+  jailUntil: string | null;
 };
 
 export type BoxResult =

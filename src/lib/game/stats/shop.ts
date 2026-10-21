@@ -2,7 +2,7 @@
 import { avatarById, pickPrize, BOX_COST, GOLDEN_COST, ONEONE_ID, NPL_ID, PEEPING_ID, type AvatarId } from "../avatars";
 import type { BoxResult, ShopResult } from "../stats-types";
 import { announceFeatUnlocks } from "./feats";
-import { settleProfile } from "./profile";
+import { settleProfile, jailAvatarLocked } from "./profile";
 
 export async function grantPeeping(
   sql: { query: <T>(text: string, params?: unknown[]) => Promise<T[]> },
@@ -114,12 +114,20 @@ export async function buyGoldenPepeHandler({ context }: { context: { userId: str
       return { ok: false, reason: "broke", coins: settled.coins, owned: settled.owned };
     }
     const owned = [...settled.owned, "golden" as AvatarId];
-    await sql.query(
-      `update player_profiles
-       set owned = $1, avatar_id = $2, updated_at = now()
-       where user_id = $3`,
-      [JSON.stringify(owned), "golden", context.userId],
-    );
+    const jailed = await jailAvatarLocked(sql, context.userId);
+    if (jailed) {
+      await sql.query(`update player_profiles set owned = $1, updated_at = now() where user_id = $2`, [
+        JSON.stringify(owned),
+        context.userId,
+      ]);
+    } else {
+      await sql.query(
+        `update player_profiles
+         set owned = $1, avatar_id = $2, updated_at = now()
+         where user_id = $3`,
+        [JSON.stringify(owned), "golden", context.userId],
+      );
+    }
     try {
       const { grantFeat } = await import("../board-feats/grant");
       await grantFeat(sql, context.userId, ONEONE_ID);
@@ -133,7 +141,7 @@ export async function buyGoldenPepeHandler({ context }: { context: { userId: str
       console.error("[darkness] 1/1 scratch failed", err);
     }
     const next = await settleProfile(sql, context.userId);
-    return { ok: true, coins: next.coins, owned: next.owned, avatarId: "golden" };
+    return { ok: true, coins: next.coins, owned: next.owned, avatarId: jailed ? next.avatarId : "golden" };
 }
 
 const NPL_TEAM_COST = 100;

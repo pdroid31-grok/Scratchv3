@@ -24,6 +24,17 @@ import { grantStarLooks } from "./stars";
 import { announceFeatUnlocks, grantEarnedFeats, grantSeedClub200, hitClub200, paidLooks } from "./feats";
 import { backfillHostedNights, keepCommishBook } from "./nights";
 
+type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
+
+/** True only while jail_until is still ahead of the database clock. */
+export async function jailAvatarLocked(sql: Sql, userId: string): Promise<boolean> {
+  const rows = await sql.query<{ locked: boolean | null }>(
+    `select jail_until > now() as locked from player_profiles where user_id = $1`,
+    [userId],
+  );
+  return rows[0]?.locked === true;
+}
+
 async function earnedChallenge(
   sql: { query: <T>(text: string, params?: unknown[]) => Promise<T[]> },
   userId: string,
@@ -203,9 +214,11 @@ async function settleSeededProfile(
     const reason = await bankChangeReason(sql, userId, beforeCoins, coins, beforeWins, wins);
     await recordBankChange(sql, userId, beforeCoins, coins, reason);
   }
-  const avatarId = justUnlockedBanana(owned, nextOwned)
-    ? BANANA_ID
-    : clampAvatar(row?.avatar_id ?? "poor", nextOwned);
+  const avatarId = (await jailAvatarLocked(sql, userId))
+    ? clampAvatar(row?.avatar_id ?? "poor", nextOwned)
+    : justUnlockedBanana(owned, nextOwned)
+      ? BANANA_ID
+      : clampAvatar(row?.avatar_id ?? "poor", nextOwned);
   return { coins, owned: nextOwned, avatarId, displayName, dailyStars: liveStars };
 }
 
@@ -247,16 +260,21 @@ export async function settleProfile(
   let credit = asInt(row?.credit);
   let boxForgive = asInt(row?.box_forgive);
   let avatarId = clampAvatar(row?.avatar_id ?? "poor", owned);
+  const jailed = await jailAvatarLocked(sql, userId);
   if (
     (isTester(displayName) || isTester(authName)) &&
     asInt(row?.closet_reset) < CLOSET_RESET_GEN
   ) {
     owned = ["poor"];
-    avatarId = "poor";
+    if (!jailed) avatarId = "poor";
     await sql.query(
-      `update player_profiles
-          set owned = $1, avatar_id = 'poor', closet_reset = $2, updated_at = now()
-        where user_id = $3`,
+      jailed
+        ? `update player_profiles
+            set owned = $1, closet_reset = $2, updated_at = now()
+          where user_id = $3`
+        : `update player_profiles
+            set owned = $1, avatar_id = 'poor', closet_reset = $2, updated_at = now()
+          where user_id = $3`,
       [JSON.stringify(owned), CLOSET_RESET_GEN, userId],
     );
   }
@@ -264,13 +282,17 @@ export async function settleProfile(
     const next = owned.filter((id) => !TY_RETURN_IDS.has(id));
     if (!next.includes("poor")) next.unshift("poor");
     owned = next;
-    if (TY_RETURN_IDS.has(avatarId)) avatarId = "poor";
-    avatarId = clampAvatar(avatarId, owned);
+    if (!jailed && TY_RETURN_IDS.has(avatarId)) avatarId = "poor";
+    if (!jailed) avatarId = clampAvatar(avatarId, owned);
     await sql.query(
-      `update player_profiles
-          set owned = $1, avatar_id = $2, closet_reset = $3, updated_at = now()
-        where user_id = $4`,
-      [JSON.stringify(owned), avatarId, TY_RETURN_GEN, userId],
+      jailed
+        ? `update player_profiles
+            set owned = $1, closet_reset = $2, updated_at = now()
+          where user_id = $3`
+        : `update player_profiles
+            set owned = $1, avatar_id = $2, closet_reset = $3, updated_at = now()
+          where user_id = $4`,
+      jailed ? [JSON.stringify(owned), TY_RETURN_GEN, userId] : [JSON.stringify(owned), avatarId, TY_RETURN_GEN, userId],
     );
   }
   if (asInt(row?.closet_reset) < RETURN_BOX_GEN) {
@@ -278,16 +300,22 @@ export async function settleProfile(
     if (taken.length) {
       owned = owned.filter((id) => !RETURN_BOX_IDS.has(id));
       if (!owned.includes("poor")) owned.unshift("poor");
-      if (RETURN_BOX_IDS.has(avatarId)) avatarId = "poor";
-      avatarId = clampAvatar(avatarId, owned);
+      if (!jailed && RETURN_BOX_IDS.has(avatarId)) avatarId = "poor";
+      if (!jailed) avatarId = clampAvatar(avatarId, owned);
       const paid = taken.filter((id) => id !== "poor" && id !== "golden" && !isStarAvatar(id) && !isFeatAvatar(id)).length;
       boxForgive -= paid * BOX_COST;
     }
     await sql.query(
-      `update player_profiles
-          set owned = $1, avatar_id = $2, closet_reset = $3, box_forgive = $4, updated_at = now()
-        where user_id = $5`,
-      [JSON.stringify(owned), avatarId, RETURN_BOX_GEN, boxForgive, userId],
+      jailed
+        ? `update player_profiles
+            set owned = $1, closet_reset = $2, box_forgive = $3, updated_at = now()
+          where user_id = $4`
+        : `update player_profiles
+            set owned = $1, avatar_id = $2, closet_reset = $3, box_forgive = $4, updated_at = now()
+          where user_id = $5`,
+      jailed
+        ? [JSON.stringify(owned), RETURN_BOX_GEN, boxForgive, userId]
+        : [JSON.stringify(owned), avatarId, RETURN_BOX_GEN, boxForgive, userId],
     );
   }
   await keepCommishBook(sql, userId, displayName, authName);
@@ -321,15 +349,17 @@ export async function settleProfile(
     }
   } else if (!clubHit && owned.includes(CLUB_200_ID)) {
     owned = owned.filter((id) => id !== CLUB_200_ID);
-    if (avatarId === CLUB_200_ID) avatarId = "poor";
+    if (!jailed && avatarId === CLUB_200_ID) avatarId = "poor";
     await sql.query(
-      `update player_profiles set owned = $1, avatar_id = $2, updated_at = now() where user_id = $3`,
-      [JSON.stringify(owned), avatarId, userId],
+      jailed
+        ? `update player_profiles set owned = $1, updated_at = now() where user_id = $2`
+        : `update player_profiles set owned = $1, avatar_id = $2, updated_at = now() where user_id = $3`,
+      jailed ? [JSON.stringify(owned), userId] : [JSON.stringify(owned), avatarId, userId],
     );
   }
   const beforeFeats = owned;
   owned = await grantEarnedFeats(sql, userId, owned);
-  if (justUnlockedBanana(beforeFeats, owned)) avatarId = BANANA_ID;
+  if (!jailed && justUnlockedBanana(beforeFeats, owned)) avatarId = BANANA_ID;
   const winsRow = await sql.query<{ wins: number | string }>(
     `select count(*) filter (where won is true)::int as wins
      from player_nights where user_id = $1`,
@@ -363,12 +393,14 @@ export async function settleProfile(
       await recordBankChange(sql, userId, beforeCoins, coins, reason);
     }
   }
-  avatarId = clampAvatar(avatarId, owned);
-  if (avatarId !== (row?.avatar_id ?? "poor")) {
-    await sql.query(`update player_profiles set avatar_id = $1, updated_at = now() where user_id = $2`, [
-      avatarId,
-      userId,
-    ]);
+  if (!jailed) {
+    avatarId = clampAvatar(avatarId, owned);
+    if (avatarId !== (row?.avatar_id ?? "poor")) {
+      await sql.query(`update player_profiles set avatar_id = $1, updated_at = now() where user_id = $2`, [
+        avatarId,
+        userId,
+      ]);
+    }
   }
   return { coins, owned, avatarId, displayName, dailyStars };
 }

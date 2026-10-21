@@ -5,7 +5,7 @@ import { syncDailyStarsFromPayouts } from "../payouts";
 import type { BookSlice, CareerBook, CareerOpponent, PublicBook } from "../stats-types";
 import { asInt, emptyBook, emptySlice, type OppRow, type TotalsRow } from "./shared";
 import { catchUpStarLooksAll } from "./stars";
-import { settleProfile } from "./profile";
+import { settleProfile, jailAvatarLocked } from "./profile";
 import { ensureNightLowScore } from "./nights";
 
 async function hasDailyRun(
@@ -110,6 +110,7 @@ export async function getMyStatsHandler({ context }: { context: { userId: string
     );
     const row = totals[0];
     const settled = await settleProfile(sql, context.userId);
+    const jailUntil = await readJailUntil(sql, context.userId);
     const seeded = await loadCareerBook(sql, context.userId);
 
     if (!row || asInt(row.games) === 0) {
@@ -130,12 +131,13 @@ export async function getMyStatsHandler({ context }: { context: { userId: string
           elimination,
           auction: seeded.auction,
           ...settled,
+          jailUntil,
         });
       }
       const elimination = withScoreMarks(emptySlice(), marks);
       const total = totalRecord(null, row, elimination);
       if (total.highest == null && total.lowest == null) {
-        return withScratchBook(sql, context.userId, { ...emptyBook(), ...settled });
+        return withScratchBook(sql, context.userId, { ...emptyBook(), ...settled, jailUntil });
       }
       return withScratchBook(sql, context.userId, {
         ...emptyBook(),
@@ -144,6 +146,7 @@ export async function getMyStatsHandler({ context }: { context: { userId: string
         total,
         elimination,
         ...settled,
+        jailUntil,
       });
     }
 
@@ -227,6 +230,7 @@ export async function getMyStatsHandler({ context }: { context: { userId: string
         elimination: take("elimination"),
       },
       ...settled,
+      jailUntil,
     });
 }
 
@@ -235,6 +239,7 @@ export async function setMyAvatarHandler({ context, data }: { context: { userId:
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
     const settled = await settleProfile(sql, context.userId);
+    if (await jailAvatarLocked(sql, context.userId)) return { avatarId: settled.avatarId };
     const avatarId = clampAvatar(data.avatarId, settled.owned);
     await sql.query(
       `insert into player_profiles (user_id, avatar_id, updated_at)
@@ -262,6 +267,20 @@ export async function setMyNameHandler({ context, data }: { context: { userId: s
       [context.userId, data.name],
     );
     return { displayName: data.name };
+}
+
+async function readJailUntil(
+  sql: { query: <T>(text: string, params?: unknown[]) => Promise<T[]> },
+  userId: string,
+): Promise<string | null> {
+  const rows = await sql.query<{ jail_until: Date | string | null }>(
+    `select jail_until from player_profiles where user_id = $1`,
+    [userId],
+  );
+  const raw = rows[0]?.jail_until;
+  if (raw == null) return null;
+  const at = raw instanceof Date ? raw : new Date(raw);
+  return Number.isNaN(at.getTime()) ? null : at.toISOString();
 }
 
 function toSlice(row: TotalsRow | undefined): BookSlice {

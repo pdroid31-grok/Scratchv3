@@ -5,6 +5,7 @@ import { Lock, Star, Sun, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { STAR_UNLOCKS, avatarById, starScratchRungs } from "@/lib/game/avatars";
 import { useProfile } from "@/lib/game/profile-store";
+import { jailLockLabel } from "@/components/game/avatar-peek";
 import { cn } from "@/lib/utils";
 
 export function DailyUnlocksButton({ className, compact }: { className?: string; compact?: boolean }) {
@@ -46,6 +47,7 @@ export function DailyUnlocksSheet({ onClose }: { onClose: () => void }) {
   const load = useProfile((s) => s.load);
   const stars = book?.dailyStars ?? 0;
   const owned = book?.owned ?? ["poor"];
+  const lockedLabel = jailLockLabel(book?.jailUntil);
 
   useEffect(() => {
     void load();
@@ -114,18 +116,20 @@ export function DailyUnlocksSheet({ onClose }: { onClose: () => void }) {
             const avatar = avatarById(row.id);
             const unlocked = owned.includes(row.id);
             const on = wearing === row.id;
+            const held = Boolean(lockedLabel) && unlocked && !on;
             return (
               <li key={row.id}>
                 <button
                   type="button"
-                  disabled={!unlocked}
+                  disabled={!unlocked || held}
                   onClick={() => {
-                    if (unlocked) void pick(row.id);
+                    if (unlocked && !held) void pick(row.id);
                   }}
                   className={cn(
                     "flex w-full flex-col overflow-hidden rounded-lg bg-bg text-left shadow-[var(--shadow-border)]",
                     on && "ring-2 ring-accent",
                     !unlocked && "opacity-80",
+                    held && "bg-surface-2 text-muted",
                   )}
                 >
                   <div className="relative aspect-square overflow-hidden bg-surface-2">
@@ -142,7 +146,7 @@ export function DailyUnlocksSheet({ onClose }: { onClose: () => void }) {
                   <p className="flex items-center justify-center gap-1 px-2 pb-2 text-[11px] tabular-nums text-muted">
                     <Star className="size-3 text-accent" fill="currentColor" />
                     {row.stars}
-                    {unlocked ? " · owned" : ""}
+                    {held ? ` · ${lockedLabel}` : unlocked ? " · owned" : ""}
                   </p>
                 </button>
               </li>

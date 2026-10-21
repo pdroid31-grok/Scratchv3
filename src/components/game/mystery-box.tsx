@@ -4,6 +4,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "re
 import { Link } from "@tanstack/react-router";
 import { avatarById, type AvatarId } from "@/lib/game/avatars";
 import { useProfile } from "@/lib/game/profile-store";
+import { jailLockLabel } from "@/components/game/avatar-peek";
 import { cn } from "@/lib/utils";
 
 export type MysteryBoxHandle = {
@@ -32,6 +33,7 @@ export const MysteryBox = forwardRef<
   }
 >(function MysteryBox({ prize, spinning, onSpinEnd, onResult, onProfile }, ref) {
   const pick = useProfile((s) => s.pick);
+  const lockedLabel = jailLockLabel(useProfile((s) => s.book?.jailUntil));
   const won = prize ? avatarById(prize) : null;
   const endRef = useRef(onSpinEnd);
   const resultRef = useRef(onResult);
@@ -173,10 +175,18 @@ export const MysteryBox = forwardRef<
           <p className="mystery-result-name">{won.name}</p>
           <button
             type="button"
-            className="mt-3 inline-flex h-11 min-h-11 w-full items-center justify-center rounded-md bg-accent px-5 font-display text-sm font-semibold uppercase tracking-wider text-accent-fg"
-            onClick={() => void equipPrize()}
+            disabled={Boolean(lockedLabel)}
+            className={
+              lockedLabel
+                ? "mt-3 inline-flex h-11 min-h-11 w-full items-center justify-center rounded-md bg-surface-2 px-5 text-center font-display text-sm font-semibold uppercase tracking-wider text-muted"
+                : "mt-3 inline-flex h-11 min-h-11 w-full items-center justify-center rounded-md bg-accent px-5 font-display text-sm font-semibold uppercase tracking-wider text-accent-fg"
+            }
+            onClick={() => {
+              if (lockedLabel) return;
+              void equipPrize();
+            }}
           >
-            Equip new character
+            {lockedLabel ?? "Equip new character"}
           </button>
           <button
             type="button"

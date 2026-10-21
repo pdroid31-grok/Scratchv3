@@ -38,12 +38,15 @@ export const useProfile = create<ProfileStore>((set, get) => ({
   pick: async (id) => {
     const owned = get().book?.owned ?? ["poor"];
     if (!ownsAvatar(id, owned)) return;
+    const until = get().book?.jailUntil;
+    if (until && new Date(until).getTime() > Date.now()) return;
+    const current = get().avatarId;
     set({ avatarId: id });
     try {
       const next = await setMyAvatar({ data: { avatarId: id } });
       set({ avatarId: next.avatarId });
     } catch {
-      /* keep optimistic pick */
+      set({ avatarId: current });
     }
   },
   rename: async (name) => {

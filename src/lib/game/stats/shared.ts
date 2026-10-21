@@ -73,4 +73,5 @@ export const emptyBook = (): CareerBook => ({
   dailyStars: 0,
   scratchBank: 0,
   scratchReady: 0,
+  jailUntil: null,
 });

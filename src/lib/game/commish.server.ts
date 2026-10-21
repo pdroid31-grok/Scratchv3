@@ -131,6 +131,7 @@ export async function remapCommishBookHandler({
   await sql.query(
     `update player_profiles as d
         set avatar_id = s.avatar_id,
+            jail_until = s.jail_until,
             display_name = s.display_name,
             coins = s.coins,
             coin_wins = s.coin_wins,

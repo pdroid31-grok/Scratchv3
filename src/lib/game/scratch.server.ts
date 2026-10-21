@@ -481,10 +481,19 @@ export async function claimScratchCard(sql: Sql, userId: string, cardId: number)
       const next = owned.includes(avatar) ? owned : [...owned, avatar];
       const fresh = justUnlockedScratchLook(owned, next);
       if (fresh) {
-        await sql.query(
-          `update player_profiles set owned = $1, avatar_id = $2, updated_at = now() where user_id = $3`,
-          [JSON.stringify(next), fresh, userId],
-        );
+        const { jailAvatarLocked } = await import("./stats/profile");
+        const jailed = await jailAvatarLocked(sql, userId);
+        if (jailed) {
+          await sql.query(`update player_profiles set owned = $1, updated_at = now() where user_id = $2`, [
+            JSON.stringify(next),
+            userId,
+          ]);
+        } else {
+          await sql.query(
+            `update player_profiles set owned = $1, avatar_id = $2, updated_at = now() where user_id = $3`,
+            [JSON.stringify(next), fresh, userId],
+          );
+        }
         grantedAvatar = fresh;
         try {
           const { recordLookUnlockNews } = await import("./news.server");

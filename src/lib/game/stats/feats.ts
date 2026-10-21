@@ -182,7 +182,13 @@ export async function grantEarnedFeats(
   if (!owned.includes(BOX_ADDICT_ID) && hitBoxAddict(owned)) add.push(BOX_ADDICT_ID);
   if (!add.length) return owned;
   const next = [...owned, ...add];
-  if (add.includes(BANANA_ID)) {
+  const equipBanana = add.includes(BANANA_ID);
+  let bananaLocked = false;
+  if (equipBanana) {
+    const { jailAvatarLocked } = await import("./profile");
+    bananaLocked = await jailAvatarLocked(sql, userId);
+  }
+  if (equipBanana && !bananaLocked) {
     await sql.query(`update player_profiles set owned = $1, avatar_id = $2, updated_at = now() where user_id = $3`, [
       JSON.stringify(next),
       BANANA_ID,
