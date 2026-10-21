@@ -1,6 +1,6 @@
 /** Weekly get, claim, forfeit, save, lock, resume. Move-only from weekly-api.server. */
 import type { ElimPick } from "../elim";
-import { ELIM_SLOTS, slotPos, type ElimSlot } from "../elim-data";
+import { ELIM_BUDGET, ELIM_SLOTS, slotPos, type ElimSlot } from "../elim-data";
 import {
   WEEK1_TNF_TEAMS,
   applyWeeklyMigrationBoard,
@@ -139,6 +139,8 @@ function rebuildPicks(pack: WeeklyPackedBoard, weekNo: number, payload: { slot: 
     used.add(player.id);
     picks.push({ slot: slot as ElimSlot, pos, player, seat: 0 });
   }
+  const spent = picks.reduce((n, row) => n + row.player.cost, 0);
+  if (spent < ELIM_SLOTS.length || spent > ELIM_BUDGET) return null;
   return picks;
 }
 
