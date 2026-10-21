@@ -28,6 +28,11 @@ export async function grantPeeping(
 export async function openMysteryBoxHandler({ context }: { context: { userId: string } }): Promise<BoxResult> {
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
+    if (!(await claimSpend(sql, context.userId))) {
+      const settled = await settleProfile(sql, context.userId);
+      return { ok: false, reason: "broke", coins: settled.coins, owned: settled.owned };
+    }
+    try {
     const settled = await settleProfile(sql, context.userId);
     if (settled.coins < BOX_COST) {
       return { ok: false, reason: "broke", coins: settled.coins, owned: settled.owned };
@@ -70,6 +75,9 @@ export async function openMysteryBoxHandler({ context }: { context: { userId: st
       console.error("[darkness] box lunch failed", err);
     }
     return { ok: true, prize, coins: next.coins, owned: next.owned, avatarId: settled.avatarId };
+    } finally {
+      await releaseSpend(sql, context.userId);
+    }
 }
 
 const GOLDEN_FLAG = "golden-1of1";
@@ -80,6 +88,29 @@ async function ensureFeatFlags(sql: { query: <T>(text: string, params?: unknown[
       key text primary key,
       created_at timestamptz not null default now()
     )`);
+}
+
+async function claimSpend(
+  sql: { query: <T>(text: string, params?: unknown[]) => Promise<T[]> },
+  userId: string,
+): Promise<boolean> {
+  await ensureFeatFlags(sql);
+  await sql.query(
+    `delete from darkness_feat_flags where key = 'spend:' || $1 and created_at < now() - interval '30 seconds'`,
+    [userId],
+  );
+  const claimed = await sql.query<{ key: string }>(
+    `insert into darkness_feat_flags (key) values ('spend:' || $1) on conflict do nothing returning key`,
+    [userId],
+  );
+  return Boolean(claimed[0]);
+}
+
+async function releaseSpend(
+  sql: { query: <T>(text: string, params?: unknown[]) => Promise<T[]> },
+  userId: string,
+): Promise<void> {
+  await sql.query(`delete from darkness_feat_flags where key = 'spend:' || $1`, [userId]);
 }
 
 export async function getShowcaseHandler(): Promise<{ sold: boolean; revealed: boolean }> {
@@ -286,6 +317,11 @@ export async function buyNplHandler({
     return { ok: false, reason: "kind", coins: settled.coins };
   }
   await ensureNpl(sql);
+  if (!(await claimSpend(sql, context.userId))) {
+    const settled = await settleProfile(sql, context.userId);
+    return { ok: false, reason: "broke", coins: settled.coins };
+  }
+  try {
   const settled = await settleProfile(sql, context.userId);
   const cost = nplCost(kind);
   if (settled.coins < cost) return { ok: false, reason: "broke", coins: settled.coins };
@@ -316,6 +352,9 @@ export async function buyNplHandler({
   }
   const next = await settleProfile(sql, context.userId);
   return { ok: true, id: Math.floor(Number(inserted[0].id) || 0), kind, coins: next.coins };
+  } finally {
+    await releaseSpend(sql, context.userId);
+  }
 }
 
 export async function submitNplHandler({
