@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Star } from "lucide-react";
+import { AchievementsSheet } from "@/components/game/achievements-unlocks";
 import { SliceStats } from "@/components/game/book-slice";
 import type { RankTabId } from "@/components/game/rank-tabs";
 import { AvatarPeek } from "@/components/game/avatar-peek";
@@ -12,6 +14,7 @@ import type { PublicBook } from "@/lib/game/stats";
 export function PlayerBook({ book, board, popup = false }: { book: PublicBook; board?: RankTabId; popup?: boolean }) {
   const avatar = avatarById(book.avatarId);
   const owned = book.owned ?? ["poor"];
+  const [achievementsOpen, setAchievementsOpen] = useState(false);
 
   return (
     <section className={`${popup ? "" : "mt-6 "}rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5`}>
@@ -52,7 +55,12 @@ export function PlayerBook({ book, board, popup = false }: { book: PublicBook; b
         )}
       </div>
       <div className="mt-4">
-        <SliceStats slice={book.total} empty="No matches on the book yet." owned={book.owned} />
+        <SliceStats
+          slice={book.total}
+          empty="No matches on the book yet."
+          owned={book.owned}
+          onAchievements={() => setAchievementsOpen(true)}
+        />
       </div>
       <UnlockedCloset owned={owned} wearing={book.avatarId} />
       {popup || !board ? null : (
@@ -64,6 +72,9 @@ export function PlayerBook({ book, board, popup = false }: { book: PublicBook; b
           Back to Rankings
         </Link>
       )}
+      {achievementsOpen ? (
+        <AchievementsSheet ownedIds={owned} onClose={() => setAchievementsOpen(false)} />
+      ) : null}
     </section>
   );
 }

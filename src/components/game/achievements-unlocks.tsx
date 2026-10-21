@@ -173,15 +173,18 @@ export function AchievementsButton({ className, compact }: { className?: string;
   );
 }
 
-export function AchievementsSheet({ onClose }: { onClose: () => void }) {
+export function AchievementsSheet({ onClose, ownedIds }: { onClose: () => void; ownedIds?: readonly string[] }) {
   const book = useProfile((s) => s.book);
   const load = useProfile((s) => s.load);
   const { user } = useCurrentUserState();
-  const owned = book?.owned ?? ["poor"];
+  const viewingOther = ownedIds != null;
+  const owned = ownedIds ?? book?.owned ?? ["poor"];
   const achievementIds = new Set<string>(ACHIEVEMENT_UNLOCKS.map((row) => row.id));
-  const ownedCount = user
-    ? (book?.owned ?? []).filter((id) => achievementIds.has(id)).length
-    : 0;
+  const ownedCount = viewingOther
+    ? owned.filter((id) => achievementIds.has(id)).length
+    : user
+      ? (book?.owned ?? []).filter((id) => achievementIds.has(id)).length
+      : 0;
   const [progress, setProgress] = useState<Record<string, string> | null>(null);
   const [picked, setPicked] = useState<string | null>(null);
   const [ownersId, setOwnersId] = useState<string | null>(null);
@@ -213,7 +216,7 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
   }, [load]);
 
   useEffect(() => {
-    if (!user) return;
+    if (viewingOther || !user) return;
     let live = true;
     void getFeatProgress()
       .then((lines) => {
@@ -225,7 +228,7 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
     return () => {
       live = false;
     };
-  }, [user?.id]);
+  }, [user?.id, viewingOther]);
 
   useEffect(() => {
     if (!ownersId) {
@@ -329,7 +332,7 @@ export function AchievementsSheet({ onClose }: { onClose: () => void }) {
                 !unlocked);
             const label = hidden ? "???" : avatar.name;
             const how = hidden ? "?????" : row.how;
-            const tappable = Boolean(user) && !unlocked && !hidden && PROGRESS_IDS.has(row.id);
+            const tappable = !viewingOther && Boolean(user) && !unlocked && !hidden && PROGRESS_IDS.has(row.id);
             return (
               <li key={row.id} className="relative">
                 {tappable ? (
