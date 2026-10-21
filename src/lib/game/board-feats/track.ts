@@ -148,7 +148,7 @@ export async function maybeGrantJackpot(sql: Sql, userId: string): Promise<void>
 
 export async function maybeGrantTriplePoint(sql: Sql, avatarId: string): Promise<void> {
   try {
-    if (!avatarId) return;
+    if (!avatarId || avatarId === "poor") return;
     const rows = await sql.query<{ user_id: string; name: string | null }>(
       `select p.user_id,
               coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), '') as name
