@@ -68,10 +68,18 @@ export async function weeklyBoardPackHandler({ context }: { context: { userId: s
     };
 }
 
+let boardClock: { at: number; value: Awaited<ReturnType<typeof resolveClock>> } | null = null;
+async function boardResolveClock(sql: Parameters<typeof resolveClock>[0]) {
+  if (boardClock && Date.now() - boardClock.at < 60_000) return boardClock.value;
+  const value = await resolveClock(sql);
+  boardClock = { at: Date.now(), value };
+  return value;
+}
+
 export async function listWeeklyBoardHandler({ data }: { data: { season: number; week: number; peek?: boolean } }): Promise<WeeklyBoard> {
     const sql = await getSql();
     await ensureWeeklyTables(sql);
-    const { clock } = await resolveClock(sql);
+    const { clock } = await boardResolveClock(sql);
     const season = data.season || clock.season;
     const weekNo = data.week || clock.week;
     let week = await loadWeek(sql, season, weekNo);
@@ -206,7 +214,7 @@ export async function getWeeklyLineupHandler({ context, data }: { context: { use
 export async function listSeasonBoardHandler({ data }: { data: { season: number } }): Promise<SeasonBoard> {
   const sql = await getSql();
   await ensureWeeklyTables(sql);
-  const { clock } = await resolveClock(sql);
+  const { clock } = await boardResolveClock(sql);
   const season = data.season || clock.season;
   const window = await weekWindow(clock.season, clock.week);
   const rows = await sql.query<{
