@@ -381,9 +381,11 @@ async function bindRoomUser(code: string, seat: Seat, userId: string | null): Pr
   }
 }
 
+let historyColumnsReady = false;
 async function ensureHistoryColumns(sql: {
   query: <T>(text: string, params?: unknown[]) => Promise<T[]>;
 }): Promise<void> {
+  if (historyColumnsReady) return;
   await sql.query("alter table darkness_results add column if not exists series0 integer");
   await sql.query("alter table darkness_results add column if not exists series1 integer");
   await sql.query("alter table darkness_results add column if not exists avatar0 text");
@@ -392,6 +394,7 @@ async function ensureHistoryColumns(sql: {
   await sql.query("alter table darkness_results add column if not exists low0 integer");
   await sql.query("alter table darkness_results add column if not exists low1 integer");
   await sql.query("delete from darkness_results where coalesce(hist_gen, 0) < $1", [LOBBY_HISTORY_GEN]);
+  historyColumnsReady = true;
 }
 
 async function pruneLobbyHistory(sql: {
