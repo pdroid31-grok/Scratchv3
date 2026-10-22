@@ -624,6 +624,7 @@ export async function lockDailyHandler({ context, data }: { context: { userId: s
     return { ...metaFrom(day, runStatus(next), next), week: day.week, score: asNum(next?.score) };
 }
 
+const dailySweepAt = new Map<string, number>();
 export async function listDailyBoardHandler({ data }: { data: { day: string } }): Promise<DailyBoard> {
     const sql = await getSql();
     await ensureDailyTables(sql);
@@ -647,12 +648,16 @@ export async function listDailyBoardHandler({ data }: { data: { day: string } })
       return { day: data.day, year: 0, week: null, awarded: false, winnerId: null, rows: [] };
     }
     try {
-      const { maybeGrantDailyContestFeats, maybeGrantTwinDay } = await import("./board-feats.server");
-      await maybeGrantDailyContestFeats(sql, day.day);
-      await maybeGrantTwinDay(sql, day.day);
-      if (day.day !== today) {
-        await maybeGrantDailyContestFeats(sql, today);
-        await maybeGrantTwinDay(sql, today);
+      const sweepKey = `${day.day}|${today}`;
+      if (Date.now() - (dailySweepAt.get(sweepKey) ?? 0) >= 60_000) {
+        dailySweepAt.set(sweepKey, Date.now());
+        const { maybeGrantDailyContestFeats, maybeGrantTwinDay } = await import("./board-feats.server");
+        await maybeGrantDailyContestFeats(sql, day.day);
+        await maybeGrantTwinDay(sql, day.day);
+        if (day.day !== today) {
+          await maybeGrantDailyContestFeats(sql, today);
+          await maybeGrantTwinDay(sql, today);
+        }
       }
     } catch (err) {
       console.error("[darkness] daily contest feats failed", err);
