@@ -1,5 +1,5 @@
 /** Mystery box, Golden Pepe, Peeping. Move-only from stats.server. */
-import { avatarById, pickPrize, BOX_COST, GOLDEN_COST, ONEONE_ID, NPL_ID, PEEPING_ID, type AvatarId } from "../avatars";
+import { avatarById, pickPrize, BOX_COST, GOLDEN_COST, ONEONE_ID, NPL_ID, PEEPING_ID } from "../avatars";
 import type { BoxResult, ShopResult } from "../stats-types";
 import { announceFeatUnlocks } from "./feats";
 import { settleProfile, jailAvatarLocked } from "./profile";
@@ -41,12 +41,13 @@ export async function openMysteryBoxHandler({ context }: { context: { userId: st
     if (!prize) {
       return { ok: false, reason: "complete", coins: settled.coins, owned: settled.owned };
     }
-    const owned = [...settled.owned, prize];
     await sql.query(
       `update player_profiles
-       set owned = $1, box_opens = coalesce(box_opens, 0) + 1, updated_at = now()
+       set owned = case when jsonb_exists(coalesce(owned, '[]')::jsonb, $1) then owned
+                        else (coalesce(owned, '[]')::jsonb || to_jsonb($1::text))::text end,
+           box_opens = coalesce(box_opens, 0) + 1, updated_at = now()
        where user_id = $2`,
-      [JSON.stringify(owned), context.userId],
+      [prize, context.userId],
     );
     const { recordBankChange } = await import("../bank-watch");
     await recordBankChange(sql, context.userId, settled.coins, settled.coins - BOX_COST, "box");
@@ -128,6 +129,11 @@ export async function getShowcaseHandler(): Promise<{ sold: boolean; revealed: b
 export async function buyGoldenPepeHandler({ context }: { context: { userId: string } }): Promise<ShopResult> {
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
+    if (!(await claimSpend(sql, context.userId))) {
+      const busy = await settleProfile(sql, context.userId);
+      return { ok: false, reason: "broke", coins: busy.coins, owned: busy.owned };
+    }
+    try {
     const settled = await settleProfile(sql, context.userId);
     await ensureFeatFlags(sql);
     const claimed = await sql.query<{ key: string }>(
@@ -144,19 +150,19 @@ export async function buyGoldenPepeHandler({ context }: { context: { userId: str
       await sql.query(`delete from darkness_feat_flags where key = $1`, [GOLDEN_FLAG]);
       return { ok: false, reason: "broke", coins: settled.coins, owned: settled.owned };
     }
-    const owned = [...settled.owned, "golden" as AvatarId];
+    const addGolden = `case when jsonb_exists(coalesce(owned, '[]')::jsonb, 'golden') then owned
+                            else (coalesce(owned, '[]')::jsonb || '["golden"]'::jsonb)::text end`;
     const jailed = await jailAvatarLocked(sql, context.userId);
     if (jailed) {
-      await sql.query(`update player_profiles set owned = $1, updated_at = now() where user_id = $2`, [
-        JSON.stringify(owned),
+      await sql.query(`update player_profiles set owned = ${addGolden}, updated_at = now() where user_id = $1`, [
         context.userId,
       ]);
     } else {
       await sql.query(
         `update player_profiles
-         set owned = $1, avatar_id = $2, updated_at = now()
-         where user_id = $3`,
-        [JSON.stringify(owned), "golden", context.userId],
+         set owned = ${addGolden}, avatar_id = $1, updated_at = now()
+         where user_id = $2`,
+        ["golden", context.userId],
       );
     }
     try {
@@ -173,6 +179,9 @@ export async function buyGoldenPepeHandler({ context }: { context: { userId: str
     }
     const next = await settleProfile(sql, context.userId);
     return { ok: true, coins: next.coins, owned: next.owned, avatarId: jailed ? next.avatarId : "golden" };
+    } finally {
+      await releaseSpend(sql, context.userId);
+    }
 }
 
 const NPL_TEAM_COST = 50;
