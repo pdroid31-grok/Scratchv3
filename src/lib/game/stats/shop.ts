@@ -239,12 +239,13 @@ async function ensureNpl(sql: NplSql): Promise<void> {
       created_at timestamptz not null default now()
     )`);
   await sql.query(`create unique index if not exists darkness_npl_kind_n on darkness_npl (kind, n)`);
+  await sql.query(`alter table darkness_npl add column if not exists cost int`);
 }
 
 export async function nplSpend(sql: NplSql, userId: string): Promise<number> {
   try {
     const rows = await sql.query<{ n: number | string | null }>(
-      `select coalesce(sum(case kind when 'team' then $2 when 'player' then $3 else 0 end), 0)::int as n
+      `select coalesce(sum(coalesce(cost, case kind when 'team' then $2 when 'player' then $3 else 0 end)), 0)::int as n
          from darkness_npl
         where user_id = $1`,
       [userId, NPL_TEAM_COST, NPL_PLAYER_COST],
@@ -253,6 +254,10 @@ export async function nplSpend(sql: NplSql, userId: string): Promise<number> {
   } catch (err) {
     const code = err && typeof err === "object" && "code" in err ? String((err as { code?: string }).code) : "";
     if (code === "42P01") return 0;
+    if (code === "42703") {
+      await ensureNpl(sql);
+      return nplSpend(sql, userId);
+    }
     throw err;
   }
 }
@@ -334,13 +339,13 @@ export async function buyNplHandler({
            from darkness_npl
           where kind = $1
        )
-       insert into darkness_npl (kind, n, user_id, status)
-       select $1, nxt.n, $2, 'form'
+       insert into darkness_npl (kind, n, user_id, status, cost)
+       select $1, nxt.n, $2, 'form', $4
          from nxt
         where nxt.n <= $3
        on conflict (kind, n) do nothing
        returning id`,
-      [kind, context.userId, cap],
+      [kind, context.userId, cap, cost],
     );
   }
   if (!inserted[0]) return { ok: false, reason: "sold", coins: settled.coins };
