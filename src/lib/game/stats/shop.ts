@@ -28,7 +28,8 @@ export async function grantPeeping(
 export async function openMysteryBoxHandler({ context }: { context: { userId: string } }): Promise<BoxResult> {
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
-    if (!(await claimSpend(sql, context.userId))) {
+    const spend = await claimSpend(sql, context.userId);
+    if (!spend) {
       const settled = await settleProfile(sql, context.userId);
       return { ok: false, reason: "broke", coins: settled.coins, owned: settled.owned };
     }
@@ -77,7 +78,7 @@ export async function openMysteryBoxHandler({ context }: { context: { userId: st
     }
     return { ok: true, prize, coins: next.coins, owned: next.owned, avatarId: settled.avatarId };
     } finally {
-      await releaseSpend(sql, context.userId);
+      await releaseSpend(sql, context.userId, spend);
     }
 }
 
@@ -94,24 +95,25 @@ async function ensureFeatFlags(sql: { query: <T>(text: string, params?: unknown[
 async function claimSpend(
   sql: { query: <T>(text: string, params?: unknown[]) => Promise<T[]> },
   userId: string,
-): Promise<boolean> {
+): Promise<string | null> {
   await ensureFeatFlags(sql);
   await sql.query(
     `delete from darkness_feat_flags where key = 'spend:' || $1 and created_at < now() - interval '30 seconds'`,
     [userId],
   );
-  const claimed = await sql.query<{ key: string }>(
-    `insert into darkness_feat_flags (key) values ('spend:' || $1) on conflict do nothing returning key`,
+  const claimed = await sql.query<{ at: string }>(
+    `insert into darkness_feat_flags (key) values ('spend:' || $1) on conflict do nothing returning created_at::text as at`,
     [userId],
   );
-  return Boolean(claimed[0]);
+  return claimed[0]?.at ?? null;
 }
 
 async function releaseSpend(
   sql: { query: <T>(text: string, params?: unknown[]) => Promise<T[]> },
   userId: string,
+  at: string,
 ): Promise<void> {
-  await sql.query(`delete from darkness_feat_flags where key = 'spend:' || $1`, [userId]);
+  await sql.query(`delete from darkness_feat_flags where key = 'spend:' || $1 and created_at::text = $2`, [userId, at]);
 }
 
 export async function getShowcaseHandler(): Promise<{ sold: boolean; revealed: boolean }> {
@@ -129,7 +131,8 @@ export async function getShowcaseHandler(): Promise<{ sold: boolean; revealed: b
 export async function buyGoldenPepeHandler({ context }: { context: { userId: string } }): Promise<ShopResult> {
     const { getSql } = await import("@/lib/db");
     const sql = await getSql();
-    if (!(await claimSpend(sql, context.userId))) {
+    const spend = await claimSpend(sql, context.userId);
+    if (!spend) {
       const busy = await settleProfile(sql, context.userId);
       return { ok: false, reason: "broke", coins: busy.coins, owned: busy.owned };
     }
@@ -180,7 +183,7 @@ export async function buyGoldenPepeHandler({ context }: { context: { userId: str
     const next = await settleProfile(sql, context.userId);
     return { ok: true, coins: next.coins, owned: next.owned, avatarId: jailed ? next.avatarId : "golden" };
     } finally {
-      await releaseSpend(sql, context.userId);
+      await releaseSpend(sql, context.userId, spend);
     }
 }
 
@@ -331,7 +334,8 @@ export async function buyNplHandler({
     return { ok: false, reason: "kind", coins: settled.coins };
   }
   await ensureNpl(sql);
-  if (!(await claimSpend(sql, context.userId))) {
+  const spend = await claimSpend(sql, context.userId);
+  if (!spend) {
     const settled = await settleProfile(sql, context.userId);
     return { ok: false, reason: "broke", coins: settled.coins };
   }
@@ -367,7 +371,7 @@ export async function buyNplHandler({
   const next = await settleProfile(sql, context.userId);
   return { ok: true, id: Math.floor(Number(inserted[0].id) || 0), kind, coins: next.coins };
   } finally {
-    await releaseSpend(sql, context.userId);
+    await releaseSpend(sql, context.userId, spend);
   }
 }
 
