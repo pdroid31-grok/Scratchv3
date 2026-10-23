@@ -1,5 +1,4 @@
 /** One-shot: copy donor 2026-W2 slate onto Commish by id. Weekly only. */
-import { HIDDEN_BOARD_IDS } from "./stats-shared";
 import { clipWeeklyPickIds } from "./weekly";
 
 type Sql = { query: <T>(text: string, params?: unknown[]) => Promise<T[]> };
@@ -46,7 +45,6 @@ export async function mergeCommishW2Once(sql: Sql): Promise<void> {
   if (already[0]) return;
 
   await sql.query(`delete from darkness_weekly_flags where key = $1`, [COMMISH_W2_MERGE_KEY]);
-  HIDDEN_BOARD_IDS.add(COMMISH_W2_DONOR_ID);
 
   const donorRuns = await sql.query<{ status: string; picks: unknown }>(
     `select status, picks

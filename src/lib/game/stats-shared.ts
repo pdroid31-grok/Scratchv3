@@ -26,7 +26,7 @@ export const HIDDEN_BOARD_IDS = new Set([
 ]);
 
 /** Hide from public boards by display/auth name. Do not delete the user. */
-export const HIDDEN_BOARD_NAMES = new Set(["nightwatch", "testpg", "grokbot1", "inspector1", "arkeayes cunning"]);
+export const HIDDEN_BOARD_NAMES = new Set(["nightwatch", "testpg", "grokbot1", "inspector1"]);
 
 export function isHiddenBoardId(id?: string | null): boolean {
   return Boolean(id && HIDDEN_BOARD_IDS.has(id));
