@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
 import type { CommishAvatarProgress, CommishList, CommishOk, CommishPasswordStatus } from "./commish-types";
 
-export type { CommishAvatarProgress, CommishBook, CommishList, CommishOk, CommishPasswordStatus } from "./commish-types";
+export type { CommishAvatarProgress, CommishAvatarProgressId, CommishBook, CommishList, CommishOk, CommishPasswordStatus } from "./commish-types";
 export {
   COMMISH_AVATAR_PROGRESS,
   COMMISH_SETTINGS_ID,

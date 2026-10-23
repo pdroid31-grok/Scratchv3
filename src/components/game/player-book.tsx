@@ -8,7 +8,7 @@ import { SliceStats } from "@/components/game/book-slice";
 import type { RankTabId } from "@/components/game/rank-tabs";
 import { AvatarPeek } from "@/components/game/avatar-peek";
 import { closetGridClass, useClosetCols } from "@/components/game/closet-cols";
-import { ACHIEVEMENT_IDS, CLOSET_AVATARS, SHIRT_AVATARS, STAR_IDS, avatarById, isUnlocked, lookSource, remainingToUnlock } from "@/lib/game/avatars";
+import { ACHIEVEMENT_IDS, CLOSET_AVATARS, SHIRT_AVATARS, STAR_IDS, avatarById, isUnlocked, lookSource, remainingToUnlock, type Avatar } from "@/lib/game/avatars";
 import type { PublicBook } from "@/lib/game/stats";
 
 export function PlayerBook({ book, board, popup = false }: { book: PublicBook; board?: RankTabId; popup?: boolean }) {
@@ -91,7 +91,7 @@ function UnlockedCloset({ owned, wearing }: { owned: string[]; wearing: string }
         {left === 0 ? "All unlocked" : `${left} left to unlock`}
       </p>
       <ul className={`mt-3 ${closetGridClass(cols)}`}>
-        {unlocked.flatMap((avatar) => {
+        {unlocked.flatMap<Avatar>((avatar) => {
           if (avatar.id !== "holy") return [avatar];
           return SHIRT_AVATARS.filter((option) => owned.includes(option.id));
         }).map((avatar) => {

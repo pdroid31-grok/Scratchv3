@@ -24,7 +24,7 @@ async function ensurePlayPublic(sql: Sql): Promise<void> {
     )`);
 }
 
-function face(row: { id: string; name: string; avatarId: string; score: number } | null | undefined): PlayFace | null {
+function face(row: { id: string; name: string; avatarId: string; score: number | null } | null | undefined): PlayFace | null {
   if (!row || !row.id || !row.name) return null;
   if (isHiddenBoardId(row.id) || isHiddenBoardName(row.name)) return null;
   const score = Number(row.score);

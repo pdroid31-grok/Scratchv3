@@ -142,7 +142,7 @@ function sheetRows() {
     const row = byId.get(id);
     return row ? [row] : [];
   });
-  const rest = ACHIEVEMENT_UNLOCKS.filter((row) => !named.has(row.id) && row.id !== "joker");
+  const rest = ACHIEVEMENT_UNLOCKS.filter((row) => !named.has(row.id) && (row.id as AvatarId) !== "joker");
   return [...ordered, ...rest];
 }
 

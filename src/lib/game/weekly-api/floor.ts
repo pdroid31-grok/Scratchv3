@@ -91,7 +91,7 @@ export function weekFloorMin(shown: { hasPicks?: boolean; floor?: boolean; score
   return Math.min(...vals);
 }
 
-export function weekBoardIds(runs: SeasonDoneRun[], weekNo: number): Set<string> {
+export function weekBoardIds(runs: readonly SeasonDoneRun[], weekNo: number): Set<string> {
   return new Set(runs.filter((row) => row.week === weekNo).map((row) => row.user_id));
 }
 

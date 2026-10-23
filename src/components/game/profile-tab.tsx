@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Gavel, Settings, Star, X } from "lucide-react";
-import { ACHIEVEMENT_IDS, CLOSET_AVATARS, SHIRT_AVATARS, STAR_IDS, avatarById, isUnlocked, lookSource, ownsAvatar, remainingToUnlock, type AvatarId } from "@/lib/game/avatars";
+import { ACHIEVEMENT_IDS, CLOSET_AVATARS, SHIRT_AVATARS, STAR_IDS, avatarById, isUnlocked, lookSource, ownsAvatar, remainingToUnlock, type Avatar, type AvatarId } from "@/lib/game/avatars";
 import { useProfile } from "@/lib/game/profile-store";
 import { useCurrentUserState } from "@/lib/auth/use-current-user";
 import { authEnabled, signOut } from "@/lib/auth/client";
@@ -315,7 +315,7 @@ function Closet({
         {left === 0 ? "All unlocked" : `${left} left to unlock`}
       </p>
       <ul className={cn("mt-4", closetGridClass(cols))}>
-        {CLOSET_AVATARS.flatMap((avatar) => {
+        {CLOSET_AVATARS.flatMap<Avatar>((avatar) => {
           if (avatar.id !== "holy") return isUnlocked(avatar.id, owned) ? [avatar] : [];
           return SHIRT_AVATARS.filter((option) => ownsAvatar(option.id, owned));
         }).map((avatar) => {

@@ -56,7 +56,7 @@ async function stampTotalMarks(sql: MarkSql, rows: BoardRow[]): Promise<BoardRow
   let seeds: { user_id: string; career_book: unknown }[] = [];
   try {
     [daily, weekly, nights, seeds] = await Promise.all([
-      sql.query(
+      sql.query<(typeof daily)[number]>(
         `select user_id, score
            from darkness_daily_runs
           where user_id = any($1::text[])
@@ -65,7 +65,7 @@ async function stampTotalMarks(sql: MarkSql, rows: BoardRow[]): Promise<BoardRow
             and score <> 0`,
         [ids],
       ),
-      sql.query(
+      sql.query<(typeof weekly)[number]>(
         `select r.user_id, r.score, r.season, r.week, coalesce(w.awarded, false) as awarded
            from darkness_weekly_runs r
            left join darkness_weekly_weeks w
@@ -76,7 +76,7 @@ async function stampTotalMarks(sql: MarkSql, rows: BoardRow[]): Promise<BoardRow
             and r.score <> 0`,
         [ids],
       ),
-      sql.query(
+      sql.query<(typeof nights)[number]>(
         `select user_id,
                 min(case
                   when coalesce(kind, 'auction') = 'elimination'
@@ -88,7 +88,7 @@ async function stampTotalMarks(sql: MarkSql, rows: BoardRow[]): Promise<BoardRow
           group by user_id`,
         [ids],
       ),
-      sql.query(
+      sql.query<(typeof seeds)[number]>(
         `select user_id, career_book
            from player_profiles
           where user_id = any($1::text[])

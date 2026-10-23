@@ -1106,7 +1106,7 @@ describe("avatars", () => {
       false,
     );
     assert.equal(overheadPassed([early, { userId: "b", score: 150, at: 2 }], "a"), false);
-    const slots = [
+    const mirrorSlots = [
       { slot: "D", id: "d" },
       { slot: "QB", id: "q" },
       { slot: "RB2", id: "r2" },
@@ -1116,9 +1116,9 @@ describe("avatars", () => {
       { slot: "K", id: "k" },
       { slot: "WR2", id: "w2" },
     ];
-    const flipped = [...slots].reverse();
-    assert.equal(lineupSignature(slots), lineupSignature(flipped));
-    assert.equal(lineupSignature(slots.slice(0, 7)), null);
+    const flipped = [...mirrorSlots].reverse();
+    assert.equal(lineupSignature(mirrorSlots), lineupSignature(flipped));
+    assert.equal(lineupSignature(mirrorSlots.slice(0, 7)), null);
     assert.deepEqual(
       mirrorUserIds([
         { userId: "a", signature: "same" },
@@ -1282,10 +1282,12 @@ describe("avatars", () => {
     assert.equal(threeHeadedHit(["KC", "BUF", "KC", "BUF", "KC"]), true);
     assert.equal(tripleDonutHit(2), false);
     assert.equal(tripleDonutHit(3), true);
+    const pennySlots = (costs: number[]) =>
+      ["QB", "RB1", "RB2", "WR1", "WR2", "TE", "K", "D"].slice(0, costs.length).map((slot, i) => ({ slot, cost: costs[i] }));
     assert.equal(pennyHit([]), false);
-    assert.equal(pennyHit([1, 1, 1, 1, 1, 1, 1, 1]), true);
-    assert.equal(pennyHit([1, 1, 2]), false);
-    assert.equal(pennyHit([1, Number.NaN]), false);
+    assert.equal(pennyHit(pennySlots([1, 1, 1, 1, 1, 1, 1, 1])), true);
+    assert.equal(pennyHit(pennySlots([1, 1, 2])), false);
+    assert.equal(pennyHit(pennySlots([1, Number.NaN])), false);
     assert.equal(blueStreakHit(3), false);
     assert.equal(blueStreakHit(4), true);
     function nextDay(day: string): string {
@@ -1315,7 +1317,7 @@ describe("avatars", () => {
     assert.equal(avatarById("coldstreak").name, "Cold Streak");
     assert.equal(lookSource("threeheaded"), "From Achievement: Start 3 players from the same NFL team in a Daily or Weekly Match.");
     assert.equal(lookSource("tripledonut"), "From Achievement: Start three or more players who score 0 in a Daily or Weekly Match.");
-    assert.equal(lookSource("penny"), "From Achievement: Lock a Daily lineup where every player costs $1.");
+    assert.equal(lookSource("penny"), "From Achievement: Spend $10 or less on a Daily lineup.");
     assert.equal(lookSource("bluestreak"), "From Achievement: Start 4 or more players who score in the blue in one Daily.");
     assert.equal(lookSource("coldstreak"), "From Achievement: Finish 15 Daily Matches in a row with no Daily win.");
     assert.equal(pickPrize(["poor"], "hydra") === "threeheaded", false);

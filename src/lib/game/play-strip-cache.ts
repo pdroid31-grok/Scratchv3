@@ -12,7 +12,7 @@ export function readKeyedCache<T extends { key: string }>(storageKey: string, ke
   }
 }
 
-export function writeKeyedCache(storageKey: string, value: { key: string }): void {
+export function writeKeyedCache<T extends { key: string }>(storageKey: string, value: T): void {
   try {
     sessionStorage.setItem(storageKey, JSON.stringify(value));
   } catch {

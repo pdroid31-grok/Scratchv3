@@ -13,7 +13,7 @@ import {
   weeklyDraftOpensAt,
 } from "../weekly";
 import { attachFinishedWeekActuals, fillPackedOpponents, nflClock, weekWindow, weeklyLiveStats } from "../weekly-sleeper";
-import type { SeasonBoard, WeeklyBoard, WeeklyBoardPack, WeeklyBoardRow, WeeklyLineup, WeeklyReview } from "../weekly-api-types";
+import type { SeasonBoard, SeasonBoardRow, WeeklyBoard, WeeklyBoardPack, WeeklyBoardRow, WeeklyLineup, WeeklyReview } from "../weekly-api-types";
 import { currentWeek, mswanLateOk, resolveClock } from "./clock";
 import {
   floorEligibleRun,
@@ -237,7 +237,7 @@ export async function listSeasonBoardHandler({ data }: { data: { season: number 
       order by coalesce(sum(r.score), 0) desc, max(coalesce(nullif(nullif(trim(p.display_name), ''), 'GM'), nullif(trim(u.name), ''), 'GM'))`,
     [season],
   );
-  const merged = new Map(
+  const merged = new Map<string, SeasonBoardRow>(
     rows.flatMap((row) => {
       const name = clipDisplayName(row.name ?? "") || "GM";
       if (isHiddenBoardId(row.user_id) || isHiddenBoardName(name) || isHiddenBoardName(row.name)) return [];
