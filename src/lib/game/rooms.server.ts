@@ -6,7 +6,7 @@ import { redactHalftime } from "./halftime";
 import { hostedMatchView, historyLineScore } from "./hosted-match";
 import { clampAvatar, isAvatarId, parseOwned, type AvatarId } from "./avatars";
 import type { Sql } from "@/lib/db";
-import { clipDisplayName } from "./stats-shared";
+import { clipDisplayName, isHiddenBoardName } from "./stats-shared";
 import { listingFromRoom, type LobbyListing } from "./lobby-list";
 import type { Seat } from "./types";
 import type { MatchHistoryRow, RoomResult, RoomView, RoomViewer, WatchResult } from "./rooms-types";
@@ -122,7 +122,7 @@ async function seatedIdentity(
 }
 
 async function persistDisplayName(userId: string | null, name: string) {
-  const displayName = clipDisplayName(name);
+  const displayName = isHiddenBoardName(name) ? "" : clipDisplayName(name);
   if (!userId || !displayName) return;
   const { getSql } = await import("@/lib/db");
   const sql = await getSql();

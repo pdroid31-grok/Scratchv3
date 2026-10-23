@@ -1,5 +1,5 @@
 /** Hosted night writes. Move-only from stats.server. */
-import { clipDisplayName, clipGm, hostedNightKey, opponentKey, planHostedNightWrite } from "../stats-shared";
+import { clipDisplayName, clipGm, hostedNightKey, isHiddenBoardName, opponentKey, planHostedNightWrite } from "../stats-shared";
 import { hostedMatchView } from "../hosted-match";
 import type { GameState } from "../engine";
 import type { RecordNightInput } from "../stats-types";
@@ -9,7 +9,7 @@ export function normalizeRecordNight(data: RecordNightInput) {
   return {
     nightKey: String(data.nightKey ?? "").slice(0, 240),
     opponentName: clipGm(String(data.opponentName ?? "")),
-    gmName: clipDisplayName(String(data.gmName ?? "")),
+    gmName: isHiddenBoardName(String(data.gmName ?? "")) ? "" : clipDisplayName(String(data.gmName ?? "")),
     won: data.won === true ? true : data.won === false ? false : null,
     score: Math.floor(Number(data.score) || 0),
     opponentScore: Math.floor(Number(data.opponentScore) || 0),
@@ -95,7 +95,7 @@ export async function creditHostedMatch(
     if (!userId) continue;
     const other = seat === 0 ? 1 : 0;
     const opponentName = clipGm(view.names[other]);
-    const gmName = clipDisplayName(view.names[seat]);
+    const gmName = isHiddenBoardName(view.names[seat]) ? "" : clipDisplayName(view.names[seat]);
     const nightKey = hostedNightKey(code, view.nights, view.kind, seat);
     const won = view.winner == null ? null : view.winner === seat;
     await writePlayerNight(sql, userId, {

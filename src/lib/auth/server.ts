@@ -41,6 +41,7 @@ import {
   mappedIdForEmail,
   seedLegacyPlayer,
 } from "./legacy-email-map.server";
+import { isHiddenBoardName } from "../game/stats-shared";
 import { GROK_PROVIDERS } from "./providers";
 import { pgliteDialect } from "./pglite-dialect";
 import {
@@ -198,10 +199,13 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
-        before: async (user) => legacyUserCreateBefore(user),
+        before: async (user) => legacyUserCreateBefore(isHiddenBoardName(user.name) ? { ...user, name: "GM" } : user),
         after: async (user) => {
           if (user?.id) await seedLegacyPlayer(user.id);
         },
+      },
+      update: {
+        before: async (user) => (isHiddenBoardName(user.name) ? false : { data: user }),
       },
     },
     account: {
