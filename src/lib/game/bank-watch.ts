@@ -104,6 +104,24 @@ export async function recordBankChange(
         )`,
       [userId, coinsBefore, coinsAfter, coinsAfter - coinsBefore, label],
     );
+    // The insert's not-exists check reads a snapshot from before the lock wait,
+    // so two simultaneous writes can both land. This runs as its own statement
+    // (it sees both rows) and keeps only the first copy.
+    await sql.query(
+      `delete from darkness_bank_log d
+        using darkness_bank_log k
+        where d.user_id = $1
+          and k.user_id = $1
+          and d.coins_before = $2
+          and d.coins_after = $3
+          and k.coins_before = $2
+          and k.coins_after = $3
+          and k.id < d.id
+          and d.created_at > k.created_at - interval '10 seconds'
+          and d.created_at < k.created_at + interval '10 seconds'
+          and d.created_at > now() - interval '1 minute'`,
+      [userId, coinsBefore, coinsAfter],
+    );
   } catch (err) {
     console.error("[darkness] bank log failed", err);
   }
