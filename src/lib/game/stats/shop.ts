@@ -304,11 +304,11 @@ function mineSlot(row: NplRow) {
 const NPL_MINE_SQL = `select id, kind, n, user_id, status, name, logo, colors, first_name, last_name, deny_reason, note, '' as buyer
   from darkness_npl where user_id = $1 order by id`;
 
-export async function getNplStockHandler(): Promise<{ teamLeft: number; playerLeft: number; teamCost: number; playerCost: number }> {
+export async function getNplStockHandler(): Promise<{ teamLeft: number; playerLeft: number; teamTotal: number; playerTotal: number; teamCost: number; playerCost: number }> {
   const { getSql } = await import("@/lib/db");
   const sql = await getSql();
   const left = await nplLeft(sql);
-  return { ...left, teamCost: NPL_TEAM_COST, playerCost: NPL_PLAYER_COST };
+  return { ...left, teamTotal: NPL_TEAM_CAP, playerTotal: NPL_PLAYER_CAP, teamCost: NPL_TEAM_COST, playerCost: NPL_PLAYER_COST };
 }
 
 export async function getNplMineHandler({ context }: { context: { userId: string } }) {

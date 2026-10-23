@@ -510,10 +510,12 @@ function NplCard({ guest, coins }: { guest: boolean; coins: number }) {
 
   const teamLeft = stock?.teamLeft ?? null;
   const playerLeft = stock?.playerLeft ?? null;
+  const teamTotal = stock?.teamTotal ?? null;
+  const playerTotal = stock?.playerTotal ?? null;
   const teamCost = stock?.teamCost ?? 100;
   const playerCost = stock?.playerCost ?? 20;
 
-  function offer(kind: NplKind, title: string, left: number | null, cost: number) {
+  function offer(kind: NplKind, title: string, left: number | null, total: number | null, cost: number) {
     const soldOut = left === 0;
     return (
       <div className="flex min-w-0 flex-col rounded-lg bg-bg p-3 shadow-[var(--shadow-border)]">
@@ -524,7 +526,7 @@ function NplCard({ guest, coins }: { guest: boolean; coins: number }) {
         />
         <p className="mt-3 font-display text-sm font-semibold uppercase leading-tight tracking-wide text-fg">{title}</p>
         <p className="mt-1 text-sm text-muted">${cost}</p>
-        <p className="text-sm tabular-nums text-muted">{left == null ? "—" : `${left} left`}</p>
+        <p className="text-sm tabular-nums text-muted">{left == null ? "—" : total == null ? `${left} left` : `${left}/${total} left`}</p>
         {soldOut ? (
           <Button type="button" size="lg" variant="secondary" className="mt-3 w-full font-display uppercase tracking-wider" disabled>
             SOLD OUT
@@ -555,8 +557,8 @@ function NplCard({ guest, coins }: { guest: boolean; coins: number }) {
     <section className="w-full rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
       <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-turf">NPL</p>
       <div className="mt-4 grid grid-cols-2 gap-3">
-        {offer("team", "Name a Team/Logo", teamLeft, teamCost)}
-        {offer("player", "Name a Player", playerLeft, playerCost)}
+        {offer("team", "Name a Team/Logo", teamLeft, teamTotal, teamCost)}
+        {offer("player", "Name a Player", playerLeft, playerTotal, playerCost)}
       </div>
       {note ? <p className="mt-3 text-sm text-muted">{note}</p> : null}
       {guest ? null : (

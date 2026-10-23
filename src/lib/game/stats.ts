@@ -106,6 +106,8 @@ export type NplMineSlot = {
 export type NplStock = {
   teamLeft: number;
   playerLeft: number;
+  teamTotal: number;
+  playerTotal: number;
   teamCost: number;
   playerCost: number;
 };
