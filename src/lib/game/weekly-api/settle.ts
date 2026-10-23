@@ -203,7 +203,7 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
       }
     }
     try {
-      const { maybeGrantBullseye, maybeGrantHeavyHitter, maybeGrantIronBoot, maybeGrantScore1234, maybeGrantConflictOfInterest } = await import("../board-feats.server");
+      const { maybeGrantBullseye, maybeGrantHeavyHitter, maybeGrantIronBoot, maybeGrantScore1234, maybeGrantConflictOfInterest, maybeGrantCalledIt } = await import("../board-feats.server");
       const { weeklyAwardEtDay } = await import("../double-trouble.server");
       const { COLD_STREAK_FROM } = await import("../avatars");
       await maybeGrantBullseye(sql, row.userId, row.score);
@@ -212,6 +212,7 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
       await maybeGrantIronBoot(sql, row.userId, season, week, row.picks, live);
       if ((weeklyAwardEtDay(window.games, window.endAt) || "") >= COLD_STREAK_FROM) {
         await maybeGrantConflictOfInterest(sql, row.userId, row.picks);
+        await maybeGrantCalledIt(sql, row.userId, row.picks, day.board);
       }
     } catch (err) {
       console.error("[darkness] weekly feat grant failed", err);
@@ -238,6 +239,19 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
     `update darkness_weekly_weeks set awarded = true where season = $1 and week = $2 and awarded = false`,
     [season, week],
   );
+  try {
+    const { weeklyAwardEtDay } = await import("../double-trouble.server");
+    const { COLD_STREAK_FROM } = await import("../avatars");
+    if ((weeklyAwardEtDay(window.games, window.endAt) || "") >= COLD_STREAK_FROM) {
+      const { maybeGrantBadBeat } = await import("../board-feats.server");
+      await maybeGrantBadBeat(
+        sql,
+        scored.filter((row) => !row.skip).map((row) => ({ userId: row.userId, score: row.score })),
+      );
+    }
+  } catch (err) {
+    console.error("[darkness] bad beat grant failed", err);
+  }
   try {
     const { maybeGrantFlashWeek, maybeGrantMirrorWeek } = await import("../board-feats.server");
     await maybeGrantFlashWeek(

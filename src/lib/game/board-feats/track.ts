@@ -1,5 +1,8 @@
 import {
   ALMOST_ID,
+  BAD_BEAT_ID,
+  BAD_BEAT_MARGIN,
+  CALLED_IT_ID,
   COLD_STREAK_FROM,
   CONFLICT_OF_INTEREST_ID,
   JACKPOT_DAYS,
@@ -199,6 +202,71 @@ function conflictHit(raw: unknown): boolean {
   }
   if (!team || !vs || vs === "BYE") return false;
   return team === vs;
+}
+
+/** One unique Weekly winner. Everyone tied for 2nd, less than BAD_BEAT_MARGIN behind, gets Bad Beat. Compared in tenths. */
+export function badBeatIds(rows: readonly { userId: string; score: number }[]): string[] {
+  const tenths = rows
+    .map((row) => ({ userId: row.userId, t: Math.round(Number(row.score) * 10) }))
+    .filter((row) => row.userId && Number.isFinite(row.t));
+  if (tenths.length < 2) return [];
+  const top = Math.max(...tenths.map((row) => row.t));
+  if (tenths.filter((row) => row.t === top).length !== 1) return [];
+  const below = tenths.filter((row) => row.t < top);
+  if (!below.length) return [];
+  const second = Math.max(...below.map((row) => row.t));
+  if (top - second >= Math.round(BAD_BEAT_MARGIN * 10)) return [];
+  return below.filter((row) => row.t === second).map((row) => row.userId);
+}
+
+export async function maybeGrantBadBeat(sql: Sql, rows: readonly { userId: string; score: number }[]): Promise<void> {
+  try {
+    for (const userId of badBeatIds(rows)) await grantFeat(sql, userId, BAD_BEAT_ID);
+  } catch (err) {
+    console.error("[darkness] bad beat grant failed", err);
+  }
+}
+
+/** A locked Weekly pick's final score equals its saved-board projection to the tenth. Projection must be > 0. Joined on pick id. */
+export function calledItHit(picks: unknown, board: unknown): boolean {
+  if (!Array.isArray(picks)) return false;
+  let pack: unknown = board;
+  if (typeof pack === "string") {
+    try {
+      pack = JSON.parse(pack) as unknown;
+    } catch {
+      return false;
+    }
+  }
+  if (!pack || typeof pack !== "object") return false;
+  const proj = new Map<string, number>();
+  for (const rows of Object.values(pack as Record<string, unknown>)) {
+    if (!Array.isArray(rows)) continue;
+    for (const row of rows) {
+      if (!row || typeof row !== "object") continue;
+      const { id, ppr } = row as { id?: string; ppr?: number };
+      const t = Math.round(Number(ppr) * 10);
+      if (id && Number.isFinite(t)) proj.set(String(id), t);
+    }
+  }
+  for (const pick of picks) {
+    if (!pick || typeof pick !== "object") continue;
+    const { id, score } = pick as { id?: string; score?: number };
+    const want = proj.get(String(id ?? ""));
+    if (want == null || want <= 0) continue;
+    const got = Math.round(Number(score) * 10);
+    if (Number.isFinite(got) && got === want) return true;
+  }
+  return false;
+}
+
+export async function maybeGrantCalledIt(sql: Sql, userId: string, picks: unknown, board: unknown): Promise<void> {
+  try {
+    if (!calledItHit(picks, board)) return;
+    await grantFeat(sql, userId, CALLED_IT_ID);
+  } catch (err) {
+    console.error("[darkness] called it grant failed", err);
+  }
 }
 
 export async function maybeGrantTriplePoint(sql: Sql, avatarId: string): Promise<void> {

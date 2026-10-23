@@ -70,6 +70,7 @@ export const AVATARS = [
   { id: "lockedin", name: "Locked In", src: "/avatars/lockedin.jpg?v=2" },
   { id: "focused", name: "Focused", src: "/avatars/focused.jpg?v=1" },
   { id: "sniper", name: "Sniper", src: "/avatars/sniper.jpg?v=1" },
+  { id: "badbeat", name: "Bad Beat", src: "/avatars/badbeat.jpg?v=1" },
   { id: "silvermedal", name: "Silver Medal", src: "/avatars/silvermedal.jpg?v=2" },
   { id: "8ball", name: "8-Ball", src: "/avatars/8ball.jpg?v=2" },
   { id: "ghostpepe", name: "Ghost Pepe", src: "/avatars/ghostpepe.jpg?v=2" },
@@ -117,6 +118,7 @@ export const AVATARS = [
   { id: "thrifty", name: "Thrifty", src: "/avatars/thrifty.jpg?v=1" },
   { id: "ironboot", name: "Iron Boot", src: "/avatars/ironboot.jpg?v=1" },
   { id: "conflictofinterest", name: "Conflict of Interest", src: "/avatars/conflictofinterest.jpg?v=1" },
+  { id: "calledit", name: "Called It", src: "/avatars/calledit.jpg?v=1" },
   { id: "overhead", name: "Overhead", src: "/avatars/overhead.jpg?v=1" },
   { id: "mirror", name: "Mirror", src: "/avatars/mirror.jpg?v=1" },
   { id: "twin", name: "Twin", src: "/avatars/twin.jpg?v=1" },
@@ -215,6 +217,7 @@ export const LOCKED_IN_ID = "lockedin" as const satisfies AvatarId;
 export const FOCUSED_ID = "focused" as const satisfies AvatarId;
 
 export const SNIPER_ID = "sniper" as const satisfies AvatarId;
+export const BAD_BEAT_ID = "badbeat" as const satisfies AvatarId;
 
 export const SILVER_MEDAL_ID = "silvermedal" as const satisfies AvatarId;
 
@@ -273,6 +276,7 @@ export const THRIFTY_ID = "thrifty" as const satisfies AvatarId;
 export const IRON_BOOT_ID = "ironboot" as const satisfies AvatarId;
 
 export const CONFLICT_OF_INTEREST_ID = "conflictofinterest" as const satisfies AvatarId;
+export const CALLED_IT_ID = "calledit" as const satisfies AvatarId;
 
 export const OVERHEAD_ID = "overhead" as const satisfies AvatarId;
 
@@ -399,6 +403,7 @@ export const BOX_ADDICT_POOL_NEED = 25;
 export const SILVER_SECOND_NEED = 5;
 
 export const SNIPER_MARGIN = 1;
+export const BAD_BEAT_MARGIN = 1;
 
 export const FEAT_TRACK_FROM = "2026-09-17";
 
@@ -474,6 +479,7 @@ export const FEAT_IDS = new Set<string>([
   LOCKED_IN_ID,
   FOCUSED_ID,
   SNIPER_ID,
+  BAD_BEAT_ID,
   SILVER_MEDAL_ID,
   COMMISH_ID,
   JAIL_ID,
@@ -505,6 +511,7 @@ export const FEAT_IDS = new Set<string>([
   THRIFTY_ID,
   IRON_BOOT_ID,
   CONFLICT_OF_INTEREST_ID,
+  CALLED_IT_ID,
   OVERHEAD_ID,
   MIRROR_ID,
   TWIN_ID,
@@ -556,6 +563,7 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: LOCKED_IN_ID, how: "100 consecutive calendar days with a Daily Match submitted." },
   { id: FOCUSED_ID, how: "50 consecutive calendar days with a Daily Match submitted." },
   { id: SNIPER_ID, how: "Win a Weekly Match by less than 1 point over 2nd Place." },
+  { id: BAD_BEAT_ID, how: "Lose a Weekly Match by less than 1 point to 1st Place." },
   { id: SILVER_MEDAL_ID, how: "Finish 2nd on 5 separate Daily boards." },
   { id: DOUBLE_TROUBLE_ID, how: "Win Daily and Weekly on the same day." },
   { id: BULLSEYE_ID, how: "Score exactly 100.0 in a Daily or Weekly Match." },
@@ -582,6 +590,7 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: THRIFTY_ID, how: "Win a Daily or Weekly spending $30 or less." },
   { id: IRON_BOOT_ID, how: "Defense + Kicker score 40+ combined in one Weekly." },
   { id: CONFLICT_OF_INTEREST_ID, how: "Your Weekly QB's team is the team your Defense is playing." },
+  { id: CALLED_IT_ID, how: "A Weekly pick scores exactly his projection." },
   { id: OVERHEAD_ID, how: "Score 150+ in Daily, then get passed." },
   { id: MIRROR_ID, how: "Post the same lineup as another player." },
   { id: TWIN_ID, how: "Same score as another player with a different lineup." },
