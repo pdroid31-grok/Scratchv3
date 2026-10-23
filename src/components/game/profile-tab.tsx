@@ -73,7 +73,7 @@ export function ProfileTab() {
                   to="/settings"
                   className="inline-flex items-center gap-1.5 font-display text-xs font-semibold uppercase tracking-wider text-muted hover:text-fg"
                 >
-                  Dev settings
+                  CEO settings
                   <Gavel className="size-4" aria-hidden />
                 </Link>
               ) : null}

@@ -104,7 +104,7 @@ export function CommishSettingsPage() {
   return (
     <div className="mt-6 grid gap-4">
       <section className="rounded-xl bg-surface/90 p-4 shadow-[var(--shadow-border)] sm:p-5">
-        <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-turf">Commish</p>
+        <p className="font-display text-xs font-semibold uppercase tracking-[0.24em] text-turf">CEO</p>
         <h1 className="mt-1 font-display text-2xl font-semibold uppercase tracking-wide text-fg">Settings</h1>
         <Link to="/" search={{ tab: "profile" }} className="mt-2 inline-flex text-sm text-muted hover:text-fg">
           Back to Profile
