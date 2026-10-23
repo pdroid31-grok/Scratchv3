@@ -52,10 +52,11 @@ export const useProfile = create<ProfileStore>((set, get) => ({
   rename: async (name) => {
     const next = name.trim().slice(0, 16);
     if (!next) return;
+    const prev = get().displayName;
     set({ displayName: next });
     try {
       const saved = await setMyName({ data: { name: next } });
-      set({ displayName: saved.displayName || next });
+      set({ displayName: saved.displayName || prev });
     } catch {
       /* keep optimistic name */
     }

@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "@/lib/auth/middleware";
-import { clipDisplayName } from "./stats-shared";
+import { clipDisplayName, isHiddenBoardName } from "./stats-shared";
 import type { AvatarId } from "./avatars";
 import type {
   BoxResult,
@@ -58,8 +58,13 @@ export const setMyName = createServerFn({ method: "POST" })
     name: clipDisplayName(String(data.name ?? "")),
   }))
   .handler(async ({ context, data }): Promise<{ displayName: string }> => {
+    if (isHiddenBoardName(data.name)) return { displayName: "" };
+    const { markNamePicked, nameTakenByOther } = await import("./name-pick.server");
+    if (await nameTakenByOther(context.userId, data.name)) return { displayName: "" };
     const { setMyNameHandler } = await import("./stats.server");
-    return setMyNameHandler({ context, data });
+    const saved = await setMyNameHandler({ context, data });
+    if (saved.displayName) await markNamePicked(context.userId);
+    return saved;
   });
 
 export const openMysteryBox = createServerFn({ method: "POST" })
