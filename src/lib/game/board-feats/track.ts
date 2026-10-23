@@ -1,17 +1,19 @@
 import {
   ALMOST_ID,
   COLD_STREAK_FROM,
+  CONFLICT_OF_INTEREST_ID,
   JACKPOT_DAYS,
   JACKPOT_ID,
   NUMBER_ONE_FAN_ID,
   NUMBER_ONE_FAN_NEED,
+  RIDE_OR_DIE_ID,
   SCORE_1234_ID,
   SUNDIAL_ID,
   SUNDIAL_NEED,
   TRIPLEPOINT_ID,
   TRIPLEPOINT_NEED,
 } from "../avatars";
-import { etYmd, hitAlmost, hitScore1234, jackpotDays, sundialHours, teamCounts } from "../feat-progress";
+import { etYmd, hitAlmost, hitScore1234, jackpotDays, rideOrDieHit, sundialHours, teamCounts } from "../feat-progress";
 import { grantFeat, skipWho, type Sql } from "./grant";
 import { asTime } from "./place-weekly";
 
@@ -144,6 +146,59 @@ export async function maybeGrantJackpot(sql: Sql, userId: string): Promise<void>
   } catch (err) {
     console.error("[darkness] jackpot grant failed", err);
   }
+}
+
+export async function rideOrDieIds(sql: Sql, userId: string): Promise<string[]> {
+  const rows = await sql.query<{ picks: unknown }>(
+    `select picks
+       from darkness_daily_runs
+      where user_id = $1
+        and status = 'done'
+        and day >= $2::date
+        and picks is not null`,
+    [userId, COLD_STREAK_FROM],
+  );
+  const ids: string[] = [];
+  for (const row of rows) {
+    if (!Array.isArray(row.picks)) continue;
+    for (const pick of row.picks) {
+      if (!pick || typeof pick !== "object") continue;
+      const id = String((pick as { id?: string }).id ?? "").trim();
+      if (id) ids.push(id);
+    }
+  }
+  return ids;
+}
+
+export async function maybeGrantRideOrDie(sql: Sql, userId: string): Promise<void> {
+  try {
+    if (rideOrDieHit(await rideOrDieIds(sql, userId))) await grantFeat(sql, userId, RIDE_OR_DIE_ID);
+  } catch (err) {
+    console.error("[darkness] ride or die grant failed", err);
+  }
+}
+
+export async function maybeGrantConflictOfInterest(sql: Sql, userId: string, picks: unknown): Promise<void> {
+  try {
+    if (!conflictHit(picks)) return;
+    await grantFeat(sql, userId, CONFLICT_OF_INTEREST_ID);
+  } catch (err) {
+    console.error("[darkness] conflict of interest grant failed", err);
+  }
+}
+
+function conflictHit(raw: unknown): boolean {
+  if (!Array.isArray(raw)) return false;
+  let team = "";
+  let vs = "";
+  for (const pick of raw) {
+    if (!pick || typeof pick !== "object") continue;
+    const row = pick as { slot?: string; team?: string; vs?: string };
+    if (row.slot === "QB") team = String(row.team ?? "").trim().toUpperCase();
+    if (row.slot === "D") vs = String(row.vs ?? "").trim().toUpperCase();
+  }
+  if (!team || !vs || vs === "BYE") return false;
+  return team === vs;
 }
 
 export async function maybeGrantTriplePoint(sql: Sql, avatarId: string): Promise<void> {

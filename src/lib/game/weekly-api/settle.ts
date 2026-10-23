@@ -203,11 +203,16 @@ async function settleWeek(sql: Sql, season: number, week: number): Promise<void>
       }
     }
     try {
-      const { maybeGrantBullseye, maybeGrantHeavyHitter, maybeGrantIronBoot, maybeGrantScore1234 } = await import("../board-feats.server");
+      const { maybeGrantBullseye, maybeGrantHeavyHitter, maybeGrantIronBoot, maybeGrantScore1234, maybeGrantConflictOfInterest } = await import("../board-feats.server");
+      const { weeklyAwardEtDay } = await import("../double-trouble.server");
+      const { COLD_STREAK_FROM } = await import("../avatars");
       await maybeGrantBullseye(sql, row.userId, row.score);
       await maybeGrantScore1234(sql, row.userId);
       await maybeGrantHeavyHitter(sql, row.userId, season, week, row.picks);
       await maybeGrantIronBoot(sql, row.userId, season, week, row.picks, live);
+      if ((weeklyAwardEtDay(window.games, window.endAt) || "") >= COLD_STREAK_FROM) {
+        await maybeGrantConflictOfInterest(sql, row.userId, row.picks);
+      }
     } catch (err) {
       console.error("[darkness] weekly feat grant failed", err);
     }

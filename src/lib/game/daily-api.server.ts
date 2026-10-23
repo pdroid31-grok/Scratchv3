@@ -462,12 +462,13 @@ async function completeDailyRun(
     if (day.day >= PENNY_FROM) await maybeGrantPenny(sql, userId);
     if (day.day >= BLUE_STREAK_FROM) await maybeGrantBlueStreak(sql, userId);
     await maybeGrantColdStreak(sql, userId);
-    const { maybeGrantSundial, maybeGrantScore1234, maybeGrantAlmost, maybeGrantJackpot } = await import("./board-feats.server");
+    const { maybeGrantSundial, maybeGrantScore1234, maybeGrantAlmost, maybeGrantJackpot, maybeGrantRideOrDie } = await import("./board-feats.server");
     if (day.day >= COLD_STREAK_FROM) {
       await maybeGrantSundial(sql, userId);
       await maybeGrantScore1234(sql, userId);
       await maybeGrantAlmost(sql, userId);
       await maybeGrantJackpot(sql, userId);
+      await maybeGrantRideOrDie(sql, userId);
     }
     const { maybeGrantScoreTrend, maybeGrantEasyDollar, maybeGrantHeroRobbed } = await import("./board-feats.server");
     await maybeGrantScoreTrend(sql, userId, day.day);

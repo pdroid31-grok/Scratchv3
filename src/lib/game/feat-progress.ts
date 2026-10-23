@@ -1,5 +1,5 @@
 import { dailyYesterday } from "./daily";
-import { stampDayGap } from "./avatars";
+import { RIDE_OR_DIE_NEED, stampDayGap } from "./avatars";
 
 /** Consecutive done days ending today, or yesterday if today is not in yet. A missing day is 0. */
 export function currentCalendarRun(days: readonly string[], today: string): number {
@@ -311,6 +311,41 @@ export function jackpotLine(rows: readonly { day: string; score: number }[]): st
     .sort((a, b) => b[1] - a[1] || a[0] - b[0]);
   if (!hits.length) return "—";
   return hits.map(([hit]) => (hit / 10).toFixed(1)).join(", ");
+}
+
+/** Player slug and NFL season from a Daily pick id. e:2016:QB:drew-brees -> drew-brees, 2016. */
+export function rideOrDieKey(id: string): { slug: string; season: string } | null {
+  const parts = String(id ?? "").split(":");
+  if (parts.length < 2) return null;
+  const slug = parts[parts.length - 1].trim().toLowerCase();
+  const season = parts.map((part) => part.trim()).find((part) => /^\d{4}$/.test(part)) ?? "";
+  if (!slug || !season) return null;
+  return { slug, season };
+}
+
+/** Distinct NFL seasons per player slug. Highest count first. */
+export function rideOrDieCounts(ids: readonly string[]): { slug: string; n: number }[] {
+  const seasons = new Map<string, Set<string>>();
+  for (const id of ids) {
+    const key = rideOrDieKey(id);
+    if (!key) continue;
+    const held = seasons.get(key.slug) ?? new Set<string>();
+    held.add(key.season);
+    seasons.set(key.slug, held);
+  }
+  return [...seasons.entries()]
+    .map(([slug, held]) => ({ slug, n: held.size }))
+    .sort((a, b) => b.n - a.n || a.slug.localeCompare(b.slug));
+}
+
+export function rideOrDieLine(ids: readonly string[]): string {
+  const top = rideOrDieCounts(ids).slice(0, 3);
+  if (!top.length) return "—";
+  return top.map((row) => `${row.slug} ${row.n}`).join(", ");
+}
+
+export function rideOrDieHit(ids: readonly string[]): boolean {
+  return rideOrDieCounts(ids).some((row) => row.n >= RIDE_OR_DIE_NEED);
 }
 
 export function closestTenth(scores: readonly number[]): number | null {

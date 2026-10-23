@@ -29,7 +29,7 @@ import { EASY_DOLLAR_LINE, EASY_DOLLAR_NEED } from "./avatars/money";
 import { RAINY_DAY_FROM, consistentWeekRows } from "./board-feats/place-daily";
 import { asTime } from "./board-feats/place-weekly";
 import { skipBoardRow } from "./board-feats/grant";
-import { dailyScoreRows, fanTeams, score1234Scores, sundialLockTimes } from "./board-feats/track";
+import { dailyScoreRows, fanTeams, rideOrDieIds, score1234Scores, sundialLockTimes } from "./board-feats/track";
 import { dailyDayStamp, dailyYesterday } from "./daily";
 import { clipGm } from "./stats-shared";
 import {
@@ -52,6 +52,7 @@ import {
   score1234Line,
   almostLine,
   jackpotLine,
+  rideOrDieLine,
   finishPlace,
   weekSunday,
   ymdAdd,
@@ -231,5 +232,6 @@ export async function loadFeatProgress(sql: Sql, userId: string): Promise<FeatPr
     score1234: score1234Line(await score1234Scores(sql, userId)),
     almost: almostLine(dailyScores.map((row) => row.score)),
     jackpot: jackpotLine(dailyScores),
+    rideordie: rideOrDieLine(await rideOrDieIds(sql, userId)),
   };
 }

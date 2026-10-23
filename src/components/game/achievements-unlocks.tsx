@@ -54,6 +54,7 @@ const SHEET_ORDER = [
   "score1234",
   "almost",
   "jackpot",
+  "rideordie",
   "doubledonut",
   "tripledonut",
   "quaddonut",
@@ -67,6 +68,7 @@ const SHEET_ORDER = [
   "triplepoint",
   "flash",
   "ironboot",
+  "conflictofinterest",
   "doubletrouble",
   "overhead",
   "mirror",
@@ -118,6 +120,7 @@ const PROGRESS_IDS = new Set<string>([
   "score1234",
   "almost",
   "jackpot",
+  "rideordie",
 ]);
 
 const OWNED_BOTTOM_KEY = "dks-achievements-owned-bottom";

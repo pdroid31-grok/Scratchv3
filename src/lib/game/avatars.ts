@@ -116,6 +116,7 @@ export const AVATARS = [
   { id: "flash", name: "Flash", src: "/avatars/flash.jpg?v=1" },
   { id: "thrifty", name: "Thrifty", src: "/avatars/thrifty.jpg?v=1" },
   { id: "ironboot", name: "Iron Boot", src: "/avatars/ironboot.jpg?v=1" },
+  { id: "conflictofinterest", name: "Conflict of Interest", src: "/avatars/conflictofinterest.jpg?v=1" },
   { id: "overhead", name: "Overhead", src: "/avatars/overhead.jpg?v=1" },
   { id: "mirror", name: "Mirror", src: "/avatars/mirror.jpg?v=1" },
   { id: "twin", name: "Twin", src: "/avatars/twin.jpg?v=1" },
@@ -159,6 +160,7 @@ export const AVATARS = [
   { id: "score1234", name: "1234", src: "/avatars/score1234.jpg?v=1" },
   { id: "almost", name: "Almost", src: "/avatars/almost.jpg?v=1" },
   { id: "jackpot", name: "Jackpot", src: "/avatars/jackpot.jpg?v=1" },
+  { id: "rideordie", name: "Ride or Die", src: "/avatars/rideordie.jpg?v=1" },
   { id: "triplepoint", name: "TriplePoint", src: "/avatars/triplepoint.jpg?v=1" },
 ] as const;
 
@@ -270,6 +272,8 @@ export const THRIFTY_ID = "thrifty" as const satisfies AvatarId;
 
 export const IRON_BOOT_ID = "ironboot" as const satisfies AvatarId;
 
+export const CONFLICT_OF_INTEREST_ID = "conflictofinterest" as const satisfies AvatarId;
+
 export const OVERHEAD_ID = "overhead" as const satisfies AvatarId;
 
 export const MIRROR_ID = "mirror" as const satisfies AvatarId;
@@ -358,9 +362,13 @@ export const ALMOST_ID = "almost" as const satisfies AvatarId;
 
 export const JACKPOT_ID = "jackpot" as const satisfies AvatarId;
 
+export const RIDE_OR_DIE_ID = "rideordie" as const satisfies AvatarId;
+
 export const TRIPLEPOINT_ID = "triplepoint" as const satisfies AvatarId;
 
 export const JACKPOT_DAYS = 3;
+
+export const RIDE_OR_DIE_NEED = 5;
 
 export const TRIPLEPOINT_NEED = 3;
 
@@ -496,6 +504,7 @@ export const FEAT_IDS = new Set<string>([
   FLASH_ID,
   THRIFTY_ID,
   IRON_BOOT_ID,
+  CONFLICT_OF_INTEREST_ID,
   OVERHEAD_ID,
   MIRROR_ID,
   TWIN_ID,
@@ -533,6 +542,7 @@ export const FEAT_IDS = new Set<string>([
   SCORE_1234_ID,
   ALMOST_ID,
   JACKPOT_ID,
+  RIDE_OR_DIE_ID,
   TRIPLEPOINT_ID,
 ]);
 
@@ -571,6 +581,7 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: FLASH_ID, how: "First to 100.0 in a live Weekly." },
   { id: THRIFTY_ID, how: "Win a Daily or Weekly spending $30 or less." },
   { id: IRON_BOOT_ID, how: "Defense + Kicker score 40+ combined in one Weekly." },
+  { id: CONFLICT_OF_INTEREST_ID, how: "Your Weekly QB's team is the team your Defense is playing." },
   { id: OVERHEAD_ID, how: "Score 150+ in Daily, then get passed." },
   { id: MIRROR_ID, how: "Post the same lineup as another player." },
   { id: TWIN_ID, how: "Same score as another player with a different lineup." },
@@ -610,6 +621,7 @@ export const ACHIEVEMENT_UNLOCKS = [
   { id: SCORE_1234_ID, how: "Score exactly 123.4 on a Daily or a Weekly." },
   { id: ALMOST_ID, how: "Score 99.9 on a Daily." },
   { id: JACKPOT_ID, how: "Post the same Daily score on three different days." },
+  { id: RIDE_OR_DIE_ID, how: "One player on your finished Dailys across 5 different NFL seasons." },
   { id: TRIPLEPOINT_ID, how: "Three players have the same avatar equipped." },
 ] as const satisfies readonly { id: AvatarId; how: string }[];
 
